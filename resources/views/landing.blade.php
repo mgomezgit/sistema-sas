@@ -663,7 +663,7 @@
                 organiza tus reservas desde cualquier dispositivo.
             </p>
             <div class="d-flex flex-wrap gap-3 justify-content-center">
-                <a href="{{ url('login') }}" class="btn-accent">
+                <a href="{{ url('registro') }}" class="btn-accent">
                     <i class="bi bi-rocket-takeoff"></i> Empieza gratis
                 </a>
                 <a href="#caracteristicas" class="btn-linea">
@@ -782,7 +782,7 @@
                 <p class="subtitulo-seccion mb-4">
                     Menos tiempo cuadrando horarios, más tiempo con tus clientes.
                 </p>
-                <a href="{{ url('login') }}" class="btn-accent">
+                <a href="{{ url('registro') }}" class="btn-accent">
                     <i class="bi bi-arrow-right-circle"></i> Comenzar ahora
                 </a>
             </div>
@@ -887,7 +887,7 @@
                 </div>
 
                 <div class="d-flex flex-wrap gap-3 justify-content-center mt-4 pt-3" style="border-top: 1px solid var(--border);">
-                    <a href="{{ url('login') }}" class="btn-accent">
+                    <a href="{{ url('registro') }}" class="btn-accent">
                         <i class="bi bi-rocket-takeoff"></i> Empezar gratis
                     </a>
                     <button type="button" class="btn-deshabilitado" disabled

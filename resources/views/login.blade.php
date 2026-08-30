@@ -311,6 +311,19 @@
     <script src="{{ asset('js/utilidades.js') }}"></script>
 
     <script>
+        // Aviso de bienvenida cuando se llega desde el registro público.
+        @if (request()->query('registrado') == '1')
+            Swal.fire({
+                title: 'Cuenta creada correctamente',
+                text: 'Inicia sesión para continuar.',
+                icon: 'success',
+                background: '#17171c',
+                color: '#f4f4f5',
+                confirmButtonColor: '#e11d2e',
+                confirmButtonText: 'Entendido'
+            });
+        @endif
+
         jQuery("#btn-ingresar").on("click", function () {
             var $boton = jQuery(this);
             var textoOriginal = $boton.html();

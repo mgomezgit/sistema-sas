@@ -4,6 +4,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [App\Http\Controllers\LandingController::class, 'index']);
 Route::get('/login', [App\Http\Controllers\AutenticacionController::class, 'mostrarLogin']);
+Route::get('registro', [App\Http\Controllers\RegistroPublicoViewController::class, 'mostrar']);
+
+// Alta autoservicio: pública, sin middleware de sesión ni restricción de rol.
+Route::post('request/registro-publico/crear', [App\Http\Controllers\Request\RegistroPublicoController::class, 'crear']);
 
 Route::prefix('request')->group(function () {
     Route::post('autenticacion/login', [App\Http\Controllers\AutenticacionController::class, 'validarLogin']);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Empleado;
+use App\Models\Negocio;
 use App\Service\SvcUsuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -57,6 +58,25 @@ class AutenticacionController extends Controller
                 'id_empleado' => $idEmpleado ?: null,
                 'app_sesion' => 'xLXAiX0fFTjLKEiJam7X57',
             ]);
+
+            // El rubro del negocio define el tema visual del backoffice, y su
+            // nombre se muestra en el sidebar. El super admin no pertenece a
+            // ningún negocio, así que ambos quedan en null.
+            if (session('tenant_id') !== null) {
+                $negocio = Negocio::where('id_negocio', session('tenant_id'))
+                    ->select('rubro', 'nombre_negocio')
+                    ->first();
+
+                session([
+                    'rubro_negocio' => $negocio->rubro ?? null,
+                    'nombre_negocio_sesion' => $negocio->nombre_negocio ?? null,
+                ]);
+            } else {
+                session([
+                    'rubro_negocio' => null,
+                    'nombre_negocio_sesion' => null,
+                ]);
+            }
 
             $this->respSinError();
         } else {

@@ -37,6 +37,71 @@
             --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);
             --shadow-glow: 0 0 0 1px var(--accent-soft), 0 4px 20px var(--accent-glow);
             --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Variables de apoyo para que el tema por rubro pueda invertirse
+               completo (claro/oscuro) sin dejar colores fijos sueltos. */
+            --text-sobre-accent: #ffffff;
+            --text-sidebar: var(--text-secondary);
+            --stripe-fila: rgba(255, 255, 255, 0.02);
+            --overlay-loader: rgba(10, 10, 13, 0.75);
+        }
+
+        /* ============================================================
+           TEMA POR RUBRO
+           El :root de arriba es el tema "plataforma" (negro/rojo), que se
+           usa por defecto y para el super admin. Cada rubro redefine las
+           mismas variables; ninguna vista necesita cambios.
+
+           Para agregar un nuevo rubro (ej. hotel, finca), crea un bloque
+           body.tema-hotel { ... } con el mismo patrón de variables, y ajusta
+           la clase dinámica del body arriba para incluir ese caso. No se
+           requiere tocar ninguna otra vista.
+           ============================================================ */
+
+        /* --- Spa: claro, pastel y oro rosa --- */
+        body.tema-spa {
+            --bg-body: #fdf7f5;
+            --bg-sidebar: #f7e9e6;
+            --bg-card: #ffffff;
+            --bg-card-hover: #fbf1ee;
+            --bg-input: #fdfbfa;
+            --border-color: #efdcd7;
+            --border-color-strong: #ddbfb8;
+            --accent: #b76e79;
+            --accent-hover: #9c5763;
+            --accent-soft: rgba(183, 110, 121, 0.13);
+            --accent-glow: rgba(183, 110, 121, 0.22);
+            --text-primary: #4a3b38;
+            --text-secondary: #8d7570;
+            --text-muted: #b3a09b;
+            --success: #4f9d6d;
+            --success-soft: rgba(79, 157, 109, 0.14);
+            --warning: #c08a3e;
+            --warning-soft: rgba(192, 138, 62, 0.14);
+            --danger: #c2596a;
+            --danger-soft: rgba(194, 89, 106, 0.14);
+            --shadow-card: 0 1px 2px rgba(120, 80, 80, 0.06), 0 8px 24px rgba(120, 80, 80, 0.07);
+            --shadow-glow: 0 0 0 1px var(--accent-soft), 0 4px 20px var(--accent-glow);
+            /* En tema claro el sidebar es claro: el texto debe ser oscuro. */
+            --text-sidebar: #8d7570;
+            --text-sobre-accent: #ffffff;
+            --stripe-fila: rgba(183, 110, 121, 0.045);
+            --overlay-loader: rgba(253, 247, 245, 0.8);
+        }
+
+        /* El logo del sidebar y el texto activo del menú deben contrastar
+           sobre el fondo claro del tema spa. */
+        body.tema-spa #sidebar .sidebar-header span,
+        body.tema-spa .topbar-usuario .nombre-usuario,
+        body.tema-spa #topbar h1 {
+            color: var(--text-primary);
+        }
+
+        body.tema-spa .menu-item {
+            color: var(--text-sidebar);
+        }
+
+        body.tema-spa .btn-close {
+            filter: none;
         }
 
         * {
@@ -200,7 +265,7 @@
         .btn-primario-accento {
             background-color: var(--accent);
             border: 1px solid var(--accent);
-            color: #fff;
+            color: var(--text-sobre-accent);
             border-radius: var(--radius-sm);
             font-weight: 600;
             padding: 0.55rem 1.15rem;
@@ -213,7 +278,7 @@
         .btn-primario-accento:hover {
             background-color: var(--accent-hover);
             border-color: var(--accent-hover);
-            color: #fff;
+            color: var(--text-sobre-accent);
             transform: translateY(-1px);
         }
 
@@ -299,7 +364,7 @@
 
         .btn-outline-primary:hover {
             background-color: var(--accent);
-            color: #fff;
+            color: var(--text-sobre-accent);
         }
 
         .btn-outline-danger {
@@ -309,7 +374,7 @@
 
         .btn-outline-danger:hover {
             background-color: var(--danger);
-            color: #fff;
+            color: var(--text-sobre-accent);
         }
 
         .table {
@@ -325,7 +390,7 @@
         }
 
         .table-striped > tbody > tr:nth-of-type(odd) > * {
-            background-color: rgba(255, 255, 255, 0.02);
+            background-color: var(--stripe-fila);
             color: var(--text-primary);
         }
 
@@ -399,6 +464,43 @@
             border-color: transparent !important;
         }
 
+        /* DataTables con Bootstrap 5 pinta la paginación como .page-link, no como
+           .paginate_button: sin estas reglas queda el azul por defecto de Bootstrap
+           y rompe el tema. */
+        .dataTables_wrapper .page-link,
+        .pagination .page-link {
+            background-color: transparent;
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+            transition: var(--transition-base);
+        }
+
+        .dataTables_wrapper .page-link:hover,
+        .pagination .page-link:hover {
+            background-color: var(--accent-soft);
+            border-color: var(--border-color);
+            color: var(--accent);
+        }
+
+        .dataTables_wrapper .page-item.active .page-link,
+        .pagination .page-item.active .page-link {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: var(--text-sobre-accent);
+        }
+
+        .dataTables_wrapper .page-item.disabled .page-link,
+        .pagination .page-item.disabled .page-link {
+            background-color: transparent;
+            border-color: var(--border-color);
+            color: var(--text-muted);
+        }
+
+        .dataTables_wrapper .page-link:focus,
+        .pagination .page-link:focus {
+            box-shadow: 0 0 0 0.2rem var(--accent-soft);
+        }
+
         .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
             color: var(--text-muted) !important;
         }
@@ -409,7 +511,7 @@
 
         table.dataTable.stripe tbody tr.odd > *,
         table.dataTable.display tbody tr.odd > * {
-            background-color: rgba(255, 255, 255, 0.02);
+            background-color: var(--stripe-fila);
         }
 
         /* ---------- Sidebar ---------- */
@@ -450,6 +552,15 @@
             font-weight: 600;
             font-size: 1rem;
             letter-spacing: 0.2px;
+        }
+
+        /* El nombre del negocio puede ser largo: se recorta con puntos
+           suspensivos para no romper el ancho del sidebar. */
+        #sidebar .sidebar-header .nombre-marca {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
         }
 
         #menu-lateral {
@@ -567,7 +678,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(10, 10, 13, 0.75);
+            background-color: var(--overlay-loader);
             z-index: 2000;
             align-items: center;
             justify-content: center;
@@ -591,7 +702,7 @@
 
     @yield('estilos')
 </head>
-<body>
+<body class="tema-{{ session('rubro_negocio') === 'spa' ? 'spa' : 'plataforma' }}">
 
     <div id="loader_proceso">
         <div class="spinner-border" role="status" style="width: 3rem; height: 3rem; color: var(--accent);">
@@ -602,7 +713,9 @@
     <aside id="sidebar">
         <div class="sidebar-header">
             <span class="logo-dot"></span>
-            <span>Plataforma Reservas</span>
+            <span class="nombre-marca" title="{{ session('nombre_negocio_sesion') ?? 'Plataforma Reservas' }}">
+                {{ session('nombre_negocio_sesion') ?? 'Plataforma Reservas' }}
+            </span>
         </div>
         <nav id="menu-lateral">
             <a href="{{ url('backoffice/dashboard') }}" class="menu-item @if (request()->is('backoffice/dashboard')) active @endif">

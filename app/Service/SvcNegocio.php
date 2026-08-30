@@ -23,7 +23,7 @@ class SvcNegocio
     public function listar()
     {
         try {
-            return Negocio::select('id_negocio', 'nombre_negocio', 'rubro', 'estado')
+            return Negocio::select('id_negocio', 'nombre_negocio', 'rubro', 'telefono_contacto', 'estado')
                 ->get()
                 ->toArray() ?? [];
         } catch (\Exception $e) {

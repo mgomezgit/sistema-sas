@@ -20,9 +20,12 @@
         .bento-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            grid-auto-rows: 150px;
+            /* Altura mínima que crece con el contenido: con una altura fija los
+               badges se salían de la tarjeta. */
+            grid-auto-rows: minmax(180px, auto);
             gap: 1rem;
             margin-top: 1.5rem;
+            align-items: stretch;
         }
 
         .bento-grid .tile-grande {
@@ -32,6 +35,13 @@
 
         .bento-grid .tile-pequena {
             grid-column: span 1;
+            grid-row: span 1;
+        }
+
+        /* Ocupa las dos columnas libres de la segunda fila para que el grid no
+           quede con un hueco vacío al lado de la tarjeta grande. */
+        .bento-grid .tile-media {
+            grid-column: span 2;
             grid-row: span 1;
         }
 
@@ -71,7 +81,8 @@
             }
 
             .bento-grid .tile-grande,
-            .bento-grid .tile-pequena {
+            .bento-grid .tile-pequena,
+            .bento-grid .tile-media {
                 grid-column: span 1;
                 grid-row: span 1;
                 min-height: 150px;
@@ -120,7 +131,7 @@
             </span>
         </div>
 
-        <div class="card-elevada kpi-tile tile-pequena">
+        <div class="card-elevada kpi-tile tile-media">
             <div>
                 <div class="kpi-icono"><i class="bi bi-graph-up"></i></div>
                 <div class="kpi-label">Ocupación</div>

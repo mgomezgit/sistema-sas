@@ -21,6 +21,7 @@ class Negocio extends Model
         'id_negocio',
         'nombre_negocio',
         'rubro',
+        'telefono_contacto',
         'usuario_registra',
         'fecha_registro',
         'estado',
