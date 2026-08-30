@@ -2,7 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [App\Http\Controllers\AutenticacionController::class, 'mostrarLogin']);
+Route::get('/', [App\Http\Controllers\LandingController::class, 'index']);
+Route::get('/login', [App\Http\Controllers\AutenticacionController::class, 'mostrarLogin']);
 
 Route::prefix('request')->group(function () {
     Route::post('autenticacion/login', [App\Http\Controllers\AutenticacionController::class, 'validarLogin']);

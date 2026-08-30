@@ -16,7 +16,7 @@ class VerificarSesion
     public function handle(Request $request, Closure $next): Response
     {
         if (session('app_sesion') !== self::CLAVE_SESION) {
-            return redirect(url('/'));
+            return redirect(url('/login'));
         }
 
         return $next($request);
