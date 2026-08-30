@@ -261,7 +261,7 @@
                 icon: 'warning',
                 background: 'var(--bg-card)',
                 color: 'var(--text-primary)',
-                confirmButtonColor: '#e11d2e',
+                confirmButtonColor: colorVariable('--accent'),
                 showCancelButton: true,
                 confirmButtonText: 'Sí, eliminar',
                 cancelButtonText: 'Cancelar'

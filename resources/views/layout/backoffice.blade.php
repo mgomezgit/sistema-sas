@@ -618,6 +618,18 @@
                     <i class="bi bi-person-vcard"></i>
                     <span>Clientes</span>
                 </a>
+                <a href="{{ url('backoffice/recursos') }}" class="menu-item @if (request()->is('backoffice/recursos')) active @endif">
+                    <i class="bi bi-collection"></i>
+                    <span>Recursos</span>
+                </a>
+                <a href="{{ url('backoffice/empleados') }}" class="menu-item @if (request()->is('backoffice/empleados')) active @endif">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Empleados</span>
+                </a>
+                <a href="{{ url('backoffice/reservas') }}" class="menu-item @if (request()->is('backoffice/reservas')) active @endif">
+                    <i class="bi bi-calendar-check"></i>
+                    <span>Reservas</span>
+                </a>
             @endif
             <!-- Los enlaces de cada módulo se agregan aquí a medida que se construyen -->
         </nav>
@@ -671,6 +683,13 @@
     <script src="{{ asset('js/validador.js') }}"></script>
 
     <script>
+        // Lee el valor real de una variable CSS del :root. Se usa donde una librería
+        // externa (por ejemplo SweetAlert2) no resuelve var(--nombre) por sí sola,
+        // para que los colores sigan viviendo centralizados en el :root del layout.
+        function colorVariable(nombreVariable) {
+            return getComputedStyle(document.documentElement).getPropertyValue(nombreVariable).trim();
+        }
+
         jQuery("#btn-salir").on("click", function () {
             window.location.href = UrlGlobal + "backoffice/logout";
         });
