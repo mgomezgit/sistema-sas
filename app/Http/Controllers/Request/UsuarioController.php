@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
+use App\Models\Usuario;
 use App\Service\SvcUsuario;
 use Illuminate\Http\JsonResponse;
 
@@ -50,10 +51,24 @@ class UsuarioController extends Controller
             $info['tenant_id'] = session('tenant_id');
         }
 
+        // El usuario y el correo son únicos: se avisa cuál está ocupado antes de
+        // intentar el insert, para no mostrar un error genérico.
+        if (Usuario::where('usuario', $datos['usuario'])->exists()) {
+            $this->agregarError('El usuario "'.$datos['usuario'].'" ya está en uso. Elige otro nombre de usuario, por ejemplo agregándole un número o un apellido.');
+
+            return $this->sendResponse();
+        }
+
+        if (Usuario::where('email', $datos['email'])->exists()) {
+            $this->agregarError('El correo "'.$datos['email'].'" ya está registrado en otra cuenta. Usa un correo diferente.');
+
+            return $this->sendResponse();
+        }
+
         $idUsuario = $this->svcUsuario->crear($info);
 
         if ($idUsuario === false) {
-            $this->agregarError('No fue posible crear el usuario');
+            $this->agregarErrorSistema('USR-CREAR');
 
             return $this->sendResponse();
         }
@@ -98,7 +113,7 @@ class UsuarioController extends Controller
         $resultado = $this->svcUsuario->editar($datos['id_usuario'], $info, $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible editar el usuario');
+            $this->agregarErrorNoDisponible('el usuario', 'USR-EDIT');
 
             return $this->sendResponse();
         }
@@ -125,7 +140,7 @@ class UsuarioController extends Controller
         $resultado = $this->svcUsuario->eliminar($datos['id_usuario'], $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible eliminar el usuario');
+            $this->agregarErrorNoDisponible('el usuario', 'USR-ELIM');
 
             return $this->sendResponse();
         }

@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
 use App\Models\Rol;
+use App\Models\Usuario;
 use App\Service\SvcEmpleado;
 use App\Service\SvcUsuario;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EmpleadoController extends Controller
 {
@@ -27,7 +30,7 @@ class EmpleadoController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los empleados se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los empleados se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -59,7 +62,7 @@ class EmpleadoController extends Controller
         $idEmpleado = $this->svcEmpleado->crear($info);
 
         if ($idEmpleado === false) {
-            $this->agregarError('No fue posible crear el empleado');
+            $this->agregarErrorSistema('EMP-CREAR');
 
             return $this->sendResponse();
         }
@@ -75,7 +78,7 @@ class EmpleadoController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los empleados se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los empleados se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -103,7 +106,7 @@ class EmpleadoController extends Controller
         $resultado = $this->svcEmpleado->editar($datos['id_empleado'], $info, $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible editar el empleado');
+            $this->agregarErrorNoDisponible('el empleado', 'EMP-EDIT');
 
             return $this->sendResponse();
         }
@@ -118,7 +121,7 @@ class EmpleadoController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los empleados se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los empleados se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -136,7 +139,7 @@ class EmpleadoController extends Controller
         $resultado = $this->svcEmpleado->eliminar($datos['id_empleado'], $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible eliminar el empleado');
+            $this->agregarErrorNoDisponible('el empleado', 'EMP-ELIM');
 
             return $this->sendResponse();
         }
@@ -151,7 +154,7 @@ class EmpleadoController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los empleados se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los empleados se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -167,7 +170,7 @@ class EmpleadoController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los empleados se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los empleados se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -188,7 +191,7 @@ class EmpleadoController extends Controller
         $empleado = $this->svcEmpleado->listarById($datos['id_empleado'], $tenantId);
 
         if (empty($empleado)) {
-            $this->agregarError('Empleado no encontrado');
+            $this->agregarError('No se encontró el empleado. Es posible que haya sido eliminado. Recarga la página e inténtalo de nuevo.');
 
             return $this->sendResponse();
         }
@@ -196,7 +199,27 @@ class EmpleadoController extends Controller
         $idRol = Rol::where('nombre_rol', 'empleado')->value('id_rol');
 
         if (! $idRol) {
-            $this->agregarError('No existe el rol "empleado" configurado en el sistema');
+            $this->agregarErrorSistema('EMP-SIN-ROL');
+
+            return $this->sendResponse();
+        }
+
+        if (! empty($empleado[0]['id_usuario'])) {
+            $this->agregarError('Este empleado ya tiene un acceso creado. Si necesitas cambiarle la contraseña, hazlo desde el módulo de Usuarios.');
+
+            return $this->sendResponse();
+        }
+
+        // El usuario y el email son únicos en toda la tabla, así que se avisa cuál de
+        // los dos está ocupado antes de intentar el insert y caer en un error genérico.
+        if (Usuario::where('usuario', $datos['usuario'])->exists()) {
+            $this->agregarError('El usuario "'.$datos['usuario'].'" ya está en uso. Elige otro nombre de usuario, por ejemplo agregándole un número o un apellido.');
+
+            return $this->sendResponse();
+        }
+
+        if (Usuario::where('email', $datos['email'])->exists()) {
+            $this->agregarError('El correo "'.$datos['email'].'" ya está registrado en otra cuenta. Usa un correo diferente para este empleado.');
 
             return $this->sendResponse();
         }
@@ -213,18 +236,27 @@ class EmpleadoController extends Controller
             'estado' => 1,
         ];
 
-        $idUsuarioCreado = $this->svcUsuario->crear($datosUsuario);
+        // Crear el usuario y vincularlo van juntos: si la vinculación falla, no debe
+        // quedar un usuario suelto sin empleado asociado.
+        try {
+            $idUsuarioCreado = DB::transaction(function () use ($datosUsuario, $datos, $tenantId) {
+                $idUsuario = $this->svcUsuario->crear($datosUsuario);
 
-        if ($idUsuarioCreado === false) {
-            $this->agregarError('No fue posible crear el acceso del empleado');
+                if ($idUsuario === false) {
+                    throw new \RuntimeException('EMP-ACCESO-CREAR');
+                }
 
-            return $this->sendResponse();
-        }
+                $vinculado = $this->svcEmpleado->vincularUsuario($datos['id_empleado'], $idUsuario, $tenantId);
 
-        $vinculado = $this->svcEmpleado->vincularUsuario($datos['id_empleado'], $idUsuarioCreado, $tenantId);
+                if (! $vinculado) {
+                    throw new \RuntimeException('EMP-ACCESO-VINCULAR');
+                }
 
-        if (! $vinculado) {
-            $this->agregarError('El usuario se creó pero no fue posible vincularlo al empleado');
+                return $idUsuario;
+            });
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+            $this->agregarErrorSistema($e->getMessage());
 
             return $this->sendResponse();
         }

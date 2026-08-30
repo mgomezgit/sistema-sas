@@ -24,4 +24,17 @@ class Rol extends Model
         'fecha_registro',
         'estado',
     ];
+
+    /**
+     * Indica si el rol recibido corresponde al rol "empleado". Centraliza la
+     * comparación para no repartir comparaciones de id_rol por los controllers.
+     */
+    public static function esRolEmpleado($idRol): bool
+    {
+        if (empty($idRol)) {
+            return false;
+        }
+
+        return self::where('id_rol', $idRol)->value('nombre_rol') === 'empleado';
+    }
 }

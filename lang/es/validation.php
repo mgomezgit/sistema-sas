@@ -200,6 +200,34 @@ return [
     |
     */
 
-    'attributes' => [],
+    'attributes' => [
+        'nombre' => 'nombre',
+        'nombre_negocio' => 'nombre del negocio',
+        'telefono' => 'teléfono',
+        'email' => 'correo electrónico',
+        'clave' => 'contraseña',
+        'usuario' => 'usuario',
+        'documento_identidad' => 'documento de identidad',
+        'fecha_nacimiento' => 'fecha de nacimiento',
+        'notas' => 'notas',
+        'cargo' => 'cargo',
+        'porcentaje_comision' => 'porcentaje de comisión',
+        'categoria' => 'categoría',
+        'descripcion' => 'descripción',
+        'duracion_minutos' => 'duración',
+        'precio' => 'precio',
+        'capacidad' => 'capacidad',
+        'fecha_reserva' => 'fecha de la reserva',
+        'hora_inicio' => 'hora de inicio',
+        'hora_fin' => 'hora de fin',
+        'estado_reserva' => 'estado de la reserva',
+        'tenant_id' => 'negocio',
+        'id_rol' => 'rol',
+        'id_cliente' => 'cliente',
+        'id_recurso' => 'servicio',
+        'id_empleado' => 'empleado',
+        'id_usuario' => 'usuario',
+        'id_reserva' => 'reserva',
+    ],
 
 ];

@@ -23,9 +23,17 @@ class SvcReserva
     public function editar($id, $info, $tenantId): bool
     {
         try {
-            return (bool) Reserva::where('id_reserva', $id)
-                ->where('tenant_id', $tenantId)
-                ->update($info);
+            $query = Reserva::where('id_reserva', $id)->where('tenant_id', $tenantId);
+
+            // Si el registro no existe (o es de otro negocio) sí es un fallo real. En
+            // cambio, guardar sin cambiar ningún valor afecta 0 filas y es un caso válido.
+            if (! $query->exists()) {
+                return false;
+            }
+
+            $query->update($info);
+
+            return true;
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
@@ -36,9 +44,15 @@ class SvcReserva
     public function cambiarEstado($id, $estadoReserva, $tenantId): bool
     {
         try {
-            return (bool) Reserva::where('id_reserva', $id)
-                ->where('tenant_id', $tenantId)
-                ->update(['estado_reserva' => $estadoReserva]);
+            $query = Reserva::where('id_reserva', $id)->where('tenant_id', $tenantId);
+
+            if (! $query->exists()) {
+                return false;
+            }
+
+            $query->update(['estado_reserva' => $estadoReserva]);
+
+            return true;
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
@@ -49,9 +63,15 @@ class SvcReserva
     public function eliminar($id, $tenantId): bool
     {
         try {
-            return (bool) Reserva::where('id_reserva', $id)
-                ->where('tenant_id', $tenantId)
-                ->update(['estado' => 0]);
+            $query = Reserva::where('id_reserva', $id)->where('tenant_id', $tenantId);
+
+            if (! $query->exists()) {
+                return false;
+            }
+
+            $query->update(['estado' => 0]);
+
+            return true;
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
@@ -122,6 +142,43 @@ class SvcReserva
                 )
                 ->where('r.id_reserva', $id)
                 ->where('r.tenant_id', $tenantId)
+                ->get()
+                ->toArray() ?? [];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
+    public function listarPorEmpleado($idEmpleado, $tenantId, $fecha)
+    {
+        try {
+            return Reserva::from('reservas as r')
+                ->join('clientes as c', 'c.id_cliente', '=', 'r.id_cliente')
+                ->join('recursos_reservables as rec', 'rec.id_recurso', '=', 'r.id_recurso')
+                ->leftJoin('empleados as e', 'e.id_empleado', '=', 'r.id_empleado')
+                ->select(
+                    'r.id_reserva',
+                    'r.id_cliente',
+                    'r.id_recurso',
+                    'r.id_empleado',
+                    'r.fecha_reserva',
+                    'r.hora_inicio',
+                    'r.hora_fin',
+                    'r.estado_reserva',
+                    'r.notas',
+                    'c.nombre as nombre_cliente',
+                    'c.telefono as telefono_cliente',
+                    'rec.nombre as nombre_recurso',
+                    'rec.duracion_minutos',
+                    'e.nombre as nombre_empleado'
+                )
+                ->where('r.id_empleado', $idEmpleado)
+                ->where('r.tenant_id', $tenantId)
+                ->where('r.fecha_reserva', $fecha)
+                ->where('r.estado', 1)
+                ->orderBy('r.hora_inicio')
                 ->get()
                 ->toArray() ?? [];
         } catch (\Exception $e) {

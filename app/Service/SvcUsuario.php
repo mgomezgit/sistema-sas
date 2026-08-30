@@ -40,7 +40,15 @@ class SvcUsuario
                 $query->where('tenant_id', $tenantId);
             }
 
-            return (bool) $query->update($info);
+            // Si el registro no existe (o es de otro negocio) sí es un fallo real. En
+            // cambio, guardar sin cambiar ningún valor afecta 0 filas y es un caso válido.
+            if (! $query->exists()) {
+                return false;
+            }
+
+            $query->update($info);
+
+            return true;
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
@@ -57,7 +65,13 @@ class SvcUsuario
                 $query->where('tenant_id', $tenantId);
             }
 
-            return (bool) $query->update(['estado' => 0]);
+            if (! $query->exists()) {
+                return false;
+            }
+
+            $query->update(['estado' => 0]);
+
+            return true;
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 

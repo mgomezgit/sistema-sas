@@ -22,7 +22,7 @@ class RecursoReservableController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los recursos reservables se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los servicios se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -55,7 +55,7 @@ class RecursoReservableController extends Controller
         $idRecurso = $this->svcRecursoReservable->crear($info);
 
         if ($idRecurso === false) {
-            $this->agregarError('No fue posible crear el recurso reservable');
+            $this->agregarErrorSistema('REC-CREAR');
 
             return $this->sendResponse();
         }
@@ -71,7 +71,7 @@ class RecursoReservableController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los recursos reservables se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los servicios se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -101,7 +101,7 @@ class RecursoReservableController extends Controller
         $resultado = $this->svcRecursoReservable->editar($datos['id_recurso'], $info, $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible editar el recurso reservable');
+            $this->agregarErrorNoDisponible('el servicio', 'REC-EDIT');
 
             return $this->sendResponse();
         }
@@ -116,7 +116,7 @@ class RecursoReservableController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los recursos reservables se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los servicios se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -134,7 +134,7 @@ class RecursoReservableController extends Controller
         $resultado = $this->svcRecursoReservable->eliminar($datos['id_recurso'], $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible eliminar el recurso reservable');
+            $this->agregarErrorNoDisponible('el servicio', 'REC-ELIM');
 
             return $this->sendResponse();
         }
@@ -149,7 +149,7 @@ class RecursoReservableController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los recursos reservables se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los servicios se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }

@@ -54,7 +54,13 @@ const axiosSipleInterno = async (metodo = "GET", url, parametros = {}, cuerpo = 
         return respuesta.data;
     } catch (error) {
         MostrarLoader ? Ocultarloader() : null;
-        await notificarUsuario('Fallas en el servidor, intente nuevamente');
+        var mensajeFalla = 'No pudimos comunicarnos con el servidor. Revisa tu conexión a internet e inténtalo de nuevo. Si el problema continúa, comunícate con soporte e indica este código: CONEXION';
+
+        if (error && error.response && error.response.status) {
+            mensajeFalla = 'Ocurrió un problema técnico y la acción no se completó. Vuelve a intentarlo en unos segundos. Si el problema continúa, comunícate con soporte e indica este código: HTTP-' + error.response.status;
+        }
+
+        await notificarUsuario(mensajeFalla, 'error');
         return false;
     }
 };

@@ -22,7 +22,7 @@ class ClienteController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los clientes se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los clientes se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -54,7 +54,7 @@ class ClienteController extends Controller
         $idCliente = $this->svcCliente->crear($info);
 
         if ($idCliente === false) {
-            $this->agregarError('No fue posible crear el cliente');
+            $this->agregarErrorSistema('CLI-CREAR');
 
             return $this->sendResponse();
         }
@@ -70,7 +70,7 @@ class ClienteController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los clientes se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los clientes se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -99,7 +99,7 @@ class ClienteController extends Controller
         $resultado = $this->svcCliente->editar($datos['id_cliente'], $info, $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible editar el cliente');
+            $this->agregarErrorNoDisponible('el cliente', 'CLI-EDIT');
 
             return $this->sendResponse();
         }
@@ -114,7 +114,7 @@ class ClienteController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los clientes se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los clientes se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -132,7 +132,7 @@ class ClienteController extends Controller
         $resultado = $this->svcCliente->eliminar($datos['id_cliente'], $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible eliminar el cliente');
+            $this->agregarErrorNoDisponible('el cliente', 'CLI-ELIM');
 
             return $this->sendResponse();
         }
@@ -147,7 +147,7 @@ class ClienteController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Los clientes se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Los clientes se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }

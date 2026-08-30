@@ -132,13 +132,23 @@
         </div>
 
         <div class="card-elevada tile-ancha">
-            <div class="texto-onboarding">
-                <h3>Empieza por organizar tu equipo</h3>
-                <p>Este panel se irá llenando con métricas e indicadores a medida que se construyan los módulos de reservas, clientes y caja. Mientras tanto, administra los usuarios de tu negocio.</p>
-            </div>
-            <a href="{{ url('backoffice/usuarios') }}" class="btn-primario-accento text-decoration-none">
-                <i class="bi bi-people"></i> Ir a Usuarios
-            </a>
+            @if (\App\Models\Rol::esRolEmpleado(session('id_rol')))
+                <div class="texto-onboarding">
+                    <h3>Consulta tu agenda del día</h3>
+                    <p>Este panel se irá llenando con métricas e indicadores a medida que se construyan los módulos. Mientras tanto, revisa las citas que tienes asignadas.</p>
+                </div>
+                <a href="{{ url('backoffice/mis-citas') }}" class="btn-primario-accento text-decoration-none">
+                    <i class="bi bi-calendar2-check"></i> Ir a Mis Citas
+                </a>
+            @else
+                <div class="texto-onboarding">
+                    <h3>Empieza por organizar tu equipo</h3>
+                    <p>Este panel se irá llenando con métricas e indicadores a medida que se construyan los módulos de reservas, clientes y caja. Mientras tanto, administra los usuarios de tu negocio.</p>
+                </div>
+                <a href="{{ url('backoffice/usuarios') }}" class="btn-primario-accento text-decoration-none">
+                    <i class="bi bi-people"></i> Ir a Usuarios
+                </a>
+            @endif
         </div>
     </div>
 @endsection

@@ -16,6 +16,9 @@ class ReservaController extends Controller
 
     const ESTADOS_VALIDOS = ['pendiente', 'confirmada', 'completada', 'cancelada'];
 
+    // Estados que un empleado puede aplicar sobre sus propias citas.
+    const ESTADOS_EMPLEADO = ['confirmada', 'completada'];
+
     public function __construct()
     {
         parent::__construct();
@@ -29,7 +32,7 @@ class ReservaController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -50,7 +53,7 @@ class ReservaController extends Controller
         $recurso = $this->svcRecursoReservable->listarById($datos['id_recurso'], $tenantId);
 
         if (empty($recurso)) {
-            $this->agregarError('El recurso seleccionado no existe');
+            $this->agregarError('El servicio seleccionado ya no está disponible. Actualiza la página y vuelve a elegirlo de la lista.');
 
             return $this->sendResponse();
         }
@@ -69,7 +72,7 @@ class ReservaController extends Controller
             );
 
             if (! $disponible) {
-                $this->agregarError('El empleado ya tiene una reserva en ese horario');
+                $this->agregarError('El empleado ya tiene una reserva en ese horario. Elige otra hora, otra fecha, u otro empleado disponible.');
 
                 return $this->sendResponse();
             }
@@ -93,7 +96,7 @@ class ReservaController extends Controller
         $idReserva = $this->svcReserva->crear($info);
 
         if ($idReserva === false) {
-            $this->agregarError('No fue posible crear la reserva');
+            $this->agregarErrorSistema('RES-CREAR');
 
             return $this->sendResponse();
         }
@@ -109,7 +112,7 @@ class ReservaController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -131,7 +134,7 @@ class ReservaController extends Controller
         $recurso = $this->svcRecursoReservable->listarById($datos['id_recurso'], $tenantId);
 
         if (empty($recurso)) {
-            $this->agregarError('El recurso seleccionado no existe');
+            $this->agregarError('El servicio seleccionado ya no está disponible. Actualiza la página y vuelve a elegirlo de la lista.');
 
             return $this->sendResponse();
         }
@@ -151,7 +154,7 @@ class ReservaController extends Controller
             );
 
             if (! $disponible) {
-                $this->agregarError('El empleado ya tiene una reserva en ese horario');
+                $this->agregarError('El empleado ya tiene una reserva en ese horario. Elige otra hora, otra fecha, u otro empleado disponible.');
 
                 return $this->sendResponse();
             }
@@ -170,7 +173,7 @@ class ReservaController extends Controller
         $resultado = $this->svcReserva->editar($datos['id_reserva'], $info, $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible editar la reserva');
+            $this->agregarErrorNoDisponible('la reserva', 'RES-EDIT');
 
             return $this->sendResponse();
         }
@@ -185,7 +188,7 @@ class ReservaController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -202,7 +205,7 @@ class ReservaController extends Controller
         $datos = $this->getRequestData();
 
         if (! in_array($datos['estado_reserva'], self::ESTADOS_VALIDOS, true)) {
-            $this->agregarError('Estado de reserva inválido');
+            $this->agregarError('El estado seleccionado no es válido. Elige una opción de la lista: pendiente, confirmada, completada o cancelada.');
 
             return $this->sendResponse();
         }
@@ -210,7 +213,7 @@ class ReservaController extends Controller
         $resultado = $this->svcReserva->cambiarEstado($datos['id_reserva'], $datos['estado_reserva'], $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible cambiar el estado de la reserva');
+            $this->agregarErrorNoDisponible('la reserva', 'RES-ESTADO');
 
             return $this->sendResponse();
         }
@@ -225,7 +228,7 @@ class ReservaController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -243,7 +246,7 @@ class ReservaController extends Controller
         $resultado = $this->svcReserva->eliminar($datos['id_reserva'], $tenantId);
 
         if (! $resultado) {
-            $this->agregarError('No fue posible eliminar la reserva');
+            $this->agregarErrorNoDisponible('la reserva', 'RES-ELIM');
 
             return $this->sendResponse();
         }
@@ -258,7 +261,7 @@ class ReservaController extends Controller
         $tenantId = session('tenant_id');
 
         if ($tenantId === null) {
-            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio');
+            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
 
             return $this->sendResponse();
         }
@@ -268,6 +271,83 @@ class ReservaController extends Controller
 
         $this->respSinError();
         $this->setDataResponse($this->svcReserva->listar($tenantId, $fechaInicio, $fechaFin), 'reservas');
+
+        return $this->sendResponse();
+    }
+
+    /**
+     * Agenda propia del empleado logueado. Siempre acotada a su id_empleado de
+     * sesión, nunca a un id recibido por parámetro.
+     */
+    public function misCitas(): JsonResponse
+    {
+        $idEmpleado = session('id_empleado');
+
+        if ($idEmpleado === null) {
+            $this->agregarError('Este usuario no está vinculado a ningún empleado. Comunícate con el administrador de tu negocio para que revise tu cuenta.');
+
+            return $this->sendResponse();
+        }
+
+        $fecha = $this->request->get('fecha', date('Y-m-d'));
+
+        $this->respSinError();
+        $this->setDataResponse(
+            $this->svcReserva->listarPorEmpleado($idEmpleado, session('tenant_id'), $fecha),
+            'citas'
+        );
+
+        return $this->sendResponse();
+    }
+
+    /**
+     * Cambio de estado acotado: el empleado solo puede avanzar SUS propias citas
+     * a confirmada o completada. Cancelar o devolver a pendiente es del admin.
+     */
+    public function cambiarEstadoMiCita(): JsonResponse
+    {
+        $idEmpleado = session('id_empleado');
+
+        if ($idEmpleado === null) {
+            $this->agregarError('Este usuario no está vinculado a ningún empleado. Comunícate con el administrador de tu negocio para que revise tu cuenta.');
+
+            return $this->sendResponse();
+        }
+
+        $this->setRequestValidationRules([
+            'id_reserva' => 'required',
+            'estado_reserva' => 'required',
+        ]);
+
+        if (! $this->validateRequestRules()) {
+            return $this->sendResponse();
+        }
+
+        $datos = $this->getRequestData();
+
+        $reserva = $this->svcReserva->listarById($datos['id_reserva'], session('tenant_id'));
+
+        if (empty($reserva) || $reserva[0]['id_empleado'] != $idEmpleado) {
+            $this->agregarError('No tienes permiso para modificar esta cita. Solo puedes cambiar el estado de las citas asignadas a ti.');
+
+            return $this->sendResponse();
+        }
+
+        if (! in_array($datos['estado_reserva'], self::ESTADOS_EMPLEADO, true)) {
+            $this->agregarError('Estado no permitido para este usuario. Solo puedes marcar una cita como confirmada o completada; para cancelarla, comunícate con el administrador.');
+
+            return $this->sendResponse();
+        }
+
+        $resultado = $this->svcReserva->cambiarEstado($datos['id_reserva'], $datos['estado_reserva'], session('tenant_id'));
+
+        if (! $resultado) {
+            $this->agregarErrorNoDisponible('la cita', 'RES-MICITA-ESTADO');
+
+            return $this->sendResponse();
+        }
+
+        $this->respSinError();
 
         return $this->sendResponse();
     }

@@ -6,6 +6,15 @@ Route::get('/', [App\Http\Controllers\AutenticacionController::class, 'mostrarLo
 
 Route::prefix('request')->group(function () {
     Route::post('autenticacion/login', [App\Http\Controllers\AutenticacionController::class, 'validarLogin']);
+
+    // Agenda propia del empleado: son las únicas rutas de datos que puede usar.
+    Route::get('reserva/mis-citas', [App\Http\Controllers\Request\ReservaController::class, 'misCitas']);
+    Route::post('reserva/cambiar-estado-mi-cita', [App\Http\Controllers\Request\ReservaController::class, 'cambiarEstadoMiCita']);
+});
+
+// Endpoints administrativos: cerrados para el rol "empleado", que de otro modo
+// podría consultarlos directamente aunque no vea las pantallas.
+Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     Route::post('usuario/crear', [App\Http\Controllers\Request\UsuarioController::class, 'crear']);
     Route::post('usuario/editar', [App\Http\Controllers\Request\UsuarioController::class, 'editar']);
     Route::post('usuario/eliminar', [App\Http\Controllers\Request\UsuarioController::class, 'eliminar']);
@@ -32,10 +41,13 @@ Route::prefix('request')->group(function () {
 
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('dashboard', [App\Http\Controllers\DashboardController::class, 'index']);
-    Route::get('usuarios', [App\Http\Controllers\UsuarioViewController::class, 'listar']);
-    Route::get('clientes', [App\Http\Controllers\ClienteViewController::class, 'listar']);
-    Route::get('recursos', [App\Http\Controllers\RecursoReservableViewController::class, 'listar']);
-    Route::get('empleados', [App\Http\Controllers\EmpleadoViewController::class, 'listar']);
-    Route::get('reservas', [App\Http\Controllers\ReservaViewController::class, 'listar']);
+    Route::get('mis-citas', [App\Http\Controllers\MisCitasViewController::class, 'index']);
     Route::get('logout', [App\Http\Controllers\AutenticacionController::class, 'logout']);
+
+    // Módulos administrativos: un usuario con rol "empleado" queda fuera de estos.
+    Route::get('usuarios', [App\Http\Controllers\UsuarioViewController::class, 'listar'])->middleware('restringir.empleado');
+    Route::get('clientes', [App\Http\Controllers\ClienteViewController::class, 'listar'])->middleware('restringir.empleado');
+    Route::get('recursos', [App\Http\Controllers\RecursoReservableViewController::class, 'listar'])->middleware('restringir.empleado');
+    Route::get('empleados', [App\Http\Controllers\EmpleadoViewController::class, 'listar'])->middleware('restringir.empleado');
+    Route::get('reservas', [App\Http\Controllers\ReservaViewController::class, 'listar'])->middleware('restringir.empleado');
 });

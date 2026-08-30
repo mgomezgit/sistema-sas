@@ -52,6 +52,30 @@ abstract class Controller
         $this->respuesta['mensaje'] = $mensaje;
     }
 
+    /**
+     * Error técnico: el usuario no puede resolverlo por su cuenta, así que se le
+     * entrega un código corto para que lo reporte al soporte y quede rastreable
+     * contra el log del canal "database".
+     */
+    public function agregarErrorSistema(string $codigo): void
+    {
+        $this->respuesta['mensaje'] = 'Ocurrió un problema técnico y la acción no se completó. '
+            .'Vuelve a intentarlo en unos segundos. Si el problema continúa, comunícate con soporte '
+            .'e indica este código: '.$codigo;
+    }
+
+    /**
+     * El registro ya no está disponible para este negocio (fue eliminado, o la
+     * pantalla quedó desactualizada). Es recuperable recargando.
+     */
+    public function agregarErrorNoDisponible(string $registro, string $codigo): void
+    {
+        $this->respuesta['mensaje'] = 'No se pudo completar la acción porque '.$registro.' ya no está disponible. '
+            .'Es posible que se haya eliminado, o que otra persona lo haya modificado. '
+            .'Recarga la página e inténtalo de nuevo. Si el problema continúa, comunícate con soporte '
+            .'e indica este código: '.$codigo;
+    }
+
     public function respSinError(): void
     {
         $this->respuesta['error'] = 0;

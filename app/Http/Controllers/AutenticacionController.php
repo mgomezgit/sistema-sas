@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Empleado;
 use App\Service\SvcUsuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -40,6 +41,12 @@ class AutenticacionController extends Controller
         $usuario = $this->svcUsuario->getUsuarioByEmail($datos['email']);
 
         if (! empty($usuario) && Hash::check($datos['clave'], $usuario['clave'])) {
+            // Si la cuenta corresponde a un empleado, se guarda su id en la sesión
+            // para poder filtrar "sus" citas. Un admin o super admin queda en null.
+            $idEmpleado = Empleado::where('id_usuario', $usuario['id_usuario'])
+                ->where('estado', 1)
+                ->value('id_empleado');
+
             session([
                 'id_usuario' => $usuario['id_usuario'],
                 'usuario' => $usuario['usuario'],
@@ -47,12 +54,13 @@ class AutenticacionController extends Controller
                 'email' => $usuario['email'],
                 'tenant_id' => $usuario['tenant_id'],
                 'id_rol' => $usuario['id_rol'],
+                'id_empleado' => $idEmpleado ?: null,
                 'app_sesion' => 'xLXAiX0fFTjLKEiJam7X57',
             ]);
 
             $this->respSinError();
         } else {
-            $this->agregarError('Usuario o clave equivocadas');
+            $this->agregarError('El correo o la contraseña no son correctos. Verifica los datos e inténtalo de nuevo.');
         }
 
         return $this->sendResponse();

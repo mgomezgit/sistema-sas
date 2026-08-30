@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'sesion.activa' => \App\Http\Middleware\VerificarSesion::class,
+            'restringir.empleado' => \App\Http\Middleware\RestringirEmpleado::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -609,6 +609,12 @@
                 <i class="bi bi-speedometer2"></i>
                 <span>Dashboard</span>
             </a>
+            @if (\App\Models\Rol::esRolEmpleado(session('id_rol')))
+                <a href="{{ url('backoffice/mis-citas') }}" class="menu-item @if (request()->is('backoffice/mis-citas')) active @endif">
+                    <i class="bi bi-calendar2-check"></i>
+                    <span>Mis Citas</span>
+                </a>
+            @else
             <a href="{{ url('backoffice/usuarios') }}" class="menu-item @if (request()->is('backoffice/usuarios')) active @endif">
                 <i class="bi bi-people"></i>
                 <span>Usuarios</span>
@@ -630,6 +636,7 @@
                     <i class="bi bi-calendar-check"></i>
                     <span>Reservas</span>
                 </a>
+            @endif
             @endif
             <!-- Los enlaces de cada módulo se agregan aquí a medida que se construyen -->
         </nav>

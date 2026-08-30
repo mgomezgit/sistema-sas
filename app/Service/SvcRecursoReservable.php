@@ -23,9 +23,17 @@ class SvcRecursoReservable
     public function editar($id, $info, $tenantId): bool
     {
         try {
-            return (bool) RecursoReservable::where('id_recurso', $id)
-                ->where('tenant_id', $tenantId)
-                ->update($info);
+            $query = RecursoReservable::where('id_recurso', $id)->where('tenant_id', $tenantId);
+
+            // Si el registro no existe (o es de otro negocio) sí es un fallo real. En
+            // cambio, guardar sin cambiar ningún valor afecta 0 filas y es un caso válido.
+            if (! $query->exists()) {
+                return false;
+            }
+
+            $query->update($info);
+
+            return true;
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
@@ -36,9 +44,15 @@ class SvcRecursoReservable
     public function eliminar($id, $tenantId): bool
     {
         try {
-            return (bool) RecursoReservable::where('id_recurso', $id)
-                ->where('tenant_id', $tenantId)
-                ->update(['estado' => 0]);
+            $query = RecursoReservable::where('id_recurso', $id)->where('tenant_id', $tenantId);
+
+            if (! $query->exists()) {
+                return false;
+            }
+
+            $query->update(['estado' => 0]);
+
+            return true;
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
