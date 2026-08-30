@@ -2,6 +2,23 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
+Route::get('/', [App\Http\Controllers\AutenticacionController::class, 'mostrarLogin']);
+
+Route::prefix('request')->group(function () {
+    Route::post('autenticacion/login', [App\Http\Controllers\AutenticacionController::class, 'validarLogin']);
+    Route::post('usuario/crear', [App\Http\Controllers\Request\UsuarioController::class, 'crear']);
+    Route::post('usuario/editar', [App\Http\Controllers\Request\UsuarioController::class, 'editar']);
+    Route::post('usuario/eliminar', [App\Http\Controllers\Request\UsuarioController::class, 'eliminar']);
+    Route::get('usuario/listar', [App\Http\Controllers\Request\UsuarioController::class, 'listar']);
+    Route::post('cliente/crear', [App\Http\Controllers\Request\ClienteController::class, 'crear']);
+    Route::post('cliente/editar', [App\Http\Controllers\Request\ClienteController::class, 'editar']);
+    Route::post('cliente/eliminar', [App\Http\Controllers\Request\ClienteController::class, 'eliminar']);
+    Route::get('cliente/listar', [App\Http\Controllers\Request\ClienteController::class, 'listar']);
+});
+
+Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
+    Route::get('dashboard', [App\Http\Controllers\DashboardController::class, 'index']);
+    Route::get('usuarios', [App\Http\Controllers\UsuarioViewController::class, 'listar']);
+    Route::get('clientes', [App\Http\Controllers\ClienteViewController::class, 'listar']);
+    Route::get('logout', [App\Http\Controllers\AutenticacionController::class, 'logout']);
 });
