@@ -126,7 +126,7 @@
         /* En modo claro el sidebar es claro: los textos deben invertirse a oscuro
            y la X de los modales no necesita el filtro de inversión. */
         body.modo-claro #sidebar .sidebar-header span,
-        body.modo-claro .topbar-usuario .nombre-usuario,
+        body.modo-claro .disparador-usuario .nombre-usuario,
         body.modo-claro #topbar h1 {
             color: var(--text-primary);
         }
@@ -656,14 +656,136 @@
             color: var(--text-primary);
         }
 
-        .topbar-usuario {
-            text-align: right;
+        /* ---------- Menú de usuario del topbar ---------- */
+
+        .disparador-usuario {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            background-color: transparent;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            padding: 0.35rem 0.6rem;
+            transition: var(--transition-base);
+            /* El botón no hereda el color del tema por defecto: sin esto el
+               nombre saldría en negro sobre el topbar oscuro. */
+            color: var(--text-primary);
         }
 
-        .topbar-usuario .nombre-usuario {
+        .disparador-usuario .nombre-usuario {
             color: var(--text-primary);
             font-weight: 600;
             font-size: 0.9rem;
+        }
+
+        .disparador-usuario:hover,
+        .disparador-usuario[aria-expanded="true"] {
+            background-color: var(--bg-card-hover);
+            border-color: var(--border-color);
+        }
+
+        .avatar-usuario {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background-color: var(--accent-soft);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 0.02em;
+            flex-shrink: 0;
+        }
+
+        .datos-disparador {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            line-height: 1.2;
+            min-width: 0;
+        }
+
+        .flecha-usuario {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            transition: var(--transition-base);
+        }
+
+        .disparador-usuario[aria-expanded="true"] .flecha-usuario {
+            transform: rotate(180deg);
+        }
+
+        .menu-usuario {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
+            padding: 0.4rem;
+            min-width: 250px;
+            margin-top: 0.4rem;
+        }
+
+        .encabezado-menu-usuario {
+            padding: 0.7rem 0.85rem 0.5rem;
+        }
+
+        .encabezado-menu-usuario .nombre-completo {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.92rem;
+            word-break: break-word;
+        }
+
+        .encabezado-menu-usuario .email-usuario {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+
+        .menu-usuario .dropdown-divider {
+            border-top: 1px solid var(--border-color);
+            opacity: 1;
+            margin: 0.35rem 0;
+        }
+
+        .menu-usuario .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            padding: 0.6rem 0.85rem;
+            font-size: 0.9rem;
+            transition: var(--transition-base);
+        }
+
+        .menu-usuario .dropdown-item:hover,
+        .menu-usuario .dropdown-item:focus {
+            background-color: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .menu-usuario .dropdown-item i {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .menu-usuario .dropdown-item.item-salir,
+        .menu-usuario .dropdown-item.item-salir i {
+            color: var(--danger);
+        }
+
+        .menu-usuario .dropdown-item.item-salir:hover {
+            background-color: var(--danger-soft);
+            color: var(--danger);
+        }
+
+        @media (max-width: 575.98px) {
+            .datos-disparador {
+                display: none;
+            }
         }
 
         .badge-rol-sesion {
@@ -797,22 +919,61 @@
     <div id="contenido-principal">
         <header id="topbar">
             <h1 class="h5 mb-0">@yield('title')</h1>
-            <div class="d-flex align-items-center gap-3">
-                <div class="topbar-usuario">
-                    <div class="nombre-usuario">{{ session('nombre_usuario', 'Invitado') }}</div>
-                    @if (session('tenant_id') === null)
-                        <span class="badge-rol-sesion super-admin">
-                            <i class="bi bi-shield-check"></i> Super Admin
-                        </span>
-                    @else
-                        <span class="badge-rol-sesion negocio">
-                            <i class="bi bi-building"></i> Negocio
-                        </span>
-                    @endif
-                </div>
-                <button type="button" id="btn-salir" class="btn-salir-sesion">
-                    <i class="bi bi-box-arrow-right"></i> Salir
+            @php
+                // Iniciales del usuario para el avatar (máximo dos letras).
+                $nombreSesion = session('nombre_usuario', 'Invitado');
+                $partesNombre = preg_split('/\s+/', trim($nombreSesion));
+                $inicialesUsuario = '';
+                foreach (array_slice($partesNombre, 0, 2) as $parte) {
+                    $inicialesUsuario .= mb_strtoupper(mb_substr($parte, 0, 1));
+                }
+                $inicialesUsuario = $inicialesUsuario ?: 'U';
+
+                $esAdminDeNegocio = ! \App\Models\Rol::esRolEmpleado(session('id_rol')) && session('tenant_id') !== null;
+            @endphp
+
+            <div class="dropdown">
+                <button type="button" id="btn-menu-usuario" class="disparador-usuario" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="avatar-usuario">{{ $inicialesUsuario }}</span>
+                    <span class="datos-disparador">
+                        <span class="nombre-usuario">{{ $nombreSesion }}</span>
+                        @if (session('tenant_id') === null)
+                            <span class="badge-rol-sesion super-admin">
+                                <i class="bi bi-shield-check"></i> Super Admin
+                            </span>
+                        @else
+                            <span class="badge-rol-sesion negocio">
+                                <i class="bi bi-building"></i> {{ session('nombre_negocio_sesion') ?? 'Negocio' }}
+                            </span>
+                        @endif
+                    </span>
+                    <i class="bi bi-chevron-down flecha-usuario"></i>
                 </button>
+
+                <ul class="dropdown-menu dropdown-menu-end menu-usuario" aria-labelledby="btn-menu-usuario">
+                    <li>
+                        <div class="encabezado-menu-usuario">
+                            <div class="nombre-completo">{{ $nombreSesion }}</div>
+                            <div class="email-usuario">{{ session('email') }}</div>
+                        </div>
+                    </li>
+
+                    @if ($esAdminDeNegocio)
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url('backoffice/configuracion') }}">
+                                <i class="bi bi-gear"></i> Configurar negocio
+                            </a>
+                        </li>
+                    @endif
+
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button type="button" class="dropdown-item item-salir" id="btn-salir">
+                            <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+                        </button>
+                    </li>
+                </ul>
             </div>
         </header>
 
@@ -850,7 +1011,20 @@
         }
 
         jQuery("#btn-salir").on("click", function () {
-            window.location.href = UrlGlobal + "backoffice/logout";
+            Swal.fire({
+                title: '¿Seguro que quieres cerrar sesión?',
+                icon: 'question',
+                background: colorVariable('--bg-card'),
+                color: colorVariable('--text-primary'),
+                confirmButtonColor: colorVariable('--accent'),
+                showCancelButton: true,
+                confirmButtonText: 'Sí, salir',
+                cancelButtonText: 'Cancelar'
+            }).then(function (resultado) {
+                if (resultado.isConfirmed) {
+                    window.location.href = UrlGlobal + "backoffice/logout";
+                }
+            });
         });
 
         jQuery(function () {

@@ -17,6 +17,18 @@
             text-transform: capitalize;
         }
 
+        /* El componente base reparte el contenido con space-between, lo que en la
+           tarjeta alta empujaba el badge hasta el fondo y lo dejaba a más de 200px
+           del valor, mientras en las bajas quedaba pegado. Agrupándolos arriba, el
+           bloque "valor + badge" conserva la misma alineación en todas las alturas. */
+        .bento-grid .kpi-tile {
+            justify-content: flex-start;
+        }
+
+        .bento-grid .kpi-tile .badge-proximamente {
+            margin-top: 0.85rem;
+        }
+
         .bento-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
