@@ -139,6 +139,187 @@
             filter: none;
         }
 
+        /* ---------- Confeti de celebración ---------- */
+        .particula-confeti {
+            position: fixed;
+            top: -20px;
+            z-index: 3000;
+            pointer-events: none;
+            will-change: transform, opacity;
+        }
+
+        @keyframes caidaConfeti {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--desvio-x), 105vh) rotate(var(--giro-final));
+                opacity: 0;
+            }
+        }
+
+        /* ---------- Widget de primeros pasos ---------- */
+        #widget-onboarding {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            z-index: 1050;
+            display: none;
+        }
+
+        #burbuja-onboarding {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            background-color: var(--accent);
+            color: var(--text-sobre-accent);
+            border: none;
+            border-radius: 999px;
+            padding: 0.7rem 1.15rem;
+            font-weight: 600;
+            font-size: 0.88rem;
+            box-shadow: var(--shadow-card);
+            transition: var(--transition-base);
+        }
+
+        #burbuja-onboarding:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+        }
+
+        #panel-onboarding {
+            display: none;
+            width: 330px;
+            max-width: calc(100vw - 3rem);
+            padding: 1.25rem;
+        }
+
+        #panel-onboarding.abierto {
+            display: block;
+            animation: aparecerWidget 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes aparecerWidget {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .cabecera-onboarding {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .cabecera-onboarding .titulo-onboarding {
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1rem;
+            line-height: 1.3;
+        }
+
+        .btn-cerrar-onboarding {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            line-height: 1;
+            padding: 0.1rem 0.25rem;
+            border-radius: var(--radius-sm);
+            transition: var(--transition-base);
+        }
+
+        .btn-cerrar-onboarding:hover {
+            background-color: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .subtitulo-onboarding {
+            color: var(--text-secondary);
+            font-size: 0.83rem;
+            line-height: 1.5;
+            margin-bottom: 0.9rem;
+        }
+
+        .barra-progreso-onboarding {
+            height: 7px;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .relleno-progreso-onboarding {
+            height: 100%;
+            width: 0;
+            background-color: var(--accent);
+            border-radius: 999px;
+            transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .paso-onboarding {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.87rem;
+            color: var(--text-primary);
+        }
+
+        .paso-onboarding:last-of-type {
+            border-bottom: none;
+        }
+
+        .paso-onboarding .icono-paso {
+            font-size: 1.05rem;
+            flex-shrink: 0;
+        }
+
+        .paso-onboarding.hecho .icono-paso {
+            color: var(--success);
+        }
+
+        .paso-onboarding.pendiente .icono-paso {
+            color: var(--text-muted);
+        }
+
+        .paso-onboarding.hecho .texto-paso {
+            color: var(--text-secondary);
+            text-decoration: line-through;
+        }
+
+        .paso-onboarding .texto-paso {
+            flex: 1;
+            line-height: 1.35;
+        }
+
+        .btn-ir-paso {
+            border: 1px solid var(--border-color);
+            background-color: transparent;
+            color: var(--accent);
+            border-radius: var(--radius-sm);
+            padding: 0.2rem 0.6rem;
+            font-size: 0.76rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: var(--transition-base);
+            flex-shrink: 0;
+        }
+
+        .btn-ir-paso:hover {
+            background-color: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        #contenedor-boton-final {
+            margin-top: 1rem;
+        }
+
         * {
             scrollbar-width: thin;
             scrollbar-color: var(--border-color-strong) var(--bg-body);
@@ -986,6 +1167,36 @@
         </main>
     </div>
 
+    @if (! \App\Models\Rol::esRolEmpleado(session('id_rol')) && session('tenant_id') !== null)
+        {{-- Primeros pasos: solo para el administrador de un negocio. --}}
+        <div id="widget-onboarding">
+            <div id="panel-onboarding" class="card-elevada">
+                <div class="cabecera-onboarding">
+                    <div class="titulo-onboarding">Pon en marcha tu negocio</div>
+                    <button type="button" class="btn-cerrar-onboarding" id="btn-cerrar-onboarding" aria-label="Cerrar">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <p class="subtitulo-onboarding">
+                    Cinco cosas rápidas y tu agenda queda lista para recibir clientes.
+                </p>
+
+                <div class="barra-progreso-onboarding">
+                    <div class="relleno-progreso-onboarding" id="relleno-progreso-onboarding"></div>
+                </div>
+
+                <div id="lista-pasos-onboarding"></div>
+
+                <div id="contenedor-boton-final"></div>
+            </div>
+
+            <button type="button" id="burbuja-onboarding">
+                <i class="bi bi-rocket-takeoff"></i>
+                <span id="conteo-onboarding">0/6 completados</span>
+            </button>
+        </div>
+    @endif
+
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios@1.7.7/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -1007,11 +1218,56 @@
     <script src="{{ asset('js/validador.js') }}"></script>
 
     <script>
-        // Lee el valor real de una variable CSS del :root. Se usa donde una librería
-        // externa (por ejemplo SweetAlert2) no resuelve var(--nombre) por sí sola,
-        // para que los colores sigan viviendo centralizados en el :root del layout.
+        // Lee el valor real de una variable CSS del tema. Se usa donde una librería
+        // externa (por ejemplo SweetAlert2) no resuelve var(--nombre) por sí sola.
+        //
+        // Se consulta sobre <body> y no sobre :root porque las variables de modo y
+        // acento se definen en body.modo-* / body.acento-*; leerlas desde :root
+        // devolvía siempre cadena vacía. Las pocas que sí viven en :root se
+        // resuelven igual aquí por herencia.
         function colorVariable(nombreVariable) {
-            return getComputedStyle(document.documentElement).getPropertyValue(nombreVariable).trim();
+            return getComputedStyle(document.body).getPropertyValue(nombreVariable).trim();
+        }
+
+        /**
+         * Explosión breve de confeti. Los colores salen de las variables del tema,
+         * así que la celebración sigue el acento configurado por cada negocio.
+         * Las partículas se eliminan solas al terminar su animación.
+         */
+        function dispararConfeti(cantidad) {
+            var totalParticulas = cantidad || 35;
+            var colores = [colorVariable('--accent'), colorVariable('--success'), colorVariable('--warning')];
+
+            for (var i = 0; i < totalParticulas; i++) {
+                var particula = document.createElement('div');
+                particula.className = 'particula-confeti';
+
+                var tamano = 6 + Math.random() * 4;                  // entre 6 y 10px
+                var duracion = 1.5 + Math.random() * 0.5;            // entre 1.5s y 2s
+                var desvioX = (Math.random() * 240) - 120;           // dispersión lateral
+                var giro = 360 + Math.random() * 720;                // vueltas al caer
+
+                particula.style.left = Math.random() * 100 + 'vw';
+                particula.style.width = tamano + 'px';
+                particula.style.height = tamano + 'px';
+                particula.style.backgroundColor = colores[Math.floor(Math.random() * colores.length)];
+                particula.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                particula.style.setProperty('--desvio-x', desvioX + 'px');
+                particula.style.setProperty('--giro-final', giro + 'deg');
+                particula.style.animation = 'caidaConfeti ' + duracion + 's cubic-bezier(0.25, 0.6, 0.5, 1) forwards';
+                particula.style.animationDelay = (Math.random() * 0.35) + 's';
+
+                document.body.appendChild(particula);
+
+                // Se limpia al terminar; el timeout cubre también el retraso inicial.
+                (function (elemento, milisegundos) {
+                    setTimeout(function () {
+                        if (elemento.parentNode) {
+                            elemento.parentNode.removeChild(elemento);
+                        }
+                    }, milisegundos);
+                })(particula, (duracion + 0.5) * 1000);
+            }
         }
 
         jQuery("#btn-salir").on("click", function () {
@@ -1036,6 +1292,135 @@
             listaTooltips.map(function (elemento) {
                 return new bootstrap.Tooltip(elemento);
             });
+        });
+
+        /* ================= WIDGET DE PRIMEROS PASOS ================= */
+
+        // Textos y destino de cada paso. El paso "finalizar" no se lista:
+        // se representa con el botón de cierre al completar los otros cinco.
+        var PASOS_ONBOARDING = {
+            personalizar: { texto: 'Personaliza los colores de tu panel', destino: 'backoffice/personalizar' },
+            horario: { texto: 'Define tus días y horas de atención', destino: 'backoffice/configuracion' },
+            recurso: { texto: 'Registra el primer servicio que ofreces', destino: 'backoffice/recursos' },
+            empleado: { texto: 'Suma a alguien de tu equipo', destino: 'backoffice/empleados' },
+            reserva: { texto: 'Agenda tu primera reserva', destino: 'backoffice/reservas' }
+        };
+
+        var CLAVE_PROGRESO_SESION = 'onboarding_completados';
+
+        function pintarWidgetOnboarding(onboarding) {
+            var widget = jQuery('#widget-onboarding');
+
+            // Sin widget en el DOM (empleado o super admin) no hay nada que hacer.
+            if (widget.length === 0) {
+                return;
+            }
+
+            if (!onboarding || onboarding.tour_completado === true) {
+                widget.hide();
+                return;
+            }
+
+            var pasos = onboarding.pasos || [];
+            // El paso "finalizar" no cuenta para el numerador hasta cerrar el tour.
+            var pasosVisibles = pasos.filter(function (paso) {
+                return paso.id !== 'finalizar';
+            });
+
+            var completados = pasosVisibles.filter(function (paso) {
+                return paso.completado === true;
+            }).length;
+
+            var total = pasos.length; // 6, incluyendo el cierre manual
+
+            jQuery('#conteo-onboarding').text(completados + '/' + total + ' completados');
+            jQuery('#relleno-progreso-onboarding').css('width', (completados / total * 100) + '%');
+
+            var lista = jQuery('#lista-pasos-onboarding');
+            lista.empty();
+
+            pasosVisibles.forEach(function (paso) {
+                var definicion = PASOS_ONBOARDING[paso.id];
+
+                if (!definicion) {
+                    return;
+                }
+
+                var hecho = paso.completado === true;
+                var icono = hecho ? 'bi-check-circle-fill' : 'bi-circle';
+                // Un paso ya cumplido no necesita botón para ir a hacerlo.
+                var boton = hecho
+                    ? ''
+                    : '<a href="' + UrlGlobal + definicion.destino + '" class="btn-ir-paso">Ir</a>';
+
+                lista.append(
+                    '<div class="paso-onboarding ' + (hecho ? 'hecho' : 'pendiente') + '">' +
+                    '<i class="bi ' + icono + ' icono-paso"></i>' +
+                    '<span class="texto-paso">' + definicion.texto + '</span>' +
+                    boton +
+                    '</div>'
+                );
+            });
+
+            var contenedorFinal = jQuery('#contenedor-boton-final');
+            contenedorFinal.empty();
+
+            if (completados === pasosVisibles.length && pasosVisibles.length > 0) {
+                contenedorFinal.html(
+                    '<button type="button" id="btn-finalizar-onboarding" class="btn-primario-accento w-100">' +
+                    '<i class="bi bi-stars"></i> ¡Genial, ya terminé!' +
+                    '</button>'
+                );
+            }
+
+            widget.show();
+
+            // Si se completó algún paso desde la última carga, se celebra.
+            var previos = parseInt(sessionStorage.getItem(CLAVE_PROGRESO_SESION), 10);
+
+            if (!isNaN(previos) && completados > previos) {
+                dispararConfeti(35);
+            }
+
+            sessionStorage.setItem(CLAVE_PROGRESO_SESION, completados);
+        }
+
+        function cargarProgresoOnboarding() {
+            if (jQuery('#widget-onboarding').length === 0) {
+                return;
+            }
+
+            axiosSipleInterno('GET', 'request/negocio/progreso-onboarding', {}, {}, false, function (respuesta) {
+                if (respuesta.error == 0) {
+                    pintarWidgetOnboarding(respuesta.data.onboarding);
+                }
+            });
+        }
+
+        jQuery('#burbuja-onboarding').on('click', function () {
+            jQuery('#panel-onboarding').toggleClass('abierto');
+        });
+
+        jQuery('#btn-cerrar-onboarding').on('click', function () {
+            // Solo colapsa: el widget sigue disponible en la burbuja.
+            jQuery('#panel-onboarding').removeClass('abierto');
+        });
+
+        jQuery('#contenedor-boton-final').on('click', '#btn-finalizar-onboarding', function () {
+            axiosSipleInterno('POST', 'request/negocio/completar-onboarding', {}, {}, true, function (respuesta) {
+                if (respuesta.error == 0) {
+                    dispararConfeti(70);
+                    jQuery('#panel-onboarding').removeClass('abierto');
+                    jQuery('#widget-onboarding').hide();
+                    sessionStorage.removeItem(CLAVE_PROGRESO_SESION);
+                } else {
+                    notificarUsuario(respuesta.mensaje, 'error');
+                }
+            });
+        });
+
+        jQuery(document).ready(function () {
+            cargarProgresoOnboarding();
         });
     </script>
 

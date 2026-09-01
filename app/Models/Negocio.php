@@ -27,6 +27,8 @@ class Negocio extends Model
         'dias_atencion',
         'hora_apertura',
         'hora_cierre',
+        'tema_personalizado',
+        'tour_completado',
         'usuario_registra',
         'fecha_registro',
         'estado',

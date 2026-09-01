@@ -131,6 +131,55 @@ class NegocioController extends Controller
     }
 
     /**
+     * Progreso del onboarding. A empleados y super admin se les responde
+     * "ya terminado" para que el widget simplemente no aparezca, sin que el
+     * frontend tenga que tratar un caso de error.
+     */
+    public function obtenerProgresoOnboarding(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        $this->respSinError();
+
+        if ($tenantId === null || Rol::esRolEmpleado(session('id_rol'))) {
+            $this->setDataResponse(['tour_completado' => true, 'pasos' => []], 'onboarding');
+
+            return $this->sendResponse();
+        }
+
+        $this->setDataResponse($this->svcNegocio->obtenerProgresoOnboarding($tenantId), 'onboarding');
+
+        return $this->sendResponse();
+    }
+
+    public function completarOnboarding(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        if ($tenantId === null) {
+            $this->agregarError('Los primeros pasos se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
+
+            return $this->sendResponse();
+        }
+
+        if (Rol::esRolEmpleado(session('id_rol'))) {
+            $this->agregarError('No tienes permiso para completar los primeros pasos. Pídeselo al administrador de tu negocio.');
+
+            return $this->sendResponse();
+        }
+
+        if (! $this->svcNegocio->completarOnboarding($tenantId)) {
+            $this->agregarErrorNoDisponible('el negocio', 'NEG-ONBOARDING');
+
+            return $this->sendResponse();
+        }
+
+        $this->respSinError();
+
+        return $this->sendResponse();
+    }
+
+    /**
      * Guarda el tema (modo + acento) del negocio. Aplica a todo su equipo,
      * así que solo el administrador del negocio puede cambiarlo.
      */

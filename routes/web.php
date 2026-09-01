@@ -19,6 +19,10 @@ Route::prefix('request')->group(function () {
     // Solo lectura del horario: cualquier usuario del negocio lo necesita para
     // calcular las franjas del calendario.
     Route::get('negocio/horario', [App\Http\Controllers\Request\NegocioController::class, 'obtenerHorario']);
+
+    // Devuelve una respuesta neutra a empleados y super admin (el widget
+    // simplemente no se muestra), por eso no va en el grupo restringido.
+    Route::get('negocio/progreso-onboarding', [App\Http\Controllers\Request\NegocioController::class, 'obtenerProgresoOnboarding']);
 });
 
 // Endpoints administrativos: cerrados para el rol "empleado", que de otro modo
@@ -49,6 +53,7 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     Route::post('negocio/actualizar-tema', [App\Http\Controllers\Request\NegocioController::class, 'actualizarTema']);
     Route::get('negocio/configuracion', [App\Http\Controllers\Request\NegocioController::class, 'obtenerConfiguracion']);
     Route::post('negocio/actualizar-configuracion', [App\Http\Controllers\Request\NegocioController::class, 'actualizarConfiguracion']);
+    Route::post('negocio/completar-onboarding', [App\Http\Controllers\Request\NegocioController::class, 'completarOnboarding']);
 });
 
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
