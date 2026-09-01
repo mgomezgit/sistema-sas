@@ -11,7 +11,29 @@
     <link href="https://cdn.datatables.net/buttons/2.4.3/css/buttons.bootstrap5.min.css" rel="stylesheet">
 
     <style>
+        /* ============================================================
+           Sistema de tema: 2 modos (claro/oscuro) x 7 acentos, combinables.
+           Para agregar un acento nuevo, solo se necesita un bloque
+           body.acento-nombre-nuevo {...} con esas 3 variables.
+
+           Capa 1 (MODO): fondos, textos, bordes, sombras y semánticos.
+           Capa 2 (ACENTO): únicamente el color de marca.
+           ============================================================ */
+
         :root {
+            /* Valores estructurales, iguales en todos los temas. */
+            --radius-card: 16px;
+            --radius-sm: 10px;
+            --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --text-sobre-accent: #ffffff;
+            /* Derivadas del acento: siguen automáticamente al acento activo. */
+            --accent-glow: var(--accent-soft);
+            --shadow-glow: 0 0 0 1px var(--accent-soft), 0 4px 20px var(--accent-soft);
+        }
+
+        /* ---------- Capa 1: MODO ---------- */
+
+        body.modo-oscuro {
             --bg-body: #0a0a0d;
             --bg-sidebar: #000000;
             --bg-card: #17171c;
@@ -19,60 +41,33 @@
             --bg-input: #101014;
             --border-color: #2a2a32;
             --border-color-strong: #3a3a44;
-            --accent: #e11d2e;
-            --accent-hover: #ff2e42;
-            --accent-soft: rgba(225, 29, 46, 0.12);
-            --accent-glow: rgba(225, 29, 46, 0.25);
             --text-primary: #f4f4f5;
             --text-secondary: #9a9aa5;
             --text-muted: #5c5c66;
+            --text-sidebar: #cbd5e1;
             --success: #22c55e;
             --success-soft: rgba(34, 197, 94, 0.12);
             --warning: #eab308;
             --warning-soft: rgba(234, 179, 8, 0.12);
             --danger: #e11d2e;
             --danger-soft: rgba(225, 29, 46, 0.12);
-            --radius-card: 16px;
-            --radius-sm: 10px;
             --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);
-            --shadow-glow: 0 0 0 1px var(--accent-soft), 0 4px 20px var(--accent-glow);
-            --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Variables de apoyo para que el tema por rubro pueda invertirse
-               completo (claro/oscuro) sin dejar colores fijos sueltos. */
-            --text-sobre-accent: #ffffff;
-            --text-sidebar: var(--text-secondary);
             --stripe-fila: rgba(255, 255, 255, 0.02);
             --overlay-loader: rgba(10, 10, 13, 0.75);
         }
 
-        /* ============================================================
-           TEMA POR RUBRO
-           El :root de arriba es el tema "plataforma" (negro/rojo), que se
-           usa por defecto y para el super admin. Cada rubro redefine las
-           mismas variables; ninguna vista necesita cambios.
-
-           Para agregar un nuevo rubro (ej. hotel, finca), crea un bloque
-           body.tema-hotel { ... } con el mismo patrón de variables, y ajusta
-           la clase dinámica del body arriba para incluir ese caso. No se
-           requiere tocar ninguna otra vista.
-           ============================================================ */
-
-        /* --- Spa: claro, pastel y oro rosa --- */
-        body.tema-spa {
+        body.modo-claro {
             --bg-body: #fdf7f5;
             --bg-sidebar: #f7e9e6;
             --bg-card: #ffffff;
-            --bg-card-hover: #fbf1ee;
-            --bg-input: #fdfbfa;
-            --border-color: #efdcd7;
+            --bg-card-hover: #fdf2ef;
+            --bg-input: #ffffff;
+            --border-color: #ecd9d5;
             --border-color-strong: #ddbfb8;
-            --accent: #b76e79;
-            --accent-hover: #9c5763;
-            --accent-soft: rgba(183, 110, 121, 0.13);
-            --accent-glow: rgba(183, 110, 121, 0.22);
-            --text-primary: #4a3b38;
-            --text-secondary: #8d7570;
+            --text-primary: #3a2b28;
+            --text-secondary: #8a6f6a;
             --text-muted: #b3a09b;
+            --text-sidebar: #5c4340;
             --success: #4f9d6d;
             --success-soft: rgba(79, 157, 109, 0.14);
             --warning: #c08a3e;
@@ -80,27 +75,67 @@
             --danger: #c2596a;
             --danger-soft: rgba(194, 89, 106, 0.14);
             --shadow-card: 0 1px 2px rgba(120, 80, 80, 0.06), 0 8px 24px rgba(120, 80, 80, 0.07);
-            --shadow-glow: 0 0 0 1px var(--accent-soft), 0 4px 20px var(--accent-glow);
-            /* En tema claro el sidebar es claro: el texto debe ser oscuro. */
-            --text-sidebar: #8d7570;
-            --text-sobre-accent: #ffffff;
-            --stripe-fila: rgba(183, 110, 121, 0.045);
+            --stripe-fila: rgba(0, 0, 0, 0.018);
             --overlay-loader: rgba(253, 247, 245, 0.8);
         }
 
-        /* El logo del sidebar y el texto activo del menú deben contrastar
-           sobre el fondo claro del tema spa. */
-        body.tema-spa #sidebar .sidebar-header span,
-        body.tema-spa .topbar-usuario .nombre-usuario,
-        body.tema-spa #topbar h1 {
+        /* ---------- Capa 2: ACENTO ---------- */
+
+        body.acento-oro-rosa {
+            --accent: #b76e79;
+            --accent-hover: #a35c67;
+            --accent-soft: rgba(183, 110, 121, 0.12);
+        }
+
+        body.acento-dorado {
+            --accent: #c9a227;
+            --accent-hover: #b08e1f;
+            --accent-soft: rgba(201, 162, 39, 0.12);
+        }
+
+        body.acento-amarillo {
+            --accent: #eab308;
+            --accent-hover: #ca9a06;
+            --accent-soft: rgba(234, 179, 8, 0.12);
+        }
+
+        body.acento-naranja {
+            --accent: #ea580c;
+            --accent-hover: #c8490a;
+            --accent-soft: rgba(234, 88, 12, 0.12);
+        }
+
+        body.acento-rojo {
+            --accent: #e11d2e;
+            --accent-hover: #ff2e42;
+            --accent-soft: rgba(225, 29, 46, 0.12);
+        }
+
+        body.acento-azul {
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --accent-soft: rgba(37, 99, 235, 0.12);
+        }
+
+        body.acento-verde {
+            --accent: #16a34a;
+            --accent-hover: #128038;
+            --accent-soft: rgba(22, 163, 74, 0.12);
+        }
+
+        /* En modo claro el sidebar es claro: los textos deben invertirse a oscuro
+           y la X de los modales no necesita el filtro de inversión. */
+        body.modo-claro #sidebar .sidebar-header span,
+        body.modo-claro .topbar-usuario .nombre-usuario,
+        body.modo-claro #topbar h1 {
             color: var(--text-primary);
         }
 
-        body.tema-spa .menu-item {
+        body.modo-claro .menu-item {
             color: var(--text-sidebar);
         }
 
-        body.tema-spa .btn-close {
+        body.modo-claro .btn-close {
             filter: none;
         }
 
@@ -702,7 +737,7 @@
 
     @yield('estilos')
 </head>
-<body class="tema-{{ session('rubro_negocio') === 'spa' ? 'spa' : 'plataforma' }}">
+<body class="modo-{{ session('modo_tema') ?? 'oscuro' }} acento-{{ str_replace('_', '-', session('color_acento') ?? 'rojo') }}">
 
     <div id="loader_proceso">
         <div class="spinner-border" role="status" style="width: 3rem; height: 3rem; color: var(--accent);">
@@ -748,6 +783,10 @@
                 <a href="{{ url('backoffice/reservas') }}" class="menu-item @if (request()->is('backoffice/reservas')) active @endif">
                     <i class="bi bi-calendar-check"></i>
                     <span>Reservas</span>
+                </a>
+                <a href="{{ url('backoffice/personalizar') }}" class="menu-item @if (request()->is('backoffice/personalizar')) active @endif">
+                    <i class="bi bi-palette2"></i>
+                    <span>Personalizar</span>
                 </a>
             @endif
             @endif

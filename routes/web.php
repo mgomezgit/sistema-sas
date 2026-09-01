@@ -42,6 +42,7 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     Route::post('reserva/cambiar-estado', [App\Http\Controllers\Request\ReservaController::class, 'cambiarEstado']);
     Route::post('reserva/eliminar', [App\Http\Controllers\Request\ReservaController::class, 'eliminar']);
     Route::get('reserva/listar', [App\Http\Controllers\Request\ReservaController::class, 'listar']);
+    Route::post('negocio/actualizar-tema', [App\Http\Controllers\Request\NegocioController::class, 'actualizarTema']);
 });
 
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
@@ -55,4 +56,5 @@ Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('recursos', [App\Http\Controllers\RecursoReservableViewController::class, 'listar'])->middleware('restringir.empleado');
     Route::get('empleados', [App\Http\Controllers\EmpleadoViewController::class, 'listar'])->middleware('restringir.empleado');
     Route::get('reservas', [App\Http\Controllers\ReservaViewController::class, 'listar'])->middleware('restringir.empleado');
+    Route::get('personalizar', [App\Http\Controllers\PersonalizarViewController::class, 'mostrar'])->middleware('restringir.empleado');
 });

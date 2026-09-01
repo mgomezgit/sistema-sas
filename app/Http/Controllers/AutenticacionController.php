@@ -64,17 +64,22 @@ class AutenticacionController extends Controller
             // ningún negocio, así que ambos quedan en null.
             if (session('tenant_id') !== null) {
                 $negocio = Negocio::where('id_negocio', session('tenant_id'))
-                    ->select('rubro', 'nombre_negocio')
+                    ->select('rubro', 'nombre_negocio', 'modo_tema', 'color_acento')
                     ->first();
 
                 session([
                     'rubro_negocio' => $negocio->rubro ?? null,
                     'nombre_negocio_sesion' => $negocio->nombre_negocio ?? null,
+                    'modo_tema' => $negocio->modo_tema ?? 'claro',
+                    'color_acento' => $negocio->color_acento ?? 'oro_rosa',
                 ]);
             } else {
+                // La plataforma tiene su propio tema fijo, no personalizable.
                 session([
                     'rubro_negocio' => null,
                     'nombre_negocio_sesion' => null,
+                    'modo_tema' => 'oscuro',
+                    'color_acento' => 'rojo',
                 ]);
             }
 
