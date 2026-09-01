@@ -188,6 +188,47 @@ class SvcReserva
         }
     }
 
+    /**
+     * Reservas de una fecha para el envío de recordatorios.
+     *
+     * A diferencia del resto de métodos, este NO recibe tenant_id: es un proceso
+     * de sistema (comando programado) que recorre todos los negocios, no una
+     * petición hecha por un usuario de un negocio concreto.
+     */
+    public function listarParaRecordatorio($fecha)
+    {
+        try {
+            return Reserva::from('reservas as r')
+                ->join('clientes as c', 'c.id_cliente', '=', 'r.id_cliente')
+                ->join('recursos_reservables as rec', 'rec.id_recurso', '=', 'r.id_recurso')
+                ->join('negocios as n', 'n.id_negocio', '=', 'r.tenant_id')
+                ->leftJoin('empleados as e', 'e.id_empleado', '=', 'r.id_empleado')
+                ->select(
+                    'r.id_reserva',
+                    'r.tenant_id',
+                    'r.fecha_reserva',
+                    'r.hora_inicio',
+                    'r.hora_fin',
+                    'r.estado_reserva',
+                    'c.nombre as nombre_cliente',
+                    'c.email as email_cliente',
+                    'rec.nombre as nombre_recurso',
+                    'e.nombre as nombre_empleado',
+                    'n.nombre_negocio as nombre_negocio'
+                )
+                ->where('r.fecha_reserva', $fecha)
+                ->whereIn('r.estado_reserva', ['pendiente', 'confirmada'])
+                ->where('r.estado', 1)
+                ->orderBy('r.hora_inicio')
+                ->get()
+                ->toArray() ?? [];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
     public function verificarDisponibilidad($idEmpleado, $fecha, $horaInicio, $horaFin, $tenantId, $idReservaExcluir = null): bool
     {
         try {

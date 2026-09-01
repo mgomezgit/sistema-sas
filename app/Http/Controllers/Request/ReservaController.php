@@ -3,10 +3,16 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ReservaConfirmada;
+use App\Mail\ReservaEstadoActualizado;
+use App\Models\Cliente;
+use App\Models\Negocio;
 use App\Service\SvcRecursoReservable;
 use App\Service\SvcReserva;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class ReservaController extends Controller
 {
@@ -25,6 +31,34 @@ class ReservaController extends Controller
 
         $this->svcReserva = new SvcReserva;
         $this->svcRecursoReservable = new SvcRecursoReservable;
+    }
+
+    /**
+     * Reúne lo necesario para notificar al cliente de una reserva: sus datos ya
+     * resueltos, el correo del cliente y el nombre del negocio.
+     *
+     * Retorna null si la reserva no existe o si el cliente no tiene correo
+     * registrado, caso en el que simplemente no se envía nada.
+     */
+    private function datosParaNotificar($idReserva, $tenantId): ?array
+    {
+        $reserva = $this->svcReserva->listarById($idReserva, $tenantId);
+
+        if (empty($reserva)) {
+            return null;
+        }
+
+        $email = Cliente::where('id_cliente', $reserva[0]['id_cliente'])->value('email');
+
+        if (empty($email)) {
+            return null;
+        }
+
+        return [
+            'reserva' => $reserva[0],
+            'email' => $email,
+            'nombre_negocio' => Negocio::where('id_negocio', $tenantId)->value('nombre_negocio') ?? '',
+        ];
     }
 
     public function crear(): JsonResponse
@@ -99,6 +133,18 @@ class ReservaController extends Controller
             $this->agregarErrorSistema('RES-CREAR');
 
             return $this->sendResponse();
+        }
+
+        // El correo es una notificación adicional: si falla, la reserva ya quedó
+        // creada y la respuesta al usuario no debe verse afectada.
+        try {
+            $datos = $this->datosParaNotificar($idReserva, $tenantId);
+
+            if ($datos !== null) {
+                Mail::to($datos['email'])->queue(new ReservaConfirmada($datos['reserva'], $datos['nombre_negocio']));
+            }
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
         }
 
         $this->respSinError();
@@ -218,9 +264,34 @@ class ReservaController extends Controller
             return $this->sendResponse();
         }
 
+        $this->notificarCambioEstado($datos['id_reserva'], $tenantId, $datos['estado_reserva']);
+
         $this->respSinError();
 
         return $this->sendResponse();
+    }
+
+    /**
+     * Avisa al cliente que su reserva cambió de estado. "Pendiente" es el estado
+     * inicial, así que no amerita notificación.
+     */
+    private function notificarCambioEstado($idReserva, $tenantId, $estadoReserva): void
+    {
+        if ($estadoReserva === 'pendiente') {
+            return;
+        }
+
+        try {
+            $datos = $this->datosParaNotificar($idReserva, $tenantId);
+
+            if ($datos !== null) {
+                Mail::to($datos['email'])->queue(
+                    new ReservaEstadoActualizado($datos['reserva'], $datos['nombre_negocio'], $estadoReserva)
+                );
+            }
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+        }
     }
 
     public function eliminar(): JsonResponse
@@ -346,6 +417,10 @@ class ReservaController extends Controller
 
             return $this->sendResponse();
         }
+
+        // El cliente debe enterarse igual, sin importar si el cambio lo hizo el
+        // administrador o el propio empleado desde su agenda.
+        $this->notificarCambioEstado($datos['id_reserva'], session('tenant_id'), $datos['estado_reserva']);
 
         $this->respSinError();
 
