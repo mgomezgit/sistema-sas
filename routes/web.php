@@ -15,6 +15,10 @@ Route::prefix('request')->group(function () {
     // Agenda propia del empleado: son las únicas rutas de datos que puede usar.
     Route::get('reserva/mis-citas', [App\Http\Controllers\Request\ReservaController::class, 'misCitas']);
     Route::post('reserva/cambiar-estado-mi-cita', [App\Http\Controllers\Request\ReservaController::class, 'cambiarEstadoMiCita']);
+
+    // Solo lectura del horario: cualquier usuario del negocio lo necesita para
+    // calcular las franjas del calendario.
+    Route::get('negocio/horario', [App\Http\Controllers\Request\NegocioController::class, 'obtenerHorario']);
 });
 
 // Endpoints administrativos: cerrados para el rol "empleado", que de otro modo
@@ -43,6 +47,8 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     Route::post('reserva/eliminar', [App\Http\Controllers\Request\ReservaController::class, 'eliminar']);
     Route::get('reserva/listar', [App\Http\Controllers\Request\ReservaController::class, 'listar']);
     Route::post('negocio/actualizar-tema', [App\Http\Controllers\Request\NegocioController::class, 'actualizarTema']);
+    Route::get('negocio/configuracion', [App\Http\Controllers\Request\NegocioController::class, 'obtenerConfiguracion']);
+    Route::post('negocio/actualizar-configuracion', [App\Http\Controllers\Request\NegocioController::class, 'actualizarConfiguracion']);
 });
 
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
@@ -56,5 +62,7 @@ Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('recursos', [App\Http\Controllers\RecursoReservableViewController::class, 'listar'])->middleware('restringir.empleado');
     Route::get('empleados', [App\Http\Controllers\EmpleadoViewController::class, 'listar'])->middleware('restringir.empleado');
     Route::get('reservas', [App\Http\Controllers\ReservaViewController::class, 'listar'])->middleware('restringir.empleado');
+    Route::get('reservas/historial', [App\Http\Controllers\ReservaViewController::class, 'historial'])->middleware('restringir.empleado');
     Route::get('personalizar', [App\Http\Controllers\PersonalizarViewController::class, 'mostrar'])->middleware('restringir.empleado');
+    Route::get('configuracion', [App\Http\Controllers\ConfiguracionViewController::class, 'mostrar'])->middleware('restringir.empleado');
 });

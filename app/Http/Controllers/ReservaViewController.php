@@ -12,4 +12,13 @@ class ReservaViewController extends Controller
 
         return view('app.reservas.listado');
     }
+
+    public function historial()
+    {
+        if (session('tenant_id') === null) {
+            return redirect(url('backoffice/dashboard'));
+        }
+
+        return view('app.reservas.historial');
+    }
 }

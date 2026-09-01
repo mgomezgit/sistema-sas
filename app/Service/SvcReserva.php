@@ -79,7 +79,7 @@ class SvcReserva
         }
     }
 
-    public function listar($tenantId, $fechaInicio = null, $fechaFin = null)
+    public function listar($tenantId, $fechaInicio = null, $fechaFin = null, $idCliente = null, $estadoReserva = null)
     {
         try {
             $query = Reserva::from('reservas as r')
@@ -107,6 +107,14 @@ class SvcReserva
 
             if ($fechaInicio !== null && $fechaFin !== null) {
                 $query->whereBetween('r.fecha_reserva', [$fechaInicio, $fechaFin]);
+            }
+
+            if ($idCliente !== null) {
+                $query->where('r.id_cliente', $idCliente);
+            }
+
+            if ($estadoReserva !== null) {
+                $query->where('r.estado_reserva', $estadoReserva);
             }
 
             return $query->get()->toArray() ?? [];

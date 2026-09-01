@@ -26,23 +26,211 @@
             color: var(--accent);
         }
 
-        .barra-fecha {
+        /* ---------- Calendario mensual ---------- */
+        .cabecera-calendario {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            margin-bottom: 1.25rem;
+            gap: 0.6rem;
+            margin-bottom: 1.1rem;
         }
 
-        .barra-fecha label {
+        .titulo-mes {
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1.15rem;
+            text-transform: capitalize;
+            min-width: 190px;
+        }
+
+        .btn-nav-mes {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1px solid var(--border-color);
+            background-color: transparent;
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-base);
+        }
+
+        .btn-nav-mes:hover {
+            background-color: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-hoy {
+            margin-left: auto;
+            border: 1px solid var(--border-color);
+            background-color: transparent;
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            padding: 0.35rem 0.85rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: var(--transition-base);
+        }
+
+        .btn-hoy:hover {
+            background-color: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .nombres-dias,
+        .cuadricula-dias {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.4rem;
+        }
+
+        .nombres-dias span {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding-bottom: 0.5rem;
+        }
+
+        .celda-dia {
+            position: relative;
+            min-height: 62px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background-color: var(--bg-input);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            padding: 0.4rem;
+            cursor: pointer;
+            transition: var(--transition-base);
+            font-size: 0.92rem;
+        }
+
+        .celda-dia:hover {
+            background-color: var(--bg-card-hover);
+            border-color: var(--border-color-strong);
+        }
+
+        .celda-dia.vacia {
+            background-color: transparent;
+            border-color: transparent;
+            cursor: default;
+        }
+
+        .celda-dia.hoy {
+            border-color: var(--accent);
+            border-width: 2px;
+            font-weight: 700;
+        }
+
+        .celda-dia.seleccionada {
+            background-color: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .celda-dia.sin-atencion {
+            opacity: 0.45;
+        }
+
+        .contador-reservas {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 18px;
+            padding: 0 0.35rem;
+            border-radius: 999px;
+            background-color: var(--accent);
+            color: var(--text-sobre-accent);
+            font-size: 0.68rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        /* ---------- Panel del día ---------- */
+        .panel-dia {
+            display: none;
+        }
+
+        .panel-dia.abierto {
+            display: block;
+            animation: aparecerPanel 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes aparecerPanel {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .titulo-bloque-dia {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-primary);
+            font-size: 1.02rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .titulo-bloque-dia i {
+            color: var(--accent);
+        }
+
+        .fecha-panel {
+            margin-left: auto;
             color: var(--text-secondary);
             font-size: 0.85rem;
             font-weight: 500;
-            margin-bottom: 0;
+            text-transform: capitalize;
         }
 
-        .barra-fecha input[type="date"] {
-            max-width: 220px;
+        .lista-franjas {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .btn-franja {
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-input);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            padding: 0.45rem 0.8rem;
+            font-size: 0.86rem;
+            font-weight: 600;
+            transition: var(--transition-base);
+        }
+
+        .btn-franja:hover {
+            background-color: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .aviso-sin-atencion {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.85rem 1rem;
+        }
+
+        .aviso-sin-atencion i {
+            color: var(--warning);
         }
 
         .card-empleado {
@@ -178,12 +366,45 @@
         </button>
     </div>
 
-    <div class="barra-fecha">
-        <label for="filtro-fecha">Ver día:</label>
-        <input type="date" id="filtro-fecha" class="form-control">
+    {{-- Guarda el día seleccionado; el resto de la vista sigue leyéndolo de aquí. --}}
+    <input type="hidden" id="filtro-fecha">
+
+    <div class="card-elevada calendario-mes mb-4">
+        <div class="cabecera-calendario">
+            <button type="button" id="btn-mes-anterior" class="btn-nav-mes" aria-label="Mes anterior">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <div class="titulo-mes" id="titulo-mes">—</div>
+            <button type="button" id="btn-mes-siguiente" class="btn-nav-mes" aria-label="Mes siguiente">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+            <button type="button" id="btn-hoy" class="btn-hoy">Hoy</button>
+        </div>
+
+        <div class="nombres-dias">
+            <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+        </div>
+
+        <div class="cuadricula-dias" id="cuadricula-dias"></div>
     </div>
 
-    <div id="contenedor-agenda"></div>
+    <div id="panel-dia" class="panel-dia">
+        <div class="card-elevada mb-4">
+            <div class="titulo-bloque-dia">
+                <i class="bi bi-plus-circle"></i>
+                Crear nueva reserva
+                <span class="fecha-panel" id="fecha-panel-crear"></span>
+            </div>
+            <div id="franjas-horarias"></div>
+        </div>
+
+        <div class="titulo-bloque-dia mb-3">
+            <i class="bi bi-calendar-event"></i>
+            Reservas de este día
+        </div>
+
+        <div id="contenedor-agenda"></div>
+    </div>
 
     <div class="modal fade" id="modal-reserva" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
@@ -534,7 +755,7 @@
                     axiosSipleInterno('POST', 'request/reserva/eliminar', {}, { id_reserva: idReserva }, true, function (respuesta) {
                         if (respuesta.error == 0) {
                             notificarUsuario('Reserva eliminada correctamente', 'success');
-                            cargarReservas();
+                            refrescarVista();
                         } else {
                             notificarUsuario(respuesta.mensaje, 'error');
                         }
@@ -574,7 +795,7 @@
                             notificarUsuario(respuestaEstado.mensaje, 'error');
                         }
 
-                        cargarReservas();
+                        refrescarVista();
                     });
 
                     return;
@@ -582,7 +803,7 @@
 
                 cerrarModalReserva();
                 notificarUsuario(modoFormularioReserva === 'crear' ? 'Reserva creada correctamente' : 'Reserva actualizada correctamente', 'success');
-                cargarReservas();
+                refrescarVista();
             });
         });
 
@@ -593,13 +814,233 @@
             }
         }
 
-        jQuery('#filtro-fecha').on('change', function () {
+        /* Tras crear, editar o eliminar hay que refrescar dos cosas: la agenda del
+           día abierto y los contadores del calendario. */
+        function refrescarVista() {
             cargarReservas();
+            cargarReservasDelMes(pintarCalendario);
+        }
+
+        /* ================= CALENDARIO MENSUAL ================= */
+
+        var mesVisible;                 // primer día del mes que se está mostrando
+        var reservasPorFecha = {};      // { 'YYYY-MM-DD': cantidad }
+        var horarioNegocio = null;      // { dias_atencion, hora_apertura, hora_cierre }
+
+        var NOMBRES_MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+        function aTextoFecha(fecha) {
+            var mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            var dia = String(fecha.getDate()).padStart(2, '0');
+            return fecha.getFullYear() + '-' + mes + '-' + dia;
+        }
+
+        // Día de la semana en el formato del negocio: 1=lunes ... 7=domingo.
+        function diaSemanaNegocio(fecha) {
+            var dia = fecha.getDay();
+            return dia === 0 ? 7 : dia;
+        }
+
+        function diasAtencionArray() {
+            if (!horarioNegocio || !horarioNegocio.dias_atencion) {
+                return null; // sin horario configurado no se restringe ningún día
+            }
+            return String(horarioNegocio.dias_atencion).split(',').map(function (d) {
+                return parseInt(jQuery.trim(d), 10);
+            });
+        }
+
+        function negocioAtiende(fecha) {
+            var dias = diasAtencionArray();
+            return dias === null ? true : dias.indexOf(diaSemanaNegocio(fecha)) !== -1;
+        }
+
+        // Trae las reservas del mes completo para pintar los indicadores.
+        function cargarReservasDelMes(alTerminar) {
+            var primero = new Date(mesVisible.getFullYear(), mesVisible.getMonth(), 1);
+            var ultimo = new Date(mesVisible.getFullYear(), mesVisible.getMonth() + 1, 0);
+
+            axiosSipleInterno('GET', 'request/reserva/listar', {
+                fecha_inicio: aTextoFecha(primero),
+                fecha_fin: aTextoFecha(ultimo)
+            }, {}, false, function (respuesta) {
+                reservasPorFecha = {};
+
+                if (respuesta.error == 0) {
+                    respuesta.data.reservas.forEach(function (reserva) {
+                        var f = reserva.fecha_reserva;
+                        reservasPorFecha[f] = (reservasPorFecha[f] || 0) + 1;
+                    });
+                }
+
+                if (alTerminar) {
+                    alTerminar();
+                }
+            });
+        }
+
+        function pintarCalendario() {
+            var anio = mesVisible.getFullYear();
+            var mes = mesVisible.getMonth();
+
+            jQuery('#titulo-mes').text(NOMBRES_MESES[mes] + ' ' + anio);
+
+            var primerDia = new Date(anio, mes, 1);
+            var diasEnMes = new Date(anio, mes + 1, 0).getDate();
+            // Cuántas celdas vacías van antes del día 1 (semana empieza en lunes).
+            var desplazamiento = diaSemanaNegocio(primerDia) - 1;
+
+            var hoy = aTextoFecha(new Date());
+            var seleccionada = jQuery('#filtro-fecha').val();
+            var cuadricula = jQuery('#cuadricula-dias');
+            cuadricula.empty();
+
+            for (var i = 0; i < desplazamiento; i++) {
+                cuadricula.append('<div class="celda-dia vacia"></div>');
+            }
+
+            for (var dia = 1; dia <= diasEnMes; dia++) {
+                var fecha = new Date(anio, mes, dia);
+                var texto = aTextoFecha(fecha);
+                var clases = 'celda-dia';
+
+                if (texto === hoy) { clases += ' hoy'; }
+                if (texto === seleccionada) { clases += ' seleccionada'; }
+                if (!negocioAtiende(fecha)) { clases += ' sin-atencion'; }
+
+                var cantidad = reservasPorFecha[texto] || 0;
+                var indicador = cantidad > 0
+                    ? '<span class="contador-reservas">' + cantidad + '</span>'
+                    : '';
+
+                cuadricula.append(
+                    '<div class="' + clases + '" data-fecha="' + texto + '">' +
+                    '<span>' + dia + '</span>' + indicador +
+                    '</div>'
+                );
+            }
+        }
+
+        function pintarFranjas(fechaTexto) {
+            var contenedor = jQuery('#franjas-horarias');
+            contenedor.empty();
+
+            var partes = fechaTexto.split('-');
+            var fecha = new Date(partes[0], partes[1] - 1, partes[2]);
+
+            if (!negocioAtiende(fecha)) {
+                contenedor.html(
+                    '<div class="aviso-sin-atencion">' +
+                    '<i class="bi bi-exclamation-triangle"></i>' +
+                    'El negocio no atiende este día.' +
+                    '</div>'
+                );
+                return;
+            }
+
+            var apertura = (horarioNegocio && horarioNegocio.hora_apertura) ? horarioNegocio.hora_apertura : null;
+            var cierre = (horarioNegocio && horarioNegocio.hora_cierre) ? horarioNegocio.hora_cierre : null;
+
+            if (!apertura || !cierre) {
+                contenedor.html(
+                    '<div class="aviso-sin-atencion">' +
+                    '<i class="bi bi-exclamation-triangle"></i>' +
+                    'Aún no has definido el horario de atención. Configúralo en Configuración del negocio.' +
+                    '</div>'
+                );
+                return;
+            }
+
+            // Franjas de 30 minutos entre apertura y cierre.
+            var minutosInicio = parseInt(apertura.substring(0, 2), 10) * 60 + parseInt(apertura.substring(3, 5), 10);
+            var minutosFin = parseInt(cierre.substring(0, 2), 10) * 60 + parseInt(cierre.substring(3, 5), 10);
+
+            var html = '<div class="lista-franjas">';
+
+            for (var m = minutosInicio; m < minutosFin; m += 30) {
+                var hh = String(Math.floor(m / 60)).padStart(2, '0');
+                var mm = String(m % 60).padStart(2, '0');
+                var hora = hh + ':' + mm;
+                html += '<button type="button" class="btn-franja" data-hora="' + hora + ':00">' + hora + '</button>';
+            }
+
+            html += '</div>';
+            contenedor.html(html);
+        }
+
+        function seleccionarDia(fechaTexto) {
+            jQuery('#filtro-fecha').val(fechaTexto);
+
+            jQuery('.celda-dia').removeClass('seleccionada');
+            jQuery('.celda-dia[data-fecha="' + fechaTexto + '"]').addClass('seleccionada');
+
+            var partes = fechaTexto.split('-');
+            var fecha = new Date(partes[0], partes[1] - 1, partes[2]);
+            jQuery('#fecha-panel-crear').text(
+                fecha.getDate() + ' de ' + NOMBRES_MESES[fecha.getMonth()].toLowerCase() + ' de ' + fecha.getFullYear()
+            );
+
+            pintarFranjas(fechaTexto);
+            jQuery('#panel-dia').addClass('abierto');
+
+            cargarReservas();
+        }
+
+        function cambiarMes(salto) {
+            mesVisible = new Date(mesVisible.getFullYear(), mesVisible.getMonth() + salto, 1);
+            cargarReservasDelMes(pintarCalendario);
+        }
+
+        jQuery('#btn-mes-anterior').on('click', function () { cambiarMes(-1); });
+        jQuery('#btn-mes-siguiente').on('click', function () { cambiarMes(1); });
+
+        jQuery('#btn-hoy').on('click', function () {
+            var hoy = new Date();
+            mesVisible = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            cargarReservasDelMes(function () {
+                pintarCalendario();
+                seleccionarDia(fechaDeHoy());
+            });
+        });
+
+        jQuery('#cuadricula-dias').on('click', '.celda-dia:not(.vacia)', function () {
+            seleccionarDia(jQuery(this).data('fecha'));
+        });
+
+        // Al elegir una franja se abre el modal existente ya prellenado.
+        jQuery('#franjas-horarias').on('click', '.btn-franja', function () {
+            var hora = jQuery(this).data('hora');
+
+            cargarCatalogos(function () {
+                modoFormularioReserva = 'crear';
+                estadoReservaOriginal = null;
+                jQuery('#modal-reserva-titulo-texto').text('Nueva reserva');
+                limpiarFormularioReserva();
+                jQuery('#contenedor-estado-reserva').hide();
+
+                jQuery('#fecha_reserva').val(jQuery('#filtro-fecha').val());
+                jQuery('#hora_inicio').val(hora);
+
+                var modalReserva = new bootstrap.Modal(document.getElementById('modal-reserva'));
+                modalReserva.show();
+            });
         });
 
         jQuery(document).ready(function () {
+            var hoy = new Date();
+            mesVisible = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
             jQuery('#filtro-fecha').val(fechaDeHoy());
-            cargarReservas();
+
+            // El horario se consulta una sola vez: define las franjas y los días hábiles.
+            axiosSipleInterno('GET', 'request/negocio/horario', {}, {}, true, function (respuesta) {
+                horarioNegocio = (respuesta.error == 0) ? respuesta.data.horario : null;
+
+                cargarReservasDelMes(function () {
+                    pintarCalendario();
+                    seleccionarDia(fechaDeHoy());
+                });
+            });
         });
     </script>
 @endsection

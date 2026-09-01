@@ -906,6 +906,10 @@
                     <i class="bi bi-calendar-check"></i>
                     <span>Reservas</span>
                 </a>
+                <a href="{{ url('backoffice/reservas/historial') }}" class="menu-item @if (request()->is('backoffice/reservas/historial')) active @endif">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Historial</span>
+                </a>
                 <a href="{{ url('backoffice/personalizar') }}" class="menu-item @if (request()->is('backoffice/personalizar')) active @endif">
                     <i class="bi bi-palette2"></i>
                     <span>Personalizar</span>

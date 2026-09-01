@@ -33,6 +33,76 @@ class SvcNegocio
         }
     }
 
+    public function obtenerConfiguracion($tenantId)
+    {
+        try {
+            $negocio = Negocio::select(
+                'id_negocio',
+                'nombre_negocio',
+                'telefono_contacto',
+                'dias_atencion',
+                'hora_apertura',
+                'hora_cierre'
+            )
+                ->where('id_negocio', $tenantId)
+                ->first();
+
+            return $negocio ? $negocio->toArray() : [];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
+    public function actualizarConfiguracion($tenantId, $info): bool
+    {
+        try {
+            if (empty($info['nombre_negocio'])) {
+                return false;
+            }
+
+            $query = Negocio::where('id_negocio', $tenantId);
+
+            if (! $query->exists()) {
+                return false;
+            }
+
+            $query->update([
+                'nombre_negocio' => $info['nombre_negocio'],
+                'telefono_contacto' => $info['telefono_contacto'] ?? null,
+                'dias_atencion' => $info['dias_atencion'] ?? null,
+                'hora_apertura' => $info['hora_apertura'] ?? null,
+                'hora_cierre' => $info['hora_cierre'] ?? null,
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
+        }
+    }
+
+    /**
+     * Horario de atención, usado por el calendario de reservas para calcular
+     * las franjas disponibles.
+     */
+    public function obtenerHorario($tenantId)
+    {
+        try {
+            $negocio = Negocio::select('dias_atencion', 'hora_apertura', 'hora_cierre')
+                ->where('id_negocio', $tenantId)
+                ->first();
+
+            return $negocio ? $negocio->toArray() : [];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
     // Valores admitidos para el tema del backoffice.
     const MODOS_VALIDOS = ['claro', 'oscuro'];
 

@@ -339,9 +339,15 @@ class ReservaController extends Controller
 
         $fechaInicio = $this->request->query('fecha_inicio');
         $fechaFin = $this->request->query('fecha_fin');
+        // Filtros opcionales del historial: vacío equivale a "sin filtrar".
+        $idCliente = $this->request->query('id_cliente') ?: null;
+        $estadoReserva = $this->request->query('estado_reserva') ?: null;
 
         $this->respSinError();
-        $this->setDataResponse($this->svcReserva->listar($tenantId, $fechaInicio, $fechaFin), 'reservas');
+        $this->setDataResponse(
+            $this->svcReserva->listar($tenantId, $fechaInicio, $fechaFin, $idCliente, $estadoReserva),
+            'reservas'
+        );
 
         return $this->sendResponse();
     }
