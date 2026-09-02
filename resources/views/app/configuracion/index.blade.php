@@ -215,6 +215,8 @@
 
             axiosSipleInterno('POST', 'request/negocio/actualizar-configuracion', {}, datos, true, function (respuesta) {
                 if (respuesta.error == 0) {
+                    // Se refresca antes del aviso para que el check aparezca al instante.
+                    if (window.refrescarOnboarding) { window.refrescarOnboarding(); }
                     notificarUsuario('Configuración guardada correctamente', 'success', 'reload');
                 } else {
                     notificarUsuario(respuesta.mensaje, 'error');

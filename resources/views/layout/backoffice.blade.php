@@ -1447,17 +1447,20 @@
 
         /* ================= BIENVENIDA Y PRIMEROS PASOS ================= */
 
-        // Textos y destino de cada paso. El paso "finalizar" no se lista:
-        // se representa con el botón de cierre al completar los otros cinco.
+        // Texto y destino de cada uno de los 6 pasos. El botón de cierre no es
+        // un paso: se muestra aparte cuando los 6 quedan completados.
         var PASOS_ONBOARDING = {
             personalizar: { texto: 'Personaliza los colores de tu panel', destino: 'backoffice/personalizar' },
             horario: { texto: 'Define tus días y horas de atención', destino: 'backoffice/configuracion' },
             recurso: { texto: 'Registra el primer servicio que ofreces', destino: 'backoffice/recursos' },
             empleado: { texto: 'Suma a alguien de tu equipo', destino: 'backoffice/empleados' },
+            cliente: { texto: 'Registra a tu primer cliente', destino: 'backoffice/clientes' },
             reserva: { texto: 'Agenda tu primera reserva', destino: 'backoffice/reservas' }
         };
 
-        var CLAVE_PROGRESO_SESION = 'onboarding_completados';
+        // Se guardan los ids ya completados (no solo el total) para saber cuál
+        // paso es el nuevo y animar su check.
+        var CLAVE_PROGRESO_SESION = 'onboarding_ids_completados';
 
         function abrirDrawerOnboarding() {
             jQuery('#panel-onboarding').addClass('abierto');
@@ -1484,36 +1487,51 @@
 
             if (!onboarding || onboarding.tour_completado === true) {
                 drawer.hide();
-                jQuery("body").removeClass("con-drawer-onboarding");
+                jQuery('body').removeClass('con-drawer-onboarding');
 
                 return;
             }
 
+            // Los 6 pasos vienen del backend; el total nunca se escribe a mano.
             var pasos = onboarding.pasos || [];
-            // El paso "finalizar" no cuenta para el numerador hasta cerrar el tour.
-            var pasosVisibles = pasos.filter(function (paso) {
-                return paso.id !== 'finalizar';
+            var total = pasos.length;
+
+            var idsCompletados = pasos.filter(function (paso) {
+                return paso.completado === true;
+            }).map(function (paso) {
+                return paso.id;
             });
 
-            var completados = pasosVisibles.filter(function (paso) {
-                return paso.completado === true;
-            }).length;
+            var completados = idsCompletados.length;
 
-            var total = pasos.length; // 6, incluyendo el cierre manual
+            // Se comparan ids, no cantidades: así se sabe exactamente cuál paso
+            // es nuevo aunque se completen en cualquier orden.
+            var previos = [];
 
-            // Si aumentó desde la última carga, se celebra y se abre solo.
-            var previos = parseInt(sessionStorage.getItem(CLAVE_PROGRESO_SESION), 10);
-            var huboAvance = !isNaN(previos) && completados > previos;
+            try {
+                previos = JSON.parse(sessionStorage.getItem(CLAVE_PROGRESO_SESION)) || [];
+            } catch (e) {
+                previos = [];
+            }
+
+            var recienCompletados = idsCompletados.filter(function (id) {
+                return previos.indexOf(id) === -1;
+            });
+
+            // En la primera carga de la sesión no se celebra lo ya hecho antes.
+            var primeraLectura = sessionStorage.getItem(CLAVE_PROGRESO_SESION) === null;
+            var huboAvance = !primeraLectura && recienCompletados.length > 0;
 
             jQuery('#conteo-onboarding').text(completados + '/' + total);
-            jQuery('#relleno-progreso-onboarding').css('width', (completados / total * 100) + '%');
+            jQuery('#relleno-progreso-onboarding').css('width', (total ? (completados / total * 100) : 0) + '%');
 
+            // La lista se reconstruye siempre desde la respuesta fresca.
             var lista = jQuery('#lista-pasos-onboarding');
             lista.empty();
 
             var primerPendienteMarcado = false;
 
-            pasosVisibles.forEach(function (paso, indice) {
+            pasos.forEach(function (paso) {
                 var definicion = PASOS_ONBOARDING[paso.id];
 
                 if (!definicion) {
@@ -1530,10 +1548,9 @@
                     primerPendienteMarcado = true;
                 }
 
-                // Al detectar avance, el check recién ganado hace "pop".
                 var clasesIcono = 'bi ' + icono + ' icono-paso';
 
-                if (huboAvance && hecho && indice >= previos) {
+                if (hecho && recienCompletados.indexOf(paso.id) !== -1 && !primeraLectura) {
                     clasesIcono += ' recien-completado';
                 }
 
@@ -1551,10 +1568,11 @@
                 );
             });
 
+            // El botón final va aparte de la lista y solo con los 6 pasos hechos.
             var contenedorFinal = jQuery('#contenedor-boton-final');
             contenedorFinal.empty();
 
-            if (completados === pasosVisibles.length && pasosVisibles.length > 0) {
+            if (total > 0 && completados === total) {
                 contenedorFinal.html(
                     '<button type="button" id="btn-finalizar-onboarding" class="btn-primario-accento w-100">' +
                     '<i class="bi bi-stars"></i> ¡Genial, ya terminé!' +
@@ -1563,7 +1581,7 @@
             }
 
             drawer.show();
-            jQuery("body").addClass("con-drawer-onboarding");
+            jQuery('body').addClass('con-drawer-onboarding');
 
             if (huboAvance) {
                 dispararConfeti(110);
@@ -1571,7 +1589,7 @@
                 abrirDrawerOnboarding();
             }
 
-            sessionStorage.setItem(CLAVE_PROGRESO_SESION, completados);
+            sessionStorage.setItem(CLAVE_PROGRESO_SESION, JSON.stringify(idsCompletados));
 
             // La bienvenida se muestra una única vez, antes de cualquier paso.
             if (onboarding.bienvenida_vista === false) {
@@ -1590,6 +1608,20 @@
                 }
             });
         }
+
+        /**
+         * Punto de entrada para las vistas: se llama tras guardar algo que puede
+         * completar un paso (crear recurso, empleado, cliente, reserva, guardar
+         * tema u horario). Vuelve a consultar el backend y repinta el drawer, de
+         * modo que el check y el confeti aparecen sin recargar la página.
+         *
+         * Es global a propósito: la sección de scripts de cada vista se imprime
+         * después de este bloque, así que la función ya está definida cuando sus
+         * callbacks la invocan.
+         */
+        window.refrescarOnboarding = function () {
+            cargarProgresoOnboarding();
+        };
 
         jQuery('#btn-empecemos').on('click', function () {
             axiosSipleInterno('POST', 'request/negocio/marcar-bienvenida', {}, {}, false);
@@ -1616,7 +1648,7 @@
         jQuery('#contenedor-boton-final').on('click', '#btn-finalizar-onboarding', function () {
             axiosSipleInterno('POST', 'request/negocio/completar-onboarding', {}, {}, true, function (respuesta) {
                 if (respuesta.error == 0) {
-                    dispararConfeti(200);
+                    dispararConfeti(280);
                     cerrarDrawerOnboarding();
                     jQuery('#drawer-onboarding').hide();
                     jQuery('body').removeClass('con-drawer-onboarding');

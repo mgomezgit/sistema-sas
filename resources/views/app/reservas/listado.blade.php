@@ -803,6 +803,8 @@
 
                 cerrarModalReserva();
                 notificarUsuario(modoFormularioReserva === 'crear' ? 'Reserva creada correctamente' : 'Reserva actualizada correctamente', 'success');
+                // Puede completar un paso de los primeros pasos.
+                if (window.refrescarOnboarding) { window.refrescarOnboarding(); }
                 refrescarVista();
             });
         });

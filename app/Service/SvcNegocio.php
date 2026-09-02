@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Models\Cliente;
 use App\Models\Empleado;
 use App\Models\Negocio;
 use App\Models\RecursoReservable;
@@ -142,12 +143,12 @@ class SvcNegocio
                         'completado' => Empleado::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
                     ],
                     [
-                        'id' => 'reserva',
-                        'completado' => Reserva::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
+                        'id' => 'cliente',
+                        'completado' => Cliente::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
                     ],
                     [
-                        'id' => 'finalizar',
-                        'completado' => (bool) $negocio->tour_completado,
+                        'id' => 'reserva',
+                        'completado' => Reserva::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
                     ],
                 ],
             ];

@@ -372,6 +372,8 @@
                         modalEmpleado.hide();
                     }
                     notificarUsuario(modoFormularioEmpleado === 'crear' ? 'Empleado creado correctamente' : 'Empleado actualizado correctamente', 'success');
+                    // Puede completar un paso de los primeros pasos.
+                    if (window.refrescarOnboarding) { window.refrescarOnboarding(); }
                     cargarEmpleados();
                 } else {
                     notificarUsuario(respuesta.mensaje, 'error');

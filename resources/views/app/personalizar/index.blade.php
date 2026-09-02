@@ -290,6 +290,8 @@
                 color_acento: acentoSeleccionado
             }, true, function (respuesta) {
                 if (respuesta.error == 0) {
+                    // Se refresca antes del aviso para que el check aparezca al instante.
+                    if (window.refrescarOnboarding) { window.refrescarOnboarding(); }
                     notificarUsuario('Personalización guardada. Se aplicará a todo tu equipo.', 'success', 'reload');
                 } else {
                     // No se revierte la vista previa: el usuario puede seguir probando.
