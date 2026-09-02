@@ -215,9 +215,11 @@
 
             axiosSipleInterno('POST', 'request/negocio/actualizar-configuracion', {}, datos, true, function (respuesta) {
                 if (respuesta.error == 0) {
-                    // Se refresca antes del aviso para que el check aparezca al instante.
-                    if (window.refrescarOnboarding) { window.refrescarOnboarding(); }
-                    notificarUsuario('Configuración guardada correctamente', 'success', 'reload');
+                    // El nombre se refleja en la barra lateral y en el menú de
+                    // usuario sin recargar la pantalla completa.
+                    jQuery('#nombre-negocio-lateral').text(datos.nombre_negocio).attr('title', datos.nombre_negocio);
+                    jQuery('#nombre-negocio-sesion').text(datos.nombre_negocio);
+                    avisarGuardado('Configuración guardada correctamente');
                 } else {
                     notificarUsuario(respuesta.mensaje, 'error');
                 }

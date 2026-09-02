@@ -294,10 +294,8 @@
                     if (modalRecurso) {
                         modalRecurso.hide();
                     }
-                    notificarUsuario(modoFormularioRecurso === 'crear' ? 'Recurso creado correctamente' : 'Recurso actualizado correctamente', 'success');
-                    // Puede completar un paso de los primeros pasos.
-                    if (window.refrescarOnboarding) { window.refrescarOnboarding(); }
                     cargarRecursos();
+                    avisarGuardado(modoFormularioRecurso === 'crear' ? 'Recurso creado correctamente' : 'Recurso actualizado correctamente');
                 } else {
                     notificarUsuario(respuesta.mensaje, 'error');
                 }

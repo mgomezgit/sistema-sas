@@ -275,10 +275,8 @@
                     if (modalCliente) {
                         modalCliente.hide();
                     }
-                    notificarUsuario(modoFormularioCliente === 'crear' ? 'Cliente creado correctamente' : 'Cliente actualizado correctamente', 'success');
-                    // Puede completar un paso de los primeros pasos.
-                    if (window.refrescarOnboarding) { window.refrescarOnboarding(); }
                     cargarClientes();
+                    avisarGuardado(modoFormularioCliente === 'crear' ? 'Cliente creado correctamente' : 'Cliente actualizado correctamente');
                 } else {
                     notificarUsuario(respuesta.mensaje, 'error');
                 }

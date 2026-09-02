@@ -1182,7 +1182,7 @@
     <aside id="sidebar">
         <div class="sidebar-header">
             <span class="logo-dot"></span>
-            <span class="nombre-marca" title="{{ session('nombre_negocio_sesion') ?? 'Plataforma Reservas' }}">
+            <span class="nombre-marca" id="nombre-negocio-lateral" title="{{ session('nombre_negocio_sesion') ?? 'Plataforma Reservas' }}">
                 {{ session('nombre_negocio_sesion') ?? 'Plataforma Reservas' }}
             </span>
         </div>
@@ -1259,7 +1259,8 @@
                             </span>
                         @else
                             <span class="badge-rol-sesion negocio">
-                                <i class="bi bi-building"></i> {{ session('nombre_negocio_sesion') ?? 'Negocio' }}
+                                <i class="bi bi-building"></i>
+                                <span id="nombre-negocio-sesion">{{ session('nombre_negocio_sesion') ?? 'Negocio' }}</span>
                             </span>
                         @endif
                     </span>
@@ -1482,14 +1483,14 @@
 
             // Sin drawer en el DOM (empleado o super admin) no hay nada que hacer.
             if (drawer.length === 0) {
-                return;
+                return false;
             }
 
             if (!onboarding || onboarding.tour_completado === true) {
                 drawer.hide();
                 jQuery('body').removeClass('con-drawer-onboarding');
 
-                return;
+                return false;
             }
 
             // Los 6 pasos vienen del backend; el total nunca se escribe a mano.
@@ -1595,32 +1596,56 @@
             if (onboarding.bienvenida_vista === false) {
                 mostrarBienvenida();
             }
+
+            // Se avisa a quien llamó si acaba de completarse un paso, para que
+            // no muestre encima un modal que tape la celebración.
+            return huboAvance;
         }
 
-        function cargarProgresoOnboarding() {
+        function cargarProgresoOnboarding(alTerminar) {
+            // Sin drawer (empleado o super admin) se responde "sin avance" para
+            // que la vista muestre su aviso normal.
             if (jQuery('#drawer-onboarding').length === 0) {
+                if (alTerminar) {
+                    alTerminar(false);
+                }
+
                 return;
             }
 
             axiosSipleInterno('GET', 'request/negocio/progreso-onboarding', {}, {}, false, function (respuesta) {
+                var huboAvance = false;
+
                 if (respuesta.error == 0) {
-                    pintarDrawerOnboarding(respuesta.data.onboarding);
+                    huboAvance = pintarDrawerOnboarding(respuesta.data.onboarding) === true;
+                }
+
+                if (alTerminar) {
+                    alTerminar(huboAvance);
                 }
             });
         }
 
         /**
-         * Punto de entrada para las vistas: se llama tras guardar algo que puede
-         * completar un paso (crear recurso, empleado, cliente, reserva, guardar
-         * tema u horario). Vuelve a consultar el backend y repinta el drawer, de
-         * modo que el check y el confeti aparecen sin recargar la página.
+         * Aviso de guardado correcto para las vistas que pueden completar un paso
+         * de los primeros pasos (recurso, empleado, cliente, reserva, tema y
+         * horario).
+         *
+         * Si el guardado completó un paso, la celebración del drawer (confeti,
+         * check y el siguiente paso a la vista) ES el aviso: no se abre ningún
+         * modal ni se recarga la página, para no tapar justo lo que se acaba de
+         * destacar. Si no completó ningún paso, se muestra el aviso de siempre.
          *
          * Es global a propósito: la sección de scripts de cada vista se imprime
          * después de este bloque, así que la función ya está definida cuando sus
          * callbacks la invocan.
          */
-        window.refrescarOnboarding = function () {
-            cargarProgresoOnboarding();
+        window.avisarGuardado = function (mensaje) {
+            cargarProgresoOnboarding(function (huboAvance) {
+                if (!huboAvance) {
+                    notificarUsuario(mensaje, 'success');
+                }
+            });
         };
 
         jQuery('#btn-empecemos').on('click', function () {
