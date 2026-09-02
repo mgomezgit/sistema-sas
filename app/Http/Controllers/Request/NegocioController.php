@@ -142,12 +142,48 @@ class NegocioController extends Controller
         $this->respSinError();
 
         if ($tenantId === null || Rol::esRolEmpleado(session('id_rol'))) {
-            $this->setDataResponse(['tour_completado' => true, 'pasos' => []], 'onboarding');
+            // Misma forma que la respuesta normal, para que el frontend no tenga
+            // que distinguir entre casos.
+            $this->setDataResponse(
+                ['tour_completado' => true, 'bienvenida_vista' => true, 'pasos' => []],
+                'onboarding'
+            );
 
             return $this->sendResponse();
         }
 
         $this->setDataResponse($this->svcNegocio->obtenerProgresoOnboarding($tenantId), 'onboarding');
+
+        return $this->sendResponse();
+    }
+
+    /**
+     * Marca que el negocio ya vio la pantalla de bienvenida (se muestra una
+     * sola vez en la vida de la cuenta).
+     */
+    public function marcarBienvenidaVista(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        if ($tenantId === null) {
+            $this->agregarError('La bienvenida se gestiona desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
+
+            return $this->sendResponse();
+        }
+
+        if (Rol::esRolEmpleado(session('id_rol'))) {
+            $this->agregarError('No tienes permiso para completar esta acción. Pídeselo al administrador de tu negocio.');
+
+            return $this->sendResponse();
+        }
+
+        if (! $this->svcNegocio->marcarBienvenidaVista($tenantId)) {
+            $this->agregarErrorNoDisponible('el negocio', 'NEG-BIENVENIDA');
+
+            return $this->sendResponse();
+        }
+
+        $this->respSinError();
 
         return $this->sendResponse();
     }

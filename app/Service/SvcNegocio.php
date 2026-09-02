@@ -113,16 +113,17 @@ class SvcNegocio
     public function obtenerProgresoOnboarding($tenantId)
     {
         try {
-            $negocio = Negocio::select('dias_atencion', 'tema_personalizado', 'tour_completado')
+            $negocio = Negocio::select('dias_atencion', 'tema_personalizado', 'tour_completado', 'bienvenida_vista')
                 ->where('id_negocio', $tenantId)
                 ->first();
 
             if (! $negocio) {
-                return ['tour_completado' => true, 'pasos' => []];
+                return ['tour_completado' => true, 'bienvenida_vista' => true, 'pasos' => []];
             }
 
             return [
                 'tour_completado' => (bool) $negocio->tour_completado,
+                'bienvenida_vista' => (bool) $negocio->bienvenida_vista,
                 'pasos' => [
                     [
                         'id' => 'personalizar',
@@ -155,7 +156,26 @@ class SvcNegocio
 
             // Ante un fallo se responde como "ya terminado" para que el widget
             // simplemente no aparezca, en vez de romper la pantalla.
-            return ['tour_completado' => true, 'pasos' => []];
+            return ['tour_completado' => true, 'bienvenida_vista' => true, 'pasos' => []];
+        }
+    }
+
+    public function marcarBienvenidaVista($tenantId): bool
+    {
+        try {
+            $query = Negocio::where('id_negocio', $tenantId);
+
+            if (! $query->exists()) {
+                return false;
+            }
+
+            $query->update(['bienvenida_vista' => true]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
         }
     }
 

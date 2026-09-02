@@ -142,7 +142,7 @@
         /* ---------- Confeti de celebración ---------- */
         .particula-confeti {
             position: fixed;
-            top: -20px;
+            top: -24px;
             z-index: 3000;
             pointer-events: none;
             will-change: transform, opacity;
@@ -154,55 +154,159 @@
                 opacity: 1;
             }
             100% {
-                transform: translate(var(--desvio-x), 105vh) rotate(var(--giro-final));
+                transform: translate(var(--desvio-x), 110vh) rotate(var(--giro-final));
                 opacity: 0;
             }
         }
 
-        /* ---------- Widget de primeros pasos ---------- */
-        #widget-onboarding {
+        /* ---------- Pantalla de bienvenida (una sola vez) ---------- */
+        #overlay-bienvenida {
             position: fixed;
-            right: 1.5rem;
-            bottom: 1.5rem;
-            z-index: 1050;
+            inset: 0;
+            z-index: 2500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            background-color: var(--bg-body);
+            backdrop-filter: blur(6px);
+        }
+
+        #overlay-bienvenida.visible {
+            display: flex;
+            animation: aparecerOverlay 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #overlay-bienvenida.saliendo {
+            animation: salirOverlay 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes aparecerOverlay {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes salirOverlay {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .contenido-bienvenida {
+            text-align: center;
+            max-width: 560px;
+            animation: entradaContenidoBienvenida 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes entradaContenidoBienvenida {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .icono-bienvenida {
+            width: 84px;
+            height: 84px;
+            border-radius: 50%;
+            background-color: var(--accent-soft);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.4rem;
+            margin: 0 auto 1.75rem;
+        }
+
+        .contenido-bienvenida h1 {
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: clamp(1.8rem, 4.5vw, 2.6rem);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+
+        .contenido-bienvenida p {
+            color: var(--text-secondary);
+            font-size: 1.02rem;
+            line-height: 1.65;
+            margin-bottom: 2rem;
+        }
+
+        #btn-empecemos {
+            font-size: 1rem;
+            padding: 0.8rem 2rem;
+        }
+
+        /* ---------- Drawer de primeros pasos ---------- */
+        #drawer-onboarding {
             display: none;
         }
 
-        #burbuja-onboarding {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.55rem;
-            background-color: var(--accent);
-            color: var(--text-sobre-accent);
-            border: none;
-            border-radius: 999px;
-            padding: 0.7rem 1.15rem;
-            font-weight: 600;
-            font-size: 0.88rem;
+        /* Con la pestaña visible se reserva espacio a la derecha: si no, tapaba
+           el borde de tablas y calendarios (columnas, paginación, buscador). */
+        body.con-drawer-onboarding main {
+            padding-right: 5.5rem;
+        }
+
+        /* Pestaña colapsada, anclada al borde derecho. */
+        #pestana-onboarding {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1040;
+            width: 52px;
+            height: 220px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-right: none;
+            border-radius: var(--radius-card) 0 0 var(--radius-card);
             box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.85rem;
+            color: var(--text-primary);
             transition: var(--transition-base);
         }
 
-        #burbuja-onboarding:hover {
-            background-color: var(--accent-hover);
-            transform: translateY(-2px);
+        #pestana-onboarding:hover {
+            background-color: var(--bg-card-hover);
+            width: 58px;
         }
 
+        #pestana-onboarding .icono-pestana {
+            font-size: 1.35rem;
+            color: var(--accent);
+        }
+
+        #pestana-onboarding .conteo-pestana {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            writing-mode: vertical-rl;
+            letter-spacing: 0.08em;
+        }
+
+        /* Panel deslizante. */
         #panel-onboarding {
-            display: none;
-            width: 330px;
-            max-width: calc(100vw - 3rem);
-            padding: 1.25rem;
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 360px;
+            max-width: 100vw;
+            z-index: 1045;
+            background-color: var(--bg-card);
+            border-left: 1px solid var(--border-color);
+            box-shadow: -12px 0 40px rgba(0, 0, 0, 0.28);
+            padding: 1.5rem 1.35rem;
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         #panel-onboarding.abierto {
-            display: block;
-            animation: aparecerWidget 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @keyframes aparecerWidget {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
+            transform: translateX(0);
         }
 
         .cabecera-onboarding {
@@ -215,7 +319,7 @@
         .cabecera-onboarding .titulo-onboarding {
             color: var(--text-primary);
             font-weight: 700;
-            font-size: 1rem;
+            font-size: 1.1rem;
             line-height: 1.3;
         }
 
@@ -224,9 +328,9 @@
             background: none;
             border: none;
             color: var(--text-secondary);
-            font-size: 1.05rem;
+            font-size: 1.15rem;
             line-height: 1;
-            padding: 0.1rem 0.25rem;
+            padding: 0.15rem 0.3rem;
             border-radius: var(--radius-sm);
             transition: var(--transition-base);
         }
@@ -238,18 +342,18 @@
 
         .subtitulo-onboarding {
             color: var(--text-secondary);
-            font-size: 0.83rem;
+            font-size: 0.86rem;
             line-height: 1.5;
-            margin-bottom: 0.9rem;
+            margin-bottom: 1rem;
         }
 
         .barra-progreso-onboarding {
-            height: 7px;
+            height: 8px;
             background-color: var(--bg-input);
             border: 1px solid var(--border-color);
             border-radius: 999px;
             overflow: hidden;
-            margin-bottom: 1rem;
+            margin-bottom: 1.1rem;
         }
 
         .relleno-progreso-onboarding {
@@ -257,25 +361,23 @@
             width: 0;
             background-color: var(--accent);
             border-radius: 999px;
-            transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .paso-onboarding {
             display: flex;
             align-items: center;
-            gap: 0.6rem;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 0.87rem;
+            gap: 0.65rem;
+            padding: 0.7rem 0.6rem;
+            margin-bottom: 0.2rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.89rem;
             color: var(--text-primary);
-        }
-
-        .paso-onboarding:last-of-type {
-            border-bottom: none;
+            transition: var(--transition-base);
         }
 
         .paso-onboarding .icono-paso {
-            font-size: 1.05rem;
+            font-size: 1.15rem;
             flex-shrink: 0;
         }
 
@@ -297,13 +399,35 @@
             line-height: 1.35;
         }
 
+        /* Solo el primer paso pendiente late, para señalar qué sigue. */
+        .paso-onboarding.siguiente {
+            background-color: var(--accent-soft);
+            animation: latidoPaso 2s ease-in-out infinite;
+        }
+
+        @keyframes latidoPaso {
+            0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+            50% { box-shadow: 0 0 0 7px transparent; }
+        }
+
+        /* "Pop" del check cuando un paso acaba de completarse. */
+        .icono-paso.recien-completado {
+            animation: popCheck 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes popCheck {
+            0% { transform: scale(0); }
+            60% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
         .btn-ir-paso {
             border: 1px solid var(--border-color);
             background-color: transparent;
             color: var(--accent);
             border-radius: var(--radius-sm);
-            padding: 0.2rem 0.6rem;
-            font-size: 0.76rem;
+            padding: 0.22rem 0.65rem;
+            font-size: 0.78rem;
             font-weight: 600;
             text-decoration: none;
             transition: var(--transition-base);
@@ -317,8 +441,15 @@
         }
 
         #contenedor-boton-final {
-            margin-top: 1rem;
+            margin-top: 1.25rem;
         }
+
+        @media (max-width: 575.98px) {
+            #panel-onboarding {
+                width: 100vw;
+            }
+        }
+
 
         * {
             scrollbar-width: thin;
@@ -1168,13 +1299,34 @@
     </div>
 
     @if (! \App\Models\Rol::esRolEmpleado(session('id_rol')) && session('tenant_id') !== null)
-        {{-- Primeros pasos: solo para el administrador de un negocio. --}}
-        <div id="widget-onboarding">
-            <div id="panel-onboarding" class="card-elevada">
+        {{-- Bienvenida y primeros pasos: solo para el administrador de un negocio. --}}
+        <div id="overlay-bienvenida">
+            <div class="contenido-bienvenida">
+                <div class="icono-bienvenida">
+                    <i class="bi bi-stars"></i>
+                </div>
+                <h1>Gracias por confiar en nosotros</h1>
+                <p>
+                    Nos alegra tenerte aquí. Dale tu color al panel y deja lista tu agenda:
+                    te acompañamos paso a paso para que empieces a recibir clientes hoy mismo.
+                </p>
+                <button type="button" id="btn-empecemos" class="btn-primario-accento">
+                    <i class="bi bi-rocket-takeoff"></i> Empecemos
+                </button>
+            </div>
+        </div>
+
+        <div id="drawer-onboarding">
+            <button type="button" id="pestana-onboarding" aria-label="Primeros pasos">
+                <i class="bi bi-rocket-takeoff icono-pestana"></i>
+                <span class="conteo-pestana" id="conteo-onboarding">0/6</span>
+            </button>
+
+            <div id="panel-onboarding">
                 <div class="cabecera-onboarding">
                     <div class="titulo-onboarding">Pon en marcha tu negocio</div>
-                    <button type="button" class="btn-cerrar-onboarding" id="btn-cerrar-onboarding" aria-label="Cerrar">
-                        <i class="bi bi-x"></i>
+                    <button type="button" class="btn-cerrar-onboarding" id="btn-cerrar-onboarding" aria-label="Colapsar">
+                        <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
                 <p class="subtitulo-onboarding">
@@ -1189,11 +1341,6 @@
 
                 <div id="contenedor-boton-final"></div>
             </div>
-
-            <button type="button" id="burbuja-onboarding">
-                <i class="bi bi-rocket-takeoff"></i>
-                <span id="conteo-onboarding">0/6 completados</span>
-            </button>
         </div>
     @endif
 
@@ -1234,20 +1381,24 @@
          * así que la celebración sigue el acento configurado por cada negocio.
          * Las partículas se eliminan solas al terminar su animación.
          */
-        function dispararConfeti(cantidad) {
-            var totalParticulas = cantidad || 35;
+        function dispararConfeti(cantidad, origenX) {
+            var totalParticulas = cantidad || 100;
+            // Punto horizontal de origen en % de la pantalla (50 = centro).
+            var centro = (origenX === undefined || origenX === null) ? 50 : origenX;
             var colores = [colorVariable('--accent'), colorVariable('--success'), colorVariable('--warning')];
 
             for (var i = 0; i < totalParticulas; i++) {
                 var particula = document.createElement('div');
                 particula.className = 'particula-confeti';
 
-                var tamano = 6 + Math.random() * 4;                  // entre 6 y 10px
-                var duracion = 1.5 + Math.random() * 0.5;            // entre 1.5s y 2s
-                var desvioX = (Math.random() * 240) - 120;           // dispersión lateral
+                var tamano = 8 + Math.random() * 6;                  // entre 8 y 14px
+                var duracion = 1.6 + Math.random() * 0.7;            // entre 1.6s y 2.3s
+                var desvioX = (Math.random() * 320) - 160;           // dispersión lateral
                 var giro = 360 + Math.random() * 720;                // vueltas al caer
 
-                particula.style.left = Math.random() * 100 + 'vw';
+                // Se reparten alrededor del origen, sin salirse de la pantalla.
+                var posicion = centro + (Math.random() * 30 - 15);
+                particula.style.left = Math.max(0, Math.min(100, posicion)) + 'vw';
                 particula.style.width = tamano + 'px';
                 particula.style.height = tamano + 'px';
                 particula.style.backgroundColor = colores[Math.floor(Math.random() * colores.length)];
@@ -1294,7 +1445,7 @@
             });
         });
 
-        /* ================= WIDGET DE PRIMEROS PASOS ================= */
+        /* ================= BIENVENIDA Y PRIMEROS PASOS ================= */
 
         // Textos y destino de cada paso. El paso "finalizar" no se lista:
         // se representa con el botón de cierre al completar los otros cinco.
@@ -1308,16 +1459,33 @@
 
         var CLAVE_PROGRESO_SESION = 'onboarding_completados';
 
-        function pintarWidgetOnboarding(onboarding) {
-            var widget = jQuery('#widget-onboarding');
+        function abrirDrawerOnboarding() {
+            jQuery('#panel-onboarding').addClass('abierto');
+        }
 
-            // Sin widget en el DOM (empleado o super admin) no hay nada que hacer.
-            if (widget.length === 0) {
+        function cerrarDrawerOnboarding() {
+            jQuery('#panel-onboarding').removeClass('abierto');
+        }
+
+        function mostrarBienvenida() {
+            jQuery('#overlay-bienvenida').addClass('visible');
+            // Dos ráfagas simultáneas, una por cada lado de la pantalla.
+            dispararConfeti(110, 15);
+            dispararConfeti(110, 85);
+        }
+
+        function pintarDrawerOnboarding(onboarding) {
+            var drawer = jQuery('#drawer-onboarding');
+
+            // Sin drawer en el DOM (empleado o super admin) no hay nada que hacer.
+            if (drawer.length === 0) {
                 return;
             }
 
             if (!onboarding || onboarding.tour_completado === true) {
-                widget.hide();
+                drawer.hide();
+                jQuery("body").removeClass("con-drawer-onboarding");
+
                 return;
             }
 
@@ -1333,13 +1501,19 @@
 
             var total = pasos.length; // 6, incluyendo el cierre manual
 
-            jQuery('#conteo-onboarding').text(completados + '/' + total + ' completados');
+            // Si aumentó desde la última carga, se celebra y se abre solo.
+            var previos = parseInt(sessionStorage.getItem(CLAVE_PROGRESO_SESION), 10);
+            var huboAvance = !isNaN(previos) && completados > previos;
+
+            jQuery('#conteo-onboarding').text(completados + '/' + total);
             jQuery('#relleno-progreso-onboarding').css('width', (completados / total * 100) + '%');
 
             var lista = jQuery('#lista-pasos-onboarding');
             lista.empty();
 
-            pasosVisibles.forEach(function (paso) {
+            var primerPendienteMarcado = false;
+
+            pasosVisibles.forEach(function (paso, indice) {
                 var definicion = PASOS_ONBOARDING[paso.id];
 
                 if (!definicion) {
@@ -1348,14 +1522,29 @@
 
                 var hecho = paso.completado === true;
                 var icono = hecho ? 'bi-check-circle-fill' : 'bi-circle';
+                var clases = hecho ? 'hecho' : 'pendiente';
+
+                // Solo el primer pendiente late, para señalar qué sigue.
+                if (!hecho && !primerPendienteMarcado) {
+                    clases += ' siguiente';
+                    primerPendienteMarcado = true;
+                }
+
+                // Al detectar avance, el check recién ganado hace "pop".
+                var clasesIcono = 'bi ' + icono + ' icono-paso';
+
+                if (huboAvance && hecho && indice >= previos) {
+                    clasesIcono += ' recien-completado';
+                }
+
                 // Un paso ya cumplido no necesita botón para ir a hacerlo.
                 var boton = hecho
                     ? ''
                     : '<a href="' + UrlGlobal + definicion.destino + '" class="btn-ir-paso">Ir</a>';
 
                 lista.append(
-                    '<div class="paso-onboarding ' + (hecho ? 'hecho' : 'pendiente') + '">' +
-                    '<i class="bi ' + icono + ' icono-paso"></i>' +
+                    '<div class="paso-onboarding ' + clases + '">' +
+                    '<i class="' + clasesIcono + '"></i>' +
                     '<span class="texto-paso">' + definicion.texto + '</span>' +
                     boton +
                     '</div>'
@@ -1373,45 +1562,64 @@
                 );
             }
 
-            widget.show();
+            drawer.show();
+            jQuery("body").addClass("con-drawer-onboarding");
 
-            // Si se completó algún paso desde la última carga, se celebra.
-            var previos = parseInt(sessionStorage.getItem(CLAVE_PROGRESO_SESION), 10);
-
-            if (!isNaN(previos) && completados > previos) {
-                dispararConfeti(35);
+            if (huboAvance) {
+                dispararConfeti(110);
+                // Se abre solo, esté el usuario en la pantalla que esté.
+                abrirDrawerOnboarding();
             }
 
             sessionStorage.setItem(CLAVE_PROGRESO_SESION, completados);
+
+            // La bienvenida se muestra una única vez, antes de cualquier paso.
+            if (onboarding.bienvenida_vista === false) {
+                mostrarBienvenida();
+            }
         }
 
         function cargarProgresoOnboarding() {
-            if (jQuery('#widget-onboarding').length === 0) {
+            if (jQuery('#drawer-onboarding').length === 0) {
                 return;
             }
 
             axiosSipleInterno('GET', 'request/negocio/progreso-onboarding', {}, {}, false, function (respuesta) {
                 if (respuesta.error == 0) {
-                    pintarWidgetOnboarding(respuesta.data.onboarding);
+                    pintarDrawerOnboarding(respuesta.data.onboarding);
                 }
             });
         }
 
-        jQuery('#burbuja-onboarding').on('click', function () {
+        jQuery('#btn-empecemos').on('click', function () {
+            axiosSipleInterno('POST', 'request/negocio/marcar-bienvenida', {}, {}, false);
+
+            var overlay = jQuery('#overlay-bienvenida');
+            overlay.addClass('saliendo');
+
+            setTimeout(function () {
+                overlay.removeClass('visible saliendo');
+                // Tras la bienvenida se abre el drawer para guiar el primer paso.
+                abrirDrawerOnboarding();
+            }, 350);
+        });
+
+        jQuery('#pestana-onboarding').on('click', function () {
             jQuery('#panel-onboarding').toggleClass('abierto');
         });
 
         jQuery('#btn-cerrar-onboarding').on('click', function () {
-            // Solo colapsa: el widget sigue disponible en la burbuja.
-            jQuery('#panel-onboarding').removeClass('abierto');
+            // Solo colapsa: la pestaña sigue disponible.
+            cerrarDrawerOnboarding();
         });
 
         jQuery('#contenedor-boton-final').on('click', '#btn-finalizar-onboarding', function () {
             axiosSipleInterno('POST', 'request/negocio/completar-onboarding', {}, {}, true, function (respuesta) {
                 if (respuesta.error == 0) {
-                    dispararConfeti(70);
-                    jQuery('#panel-onboarding').removeClass('abierto');
-                    jQuery('#widget-onboarding').hide();
+                    dispararConfeti(200);
+                    cerrarDrawerOnboarding();
+                    jQuery('#drawer-onboarding').hide();
+                    jQuery('body').removeClass('con-drawer-onboarding');
                     sessionStorage.removeItem(CLAVE_PROGRESO_SESION);
                 } else {
                     notificarUsuario(respuesta.mensaje, 'error');
