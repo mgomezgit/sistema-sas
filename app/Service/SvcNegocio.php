@@ -108,6 +108,48 @@ class SvcNegocio
     }
 
     /**
+     * Verifica que la fecha y el horario caigan dentro de los días y las horas
+     * de atención configurados por el negocio. Cada dato ausente (día no
+     * configurado, o apertura/cierre no configurados) simplemente no se valida,
+     * así que un negocio que no ha configurado nada de esto no queda bloqueado.
+     */
+    public function estaDentroDelHorario($tenantId, $fecha, $horaInicio, $horaFin)
+    {
+        try {
+            $horario = $this->obtenerHorario($tenantId);
+
+            $diasAtencion = $horario['dias_atencion'] ?? null;
+            $horaApertura = $horario['hora_apertura'] ?? null;
+            $horaCierre = $horario['hora_cierre'] ?? null;
+
+            if (! empty($diasAtencion)) {
+                $dias = array_map('intval', explode(',', $diasAtencion));
+                $diaSemana = (int) date('N', strtotime($fecha));
+
+                if (! in_array($diaSemana, $dias, true)) {
+                    return false;
+                }
+            }
+
+            if (! empty($horaApertura) && strtotime($horaInicio) < strtotime($horaApertura)) {
+                return false;
+            }
+
+            if (! empty($horaCierre) && strtotime($horaFin) > strtotime($horaCierre)) {
+                return false;
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            // Ante un fallo no se bloquea la reserva: es preferible no romper la
+            // creación de reservas por un problema al leer el horario.
+            return true;
+        }
+    }
+
+    /**
      * Progreso del onboarding: cada paso se deduce del estado real del negocio,
      * no de banderas que haya que ir marcando a mano.
      */

@@ -7,6 +7,9 @@ use App\Mail\ReservaConfirmada;
 use App\Mail\ReservaEstadoActualizado;
 use App\Models\Cliente;
 use App\Models\Negocio;
+use App\Service\SvcCliente;
+use App\Service\SvcEmpleado;
+use App\Service\SvcNegocio;
 use App\Service\SvcRecursoReservable;
 use App\Service\SvcReserva;
 use Carbon\Carbon;
@@ -20,6 +23,12 @@ class ReservaController extends Controller
 
     protected SvcRecursoReservable $svcRecursoReservable;
 
+    protected SvcCliente $svcCliente;
+
+    protected SvcEmpleado $svcEmpleado;
+
+    protected SvcNegocio $svcNegocio;
+
     const ESTADOS_VALIDOS = ['pendiente', 'confirmada', 'completada', 'cancelada'];
 
     // Estados que un empleado puede aplicar sobre sus propias citas.
@@ -31,6 +40,9 @@ class ReservaController extends Controller
 
         $this->svcReserva = new SvcReserva;
         $this->svcRecursoReservable = new SvcRecursoReservable;
+        $this->svcCliente = new SvcCliente;
+        $this->svcEmpleado = new SvcEmpleado;
+        $this->svcNegocio = new SvcNegocio;
     }
 
     /**
@@ -84,10 +96,24 @@ class ReservaController extends Controller
 
         $datos = $this->getRequestData();
 
+        if ($datos['fecha_reserva'] < date('Y-m-d')) {
+            $this->agregarError('No es posible crear reservas en fechas pasadas');
+
+            return $this->sendResponse();
+        }
+
+        $cliente = $this->svcCliente->listarById($datos['id_cliente'], $tenantId);
+
+        if (empty($cliente)) {
+            $this->agregarError('El cliente seleccionado no es válido');
+
+            return $this->sendResponse();
+        }
+
         $recurso = $this->svcRecursoReservable->listarById($datos['id_recurso'], $tenantId);
 
         if (empty($recurso)) {
-            $this->agregarError('El servicio seleccionado ya no está disponible. Actualiza la página y vuelve a elegirlo de la lista.');
+            $this->agregarError('El recurso seleccionado no es válido');
 
             return $this->sendResponse();
         }
@@ -95,6 +121,22 @@ class ReservaController extends Controller
         $horaFin = Carbon::parse($datos['hora_inicio'])->addMinutes($recurso[0]['duracion_minutos'])->format('H:i:s');
 
         $idEmpleado = $datos['id_empleado'] ?? null;
+
+        if (! empty($idEmpleado)) {
+            $empleado = $this->svcEmpleado->listarById($idEmpleado, $tenantId);
+
+            if (empty($empleado)) {
+                $this->agregarError('El empleado seleccionado no es válido');
+
+                return $this->sendResponse();
+            }
+        }
+
+        if (! $this->svcNegocio->estaDentroDelHorario($tenantId, $datos['fecha_reserva'], $datos['hora_inicio'], $horaFin)) {
+            $this->agregarError('El negocio no atiende en la fecha u horario seleccionados');
+
+            return $this->sendResponse();
+        }
 
         if (! empty($idEmpleado)) {
             $disponible = $this->svcReserva->verificarDisponibilidad(
@@ -177,10 +219,24 @@ class ReservaController extends Controller
 
         $datos = $this->getRequestData();
 
+        if ($datos['fecha_reserva'] < date('Y-m-d')) {
+            $this->agregarError('No es posible crear reservas en fechas pasadas');
+
+            return $this->sendResponse();
+        }
+
+        $cliente = $this->svcCliente->listarById($datos['id_cliente'], $tenantId);
+
+        if (empty($cliente)) {
+            $this->agregarError('El cliente seleccionado no es válido');
+
+            return $this->sendResponse();
+        }
+
         $recurso = $this->svcRecursoReservable->listarById($datos['id_recurso'], $tenantId);
 
         if (empty($recurso)) {
-            $this->agregarError('El servicio seleccionado ya no está disponible. Actualiza la página y vuelve a elegirlo de la lista.');
+            $this->agregarError('El recurso seleccionado no es válido');
 
             return $this->sendResponse();
         }
@@ -188,6 +244,22 @@ class ReservaController extends Controller
         $horaFin = Carbon::parse($datos['hora_inicio'])->addMinutes($recurso[0]['duracion_minutos'])->format('H:i:s');
 
         $idEmpleado = $datos['id_empleado'] ?? null;
+
+        if (! empty($idEmpleado)) {
+            $empleado = $this->svcEmpleado->listarById($idEmpleado, $tenantId);
+
+            if (empty($empleado)) {
+                $this->agregarError('El empleado seleccionado no es válido');
+
+                return $this->sendResponse();
+            }
+        }
+
+        if (! $this->svcNegocio->estaDentroDelHorario($tenantId, $datos['fecha_reserva'], $datos['hora_inicio'], $horaFin)) {
+            $this->agregarError('El negocio no atiende en la fecha u horario seleccionados');
+
+            return $this->sendResponse();
+        }
 
         if (! empty($idEmpleado)) {
             $disponible = $this->svcReserva->verificarDisponibilidad(

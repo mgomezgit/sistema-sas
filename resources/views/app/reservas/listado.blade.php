@@ -1132,11 +1132,11 @@
 
             eventoEnPanel = evento;
 
-            jQuery('#detalle-titulo-cliente').text(partesTitulo.cliente);
-            jQuery('#detalle-servicio').text(partesTitulo.servicio);
-            jQuery('#detalle-telefono').text(props.telefono_cliente || 'Sin teléfono registrado');
-            jQuery('#detalle-empleado').text(props.nombre_empleado || 'Sin asignar');
-            jQuery('#detalle-horario').text(formatearHora(evento.start) + ' - ' + formatearHora(evento.end));
+            jQuery('#detalle-titulo-cliente').text('Cliente: ' + partesTitulo.cliente);
+            jQuery('#detalle-servicio').text('Servicio: ' + partesTitulo.servicio);
+            jQuery('#detalle-telefono').text(props.telefono_cliente ? 'Teléfono: ' + props.telefono_cliente : 'Sin teléfono registrado');
+            jQuery('#detalle-empleado').text('Atiende: ' + (props.nombre_empleado || 'Sin asignar'));
+            jQuery('#detalle-horario').text('Horario: ' + formatearHora(evento.start) + ' - ' + formatearHora(evento.end));
 
             if (props.notas) {
                 jQuery('#detalle-notas').text(props.notas);
