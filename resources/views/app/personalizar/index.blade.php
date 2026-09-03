@@ -181,7 +181,7 @@
         <div class="titulo-bloque">Modo</div>
         <div class="ayuda-bloque">Define el fondo general del panel.</div>
 
-        <div class="opciones-modo">
+        <div class="opciones-modo" id="tour-seccion-modo">
             <div class="opcion-modo" data-modo="claro">
                 <i class="bi bi-check-circle-fill check-modo"></i>
                 <i class="bi bi-sun icono-modo"></i>
@@ -199,7 +199,7 @@
         <div class="titulo-bloque">Color de acento</div>
         <div class="ayuda-bloque">Es el color de marca: botones, enlaces y elementos destacados.</div>
 
-        <div class="opciones-acento">
+        <div class="opciones-acento" id="tour-seccion-acento">
             {{-- Los hex van fijos porque son las opciones a elegir, no el tema aplicado. --}}
             <button type="button" class="opcion-acento" data-acento="oro_rosa">
                 <span class="circulo-acento" style="background-color: #b76e79;"><i class="bi bi-check-lg"></i></span>
@@ -306,6 +306,21 @@
 
         jQuery(document).ready(function () {
             marcarSeleccion();
+
+            iniciarGuiaSiCorresponde('personalizar', function () {
+                iniciarTourContextual('personalizar', [
+                    {
+                        attachTo: { element: '#tour-seccion-modo', on: 'bottom' },
+                        title: 'Claro u oscuro',
+                        text: 'Elige si tu panel se ve claro u oscuro. Puedes cambiarlo cuando quieras.'
+                    },
+                    {
+                        attachTo: { element: '#tour-seccion-acento', on: 'top' },
+                        title: 'El color de tu negocio',
+                        text: 'Elige el color que representará tu negocio. Verás el cambio al instante, y se guarda cuando pulses "Guardar personalización".'
+                    }
+                ]);
+            });
         });
     </script>
 @endsection

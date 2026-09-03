@@ -285,6 +285,32 @@
 
         jQuery(document).ready(function () {
             cargarClientes();
+
+            iniciarGuiaSiCorresponde('cliente', function () {
+                iniciarTourContextual('cliente', [
+                    {
+                        attachTo: { element: '#btn-nuevo-cliente', on: 'bottom' },
+                        title: 'Tus clientes',
+                        text: 'Aquí registras a las personas que reservan contigo, para llevar su historial y agendar más rápido.'
+                    },
+                    {
+                        attachTo: { element: '#nombre', on: 'bottom' },
+                        title: 'Nombre del cliente',
+                        text: 'Escribe el nombre de tu cliente para poder identificarlo en sus futuras reservas.',
+                        beforeShowMe: function () {
+                            return new Promise(function (resolver) {
+                                var elementoModal = document.getElementById('modal-cliente');
+
+                                jQuery(elementoModal).one('shown.bs.modal', function () {
+                                    resolver();
+                                });
+
+                                document.getElementById('btn-nuevo-cliente').click();
+                            });
+                        }
+                    }
+                ]);
+            });
         });
     </script>
 @endsection

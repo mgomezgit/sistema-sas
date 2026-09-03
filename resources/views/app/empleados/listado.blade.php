@@ -401,6 +401,32 @@
 
         jQuery(document).ready(function () {
             cargarEmpleados();
+
+            iniciarGuiaSiCorresponde('empleado', function () {
+                iniciarTourContextual('empleado', [
+                    {
+                        attachTo: { element: '#btn-nuevo-empleado', on: 'bottom' },
+                        title: 'Tu equipo',
+                        text: 'Aquí sumas a las personas que trabajan en tu negocio y atienden a tus clientes.'
+                    },
+                    {
+                        attachTo: { element: '#nombre', on: 'bottom' },
+                        title: 'Nombre del empleado',
+                        text: 'Escribe el nombre completo de la persona que estás agregando a tu equipo.',
+                        beforeShowMe: function () {
+                            return new Promise(function (resolver) {
+                                var elementoModal = document.getElementById('modal-empleado');
+
+                                jQuery(elementoModal).one('shown.bs.modal', function () {
+                                    resolver();
+                                });
+
+                                document.getElementById('btn-nuevo-empleado').click();
+                            });
+                        }
+                    }
+                ]);
+            });
         });
     </script>
 @endsection

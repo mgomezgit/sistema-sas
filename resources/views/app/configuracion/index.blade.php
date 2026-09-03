@@ -116,7 +116,7 @@
             <div class="ayuda-bloque">Días y horas en que tu negocio recibe clientes.</div>
 
             <label class="form-label">Días de atención</label>
-            <div class="dias-atencion">
+            <div class="dias-atencion" id="tour-dias-atencion">
                 @php
                     $diasSemana = [
                         1 => 'Lunes',
@@ -228,6 +228,26 @@
 
         jQuery(document).ready(function () {
             cargarConfiguracion();
+
+            iniciarGuiaSiCorresponde('horario', function () {
+                iniciarTourContextual('horario', [
+                    {
+                        attachTo: { element: '#tour-dias-atencion', on: 'bottom' },
+                        title: 'Días de atención',
+                        text: 'Marca los días en que tu negocio recibe clientes.'
+                    },
+                    {
+                        attachTo: { element: '#hora_apertura', on: 'top' },
+                        title: 'Hora de apertura',
+                        text: 'Indica a qué hora abres tu negocio.'
+                    },
+                    {
+                        attachTo: { element: '#hora_cierre', on: 'top' },
+                        title: 'Hora de cierre',
+                        text: 'Indica a qué hora cierras y luego pulsa "Guardar cambios" para completar este paso.'
+                    }
+                ]);
+            });
         });
     </script>
 @endsection

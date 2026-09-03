@@ -1039,6 +1039,29 @@
                 cargarReservasDelMes(function () {
                     pintarCalendario();
                     seleccionarDia(fechaDeHoy());
+
+                    iniciarGuiaSiCorresponde('reserva', function () {
+                        var pasosReserva = [
+                            {
+                                attachTo: { element: '#cuadricula-dias', on: 'top' },
+                                title: 'Elige un día',
+                                text: 'Elige un día en el calendario para ver los horarios disponibles.'
+                            }
+                        ];
+
+                        // Las franjas de hoy ya deberían estar pintadas a esta altura
+                        // (seleccionarDia se acaba de ejecutar). Si por algún motivo no
+                        // hay franjas para mostrar, se omite ese segundo paso.
+                        if (document.querySelector('#franjas-horarias .btn-franja')) {
+                            pasosReserva.push({
+                                attachTo: { element: '#franjas-horarias', on: 'top' },
+                                title: 'Horarios disponibles',
+                                text: 'Elige una de estas franjas para completar los datos de tu primera reserva.'
+                            });
+                        }
+
+                        iniciarTourContextual('reserva', pasosReserva);
+                    });
                 });
             });
         });

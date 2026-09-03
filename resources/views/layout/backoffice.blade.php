@@ -6,6 +6,7 @@
     <title>@yield('title', 'Plataforma Reservas')</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/shepherd.js/dist/css/shepherd.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.11/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/buttons/2.4.3/css/buttons.bootstrap5.min.css" rel="stylesheet">
@@ -1167,6 +1168,88 @@
                 margin-left: 72px;
             }
         }
+
+        /* ================= TOURS CONTEXTUALES (Shepherd.js) =================
+           Se sobrescribe el tema morado por defecto de la librería para que
+           las burbujas usen las mismas variables de color del panel, tanto en
+           modo oscuro como claro. */
+
+        .shepherd-element {
+            background-color: var(--bg-card);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-color);
+            max-width: 360px;
+        }
+
+        .shepherd-arrow:before {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+        }
+
+        .shepherd-has-title .shepherd-content .shepherd-header {
+            background-color: var(--bg-card);
+            padding: 1rem 1.25rem 0.25rem;
+        }
+
+        .shepherd-title {
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1.02rem;
+        }
+
+        .shepherd-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            padding: 0.5rem 1.25rem 1rem;
+        }
+
+        .shepherd-cancel-icon {
+            color: var(--text-muted);
+        }
+
+        .shepherd-cancel-icon:hover {
+            color: var(--text-primary);
+        }
+
+        .shepherd-footer {
+            padding: 0 1.25rem 1.25rem;
+            gap: 0.5rem;
+        }
+
+        .shepherd-button {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 0.45rem 0.9rem;
+            transition: var(--transition-base);
+        }
+
+        .shepherd-button:not(:disabled):hover {
+            background-color: var(--bg-card-hover);
+            border-color: var(--border-color-strong);
+            color: var(--text-primary);
+        }
+
+        .shepherd-button.btn-primario-accento {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: var(--text-sobre-accent);
+        }
+
+        .shepherd-button.btn-primario-accento:not(:disabled):hover {
+            background-color: var(--accent-hover);
+            border-color: var(--accent-hover);
+            color: var(--text-sobre-accent);
+        }
+
+        .shepherd-modal-overlay-container {
+            opacity: 0.55;
+        }
     </style>
 
     @yield('estilos')
@@ -1349,6 +1432,7 @@
     <script src="https://cdn.jsdelivr.net/npm/axios@1.7.7/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/shepherd.js/dist/js/shepherd.min.js"></script>
 
     <script src="https://cdn.datatables.net/1.13.11/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.11/js/dataTables.bootstrap5.min.js"></script>
@@ -1445,6 +1529,163 @@
                 return new bootstrap.Tooltip(elemento);
             });
         });
+
+        /* ================= TOURS CONTEXTUALES (Shepherd.js) =================
+         * Burbujas guía ancladas a campos concretos de cada pantalla, para
+         * acompañar al usuario mientras completa un paso del onboarding.
+         * Se disparan cuando la URL trae "?guia=<id>" (ver botón "Ir" del
+         * drawer) y viven en sessionStorage: una vez vistos u omitidos, no
+         * vuelven a aparecer dentro de la misma sesión de navegador.
+         */
+
+        var CLAVE_TOURS_VISTOS = 'tours_contextuales_vistos';
+
+        function tourYaVisto(idTour) {
+            var vistos = [];
+
+            try {
+                vistos = JSON.parse(sessionStorage.getItem(CLAVE_TOURS_VISTOS)) || [];
+            } catch (e) {
+                vistos = [];
+            }
+
+            return vistos.indexOf(idTour) !== -1;
+        }
+
+        function marcarTourVisto(idTour) {
+            var vistos = [];
+
+            try {
+                vistos = JSON.parse(sessionStorage.getItem(CLAVE_TOURS_VISTOS)) || [];
+            } catch (e) {
+                vistos = [];
+            }
+
+            if (vistos.indexOf(idTour) === -1) {
+                vistos.push(idTour);
+                sessionStorage.setItem(CLAVE_TOURS_VISTOS, JSON.stringify(vistos));
+            }
+        }
+
+        /**
+         * Crea e inicia un tour de Shepherd con el tema del panel ya aplicado.
+         *
+         * @param {string} idTour  Identificador único (coincide con el valor
+         *                         de "?guia=" que manda el drawer).
+         * @param {Array}  pasos   Objetos { attachTo, title, text, [beforeShowMe] }.
+         *                         "beforeShowMe" es opcional: una función que se
+         *                         ejecuta justo antes de mostrar ese paso (por
+         *                         ejemplo, abrir un modal para poder señalar un
+         *                         campo que vive dentro de él).
+         */
+        function iniciarTourContextual(idTour, pasos) {
+            if (typeof Shepherd === 'undefined' || tourYaVisto(idTour)) {
+                return;
+            }
+
+            // Los pasos cuyo selector no existe en el DOM se descartan de
+            // antemano: Shepherd no sabe recuperarse de un selector vacío.
+            var pasosValidos = pasos.filter(function (paso) {
+                var selector = paso.attachTo && paso.attachTo.element;
+
+                return !selector || document.querySelector(selector) !== null;
+            });
+
+            if (pasosValidos.length === 0) {
+                return;
+            }
+
+            var tour = new Shepherd.Tour({
+                useModalOverlay: true,
+                defaultStepOptions: {
+                    classes: 'shepherd-theme-panel',
+                    scrollTo: { behavior: 'smooth', block: 'center' },
+                    cancelIcon: { enabled: true }
+                }
+            });
+
+            pasosValidos.forEach(function (paso, indice) {
+                var esPrimero = indice === 0;
+                var esUltimo = indice === pasosValidos.length - 1;
+                var botones = [];
+
+                if (!esPrimero) {
+                    botones.push({ text: 'Atrás', action: tour.back, classes: 'shepherd-btn-secundario' });
+                }
+
+                botones.push({
+                    text: esUltimo ? 'Entendido' : 'Siguiente',
+                    classes: 'btn-primario-accento',
+                    action: function () {
+                        // Permite, por ejemplo, abrir el modal donde vive el
+                        // siguiente campo antes de que Shepherd intente
+                        // señalarlo. Si "beforeShowMe" devuelve una promesa
+                        // (p. ej. resuelta cuando el modal termina de abrirse),
+                        // se espera antes de avanzar; si no, se usa un margen
+                        // fijo prudente.
+                        var siguiente = pasosValidos[indice + 1];
+
+                        if (siguiente && typeof siguiente.beforeShowMe === 'function') {
+                            var resultado = siguiente.beforeShowMe();
+
+                            if (resultado && typeof resultado.then === 'function') {
+                                resultado.then(function () { tour.next(); });
+                            } else {
+                                setTimeout(function () { tour.next(); }, 350);
+                            }
+
+                            return;
+                        }
+
+                        tour.next();
+                    }
+                });
+
+                tour.addStep({
+                    id: idTour + '-' + indice,
+                    title: paso.title,
+                    text: paso.text,
+                    attachTo: paso.attachTo,
+                    buttons: esPrimero
+                        ? [{ text: 'Saltar', classes: 'shepherd-btn-secundario', action: tour.cancel }].concat(botones)
+                        : botones
+                });
+            });
+
+            tour.on('complete', function () { marcarTourVisto(idTour); });
+            tour.on('cancel', function () { marcarTourVisto(idTour); });
+
+            tour.start();
+        }
+
+        /**
+         * Punto de entrada para cada vista: si la URL trae "?guia=<idPaso>" y
+         * ese paso del onboarding todavía está pendiente, ejecuta "callback"
+         * (que normalmente arma los pasos y llama a iniciarTourContextual).
+         * Si el paso ya está completo, no molesta con la guía.
+         */
+        window.iniciarGuiaSiCorresponde = function (idPaso, callback) {
+            var parametros = new URLSearchParams(window.location.search);
+
+            if (parametros.get('guia') !== idPaso || typeof axiosSipleInterno !== 'function') {
+                return;
+            }
+
+            axiosSipleInterno('GET', 'request/negocio/progreso-onboarding', {}, {}, false, function (respuesta) {
+                if (respuesta.error != 0) {
+                    return;
+                }
+
+                var pasos = (respuesta.data.onboarding && respuesta.data.onboarding.pasos) || [];
+                var paso = pasos.filter(function (p) { return p.id === idPaso; })[0];
+
+                if (paso && paso.completado === true) {
+                    return;
+                }
+
+                callback();
+            });
+        };
 
         /* ================= BIENVENIDA Y PRIMEROS PASOS ================= */
 
@@ -1556,9 +1797,11 @@
                 }
 
                 // Un paso ya cumplido no necesita botón para ir a hacerlo.
+                // El parámetro "guia" le indica a la pantalla de destino que
+                // debe iniciar su tour contextual con Shepherd.
                 var boton = hecho
                     ? ''
-                    : '<a href="' + UrlGlobal + definicion.destino + '" class="btn-ir-paso">Ir</a>';
+                    : '<a href="' + UrlGlobal + definicion.destino + '?guia=' + paso.id + '" class="btn-ir-paso">Ir</a>';
 
                 lista.append(
                     '<div class="paso-onboarding ' + clases + '">' +

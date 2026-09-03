@@ -304,6 +304,32 @@
 
         jQuery(document).ready(function () {
             cargarRecursos();
+
+            iniciarGuiaSiCorresponde('recurso', function () {
+                iniciarTourContextual('recurso', [
+                    {
+                        attachTo: { element: '#btn-nuevo-recurso', on: 'bottom' },
+                        title: 'Tus servicios',
+                        text: 'Aquí creas los servicios que ofreces, como masajes o tratamientos.'
+                    },
+                    {
+                        attachTo: { element: '#nombre', on: 'bottom' },
+                        title: 'Nombre del servicio',
+                        text: 'Ponle un nombre claro a tu servicio, para que tú y tus clientes lo reconozcan fácil.',
+                        beforeShowMe: function () {
+                            return new Promise(function (resolver) {
+                                var elementoModal = document.getElementById('modal-recurso');
+
+                                jQuery(elementoModal).one('shown.bs.modal', function () {
+                                    resolver();
+                                });
+
+                                document.getElementById('btn-nuevo-recurso').click();
+                            });
+                        }
+                    }
+                ]);
+            });
         });
     </script>
 @endsection
