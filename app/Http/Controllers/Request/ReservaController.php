@@ -219,7 +219,14 @@ class ReservaController extends Controller
 
         $datos = $this->getRequestData();
 
-        if ($datos['fecha_reserva'] < date('Y-m-d')) {
+        $reservaOriginal = $this->svcReserva->listarById($datos['id_reserva'], $tenantId);
+
+        // Solo se bloquea si el usuario está MOVIENDO la reserva a otra fecha. Si
+        // la fecha del formulario es la misma que ya tenía, se permite editar
+        // otros datos (notas, etc.) aunque esa fecha ya haya pasado.
+        $seMueveLaFecha = empty($reservaOriginal) || $datos['fecha_reserva'] !== $reservaOriginal[0]['fecha_reserva'];
+
+        if ($seMueveLaFecha && $datos['fecha_reserva'] < date('Y-m-d')) {
             $this->agregarError('No es posible crear reservas en fechas pasadas');
 
             return $this->sendResponse();
