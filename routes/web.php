@@ -50,6 +50,7 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     Route::post('reserva/cambiar-estado', [App\Http\Controllers\Request\ReservaController::class, 'cambiarEstado']);
     Route::post('reserva/eliminar', [App\Http\Controllers\Request\ReservaController::class, 'eliminar']);
     Route::get('reserva/listar', [App\Http\Controllers\Request\ReservaController::class, 'listar']);
+    Route::get('reserva/listar-calendario', [App\Http\Controllers\Request\ReservaController::class, 'listarParaCalendario']);
     Route::post('negocio/actualizar-tema', [App\Http\Controllers\Request\NegocioController::class, 'actualizarTema']);
     Route::get('negocio/configuracion', [App\Http\Controllers\Request\NegocioController::class, 'obtenerConfiguracion']);
     Route::post('negocio/actualizar-configuracion', [App\Http\Controllers\Request\NegocioController::class, 'actualizarConfiguracion']);

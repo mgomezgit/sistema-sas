@@ -353,6 +353,74 @@ class ReservaController extends Controller
     }
 
     /**
+     * Mismo listado que listar(), pero con el formato de evento que espera
+     * FullCalendar. Los colores por estado no se calculan aquí: el backend no
+     * puede leer variables CSS, así que el frontend los resuelve con
+     * getComputedStyle() (según el tema activo) y los manda como query string.
+     */
+    public function listarParaCalendario(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        if ($tenantId === null) {
+            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
+
+            return $this->sendResponse();
+        }
+
+        $fechaInicio = $this->request->query('fecha_inicio');
+        $fechaFin = $this->request->query('fecha_fin');
+
+        $coloresPorEstado = [
+            'pendiente' => [
+                'fondo' => $this->request->query('fondo_pendiente'),
+                'borde' => $this->request->query('borde_pendiente'),
+            ],
+            'confirmada' => [
+                'fondo' => $this->request->query('fondo_confirmada'),
+                'borde' => $this->request->query('borde_confirmada'),
+            ],
+            'completada' => [
+                'fondo' => $this->request->query('fondo_completada'),
+                'borde' => $this->request->query('borde_completada'),
+            ],
+            'cancelada' => [
+                'fondo' => $this->request->query('fondo_cancelada'),
+                'borde' => $this->request->query('borde_cancelada'),
+            ],
+        ];
+
+        $reservas = $this->svcReserva->listar($tenantId, $fechaInicio, $fechaFin);
+
+        $eventos = array_map(function ($reserva) use ($coloresPorEstado) {
+            $color = $coloresPorEstado[$reserva['estado_reserva']] ?? $coloresPorEstado['pendiente'];
+
+            return [
+                'id' => (string) $reserva['id_reserva'],
+                'title' => $reserva['nombre_cliente'].' - '.$reserva['nombre_recurso'],
+                'start' => $reserva['fecha_reserva'].'T'.$reserva['hora_inicio'],
+                'end' => $reserva['fecha_reserva'].'T'.$reserva['hora_fin'],
+                'backgroundColor' => $color['fondo'],
+                'borderColor' => $color['borde'],
+                'extendedProps' => [
+                    'nombre_empleado' => $reserva['nombre_empleado'],
+                    'telefono_cliente' => $reserva['telefono_cliente'],
+                    'id_cliente' => $reserva['id_cliente'],
+                    'id_recurso' => $reserva['id_recurso'],
+                    'id_empleado' => $reserva['id_empleado'],
+                    'estado_reserva' => $reserva['estado_reserva'],
+                    'notas' => $reserva['notas'],
+                ],
+            ];
+        }, $reservas);
+
+        $this->respSinError();
+        $this->setDataResponse($eventos, 'eventos');
+
+        return $this->sendResponse();
+    }
+
+    /**
      * Agenda propia del empleado logueado. Siempre acotada a su id_empleado de
      * sesión, nunca a un id recibido por parámetro.
      */
