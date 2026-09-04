@@ -27,6 +27,11 @@
             --radius-sm: 10px;
             --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             --text-sobre-accent: #ffffff;
+            /* Las dos opciones de texto para los eventos del calendario. Cuál se
+               usa lo decide el JS según la luminancia real del fondo del evento. */
+            --texto-evento-oscuro: #2a2320;
+            --texto-evento-claro: #f8f8f9;
+            --texto-sobre-avatar: #2a2320;
             /* Derivadas del acento: siguen automáticamente al acento activo. */
             --accent-glow: var(--accent-soft);
             --shadow-glow: 0 0 0 1px var(--accent-soft), 0 4px 20px var(--accent-soft);
@@ -64,6 +69,15 @@
             --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);
             --stripe-fila: rgba(255, 255, 255, 0.02);
             --overlay-loader: rgba(10, 10, 13, 0.75);
+            /* Paleta de los avatares de las tablas; el nombre decide cuál toca. */
+            --avatar-1: #e8c67a;
+            --avatar-2: #9fc0e8;
+            --avatar-3: #a4cfae;
+            --avatar-4: #e6a6ad;
+            --avatar-5: #bcaadd;
+            --avatar-6: #eab98d;
+            --avatar-7: #93c9c6;
+            --avatar-8: #d6bb98;
         }
 
         body.modo-claro {
@@ -94,6 +108,15 @@
             --shadow-card: 0 1px 2px rgba(120, 80, 80, 0.06), 0 8px 24px rgba(120, 80, 80, 0.07);
             --stripe-fila: rgba(0, 0, 0, 0.018);
             --overlay-loader: rgba(253, 247, 245, 0.8);
+            /* Paleta de los avatares de las tablas; el nombre decide cuál toca. */
+            --avatar-1: #f3d9a4;
+            --avatar-2: #cfe3f7;
+            --avatar-3: #d5ecd9;
+            --avatar-4: #f7d6d9;
+            --avatar-5: #e2d9f3;
+            --avatar-6: #fadfc9;
+            --avatar-7: #cfeceb;
+            --avatar-8: #eee0cf;
         }
 
         /* ---------- Capa 2: ACENTO ---------- */
@@ -583,9 +606,26 @@
             color: var(--success);
         }
 
+        /* Píldora neutra, en la misma familia que las demás: antes usaba el color
+           "muted", que sobre el fondo del input casi no se distinguía. */
         .badge-estado-inactivo {
-            background-color: var(--bg-input);
-            color: var(--text-muted);
+            background-color: var(--bg-card-hover);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        /* Rol del usuario, con el mismo tratamiento de píldora pastel. */
+        .badge-rol {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            white-space: nowrap;
+            background-color: var(--accent-soft);
+            color: var(--accent);
         }
 
         .badge-proximamente {
@@ -601,6 +641,38 @@
         .fila-tabla-hover tbody tr:hover,
         table.dataTable tbody tr:hover {
             background-color: var(--bg-card-hover) !important;
+        }
+
+        /* Filas con más aire. Va aparte de .fila-tabla-hover para poder combinarlas
+           sin que una pise a la otra. */
+        .fila-tabla-amplia tbody td {
+            padding-top: 0.85rem;
+            padding-bottom: 0.85rem;
+            vertical-align: middle;
+        }
+
+        .fila-tabla-amplia thead th {
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+
+        /* ---------- Avatar de iniciales para las tablas ---------- */
+        .avatar-iniciales {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1;
+            color: var(--texto-sobre-avatar);
+            flex-shrink: 0;
+        }
+
+        .avatar-iniciales i {
+            font-size: 0.95rem;
         }
 
         .btn-accion-icono {
@@ -1475,6 +1547,50 @@
         // resuelven igual aquí por herencia.
         function colorVariable(nombreVariable) {
             return getComputedStyle(document.body).getPropertyValue(nombreVariable).trim();
+        }
+
+        /**
+         * Avatar circular para las tablas: iniciales sobre un color de la paleta.
+         *
+         * El color sale de un hash del propio nombre, así que es estable: el mismo
+         * nombre cae siempre en el mismo color, en cualquier carga y en cualquier
+         * pantalla, sin necesidad de guardarlo en base de datos.
+         *
+         * @param {string} nombre        Texto del que se sacan las iniciales y el color.
+         * @param {string} [claseIcono]  Si se pasa, se dibuja ese icono en vez de las
+         *                               iniciales (útil para lo que no es una persona).
+         */
+        function generarAvatar(nombre, claseIcono) {
+            var texto = jQuery.trim(nombre || '');
+
+            var hash = 0;
+            for (var i = 0; i < texto.length; i++) {
+                hash = ((hash << 5) - hash) + texto.charCodeAt(i);
+                hash = hash & hash;
+            }
+
+            var indiceColor = (Math.abs(hash) % 8) + 1;
+
+            var contenido;
+
+            if (claseIcono) {
+                contenido = '<i class="bi ' + claseIcono + '"></i>';
+            } else {
+                var palabras = texto.split(/\s+/).filter(function (palabra) {
+                    return palabra.length > 0;
+                });
+
+                var iniciales = palabras.slice(0, 2).map(function (palabra) {
+                    return palabra.charAt(0).toUpperCase();
+                }).join('');
+
+                // Se escapa por si el nombre trae caracteres con significado en HTML.
+                contenido = jQuery('<div>').text(iniciales || '?').html();
+            }
+
+            return '<span class="avatar-iniciales" style="background-color: var(--avatar-' + indiceColor + ');">' +
+                   contenido +
+                   '</span>';
         }
 
         /**

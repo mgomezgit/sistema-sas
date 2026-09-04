@@ -50,9 +50,10 @@
 
     <div class="card-elevada card-tabla">
         <div class="card-tabla-body">
-            <table id="tabla-clientes" class="table table-striped align-middle w-100 fila-tabla-hover">
+            <table id="tabla-clientes" class="table table-striped align-middle w-100 fila-tabla-hover fila-tabla-amplia">
                 <thead>
                     <tr>
+                        <th></th>
                         <th>Nombre</th>
                         <th>Teléfono</th>
                         <th>Email</th>
@@ -156,6 +157,13 @@
                 data: clientes,
                 language: { url: 'https://cdn.datatables.net/plug-ins/1.13.11/i18n/es-ES.json' },
                 columns: [
+                    {
+                        data: null,
+                        orderable: false,
+                        render: function (fila) {
+                            return generarAvatar(fila.nombre);
+                        }
+                    },
                     { data: 'nombre' },
                     { data: 'telefono' },
                     {

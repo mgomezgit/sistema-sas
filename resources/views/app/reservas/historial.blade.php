@@ -117,9 +117,10 @@
 
     <div class="card-elevada card-tabla">
         <div class="card-tabla-body">
-            <table id="tabla-historial" class="table table-striped align-middle w-100 fila-tabla-hover">
+            <table id="tabla-historial" class="table table-striped align-middle w-100 fila-tabla-hover fila-tabla-amplia">
                 <thead>
                     <tr>
+                        <th></th>
                         <th>Fecha</th>
                         <th>Horario</th>
                         <th>Cliente</th>
@@ -215,6 +216,13 @@
                 language: { url: 'https://cdn.datatables.net/plug-ins/1.13.11/i18n/es-ES.json' },
                 order: [[0, 'desc']],
                 columns: [
+                    {
+                        data: null,
+                        orderable: false,
+                        render: function (fila) {
+                            return generarAvatar(fila.nombre_cliente);
+                        }
+                    },
                     { data: 'fecha_reserva' },
                     {
                         data: null,

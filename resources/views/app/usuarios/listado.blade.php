@@ -50,9 +50,10 @@
 
     <div class="card-elevada card-tabla">
         <div class="card-tabla-body">
-            <table id="tabla-usuarios" class="table table-striped align-middle w-100 fila-tabla-hover">
+            <table id="tabla-usuarios" class="table table-striped align-middle w-100 fila-tabla-hover fila-tabla-amplia">
                 <thead>
                     <tr>
+                        <th></th>
                         <th>Usuario</th>
                         <th>Nombre</th>
                         <th>Email</th>
@@ -179,10 +180,22 @@
                 data: usuarios,
                 language: { url: 'https://cdn.datatables.net/plug-ins/1.13.11/i18n/es-ES.json' },
                 columns: [
+                    {
+                        data: null,
+                        orderable: false,
+                        render: function (fila) {
+                            return generarAvatar(fila.nombre);
+                        }
+                    },
                     { data: 'usuario' },
                     { data: 'nombre' },
                     { data: 'email' },
-                    { data: 'nombre_rol' },
+                    {
+                        data: 'nombre_rol',
+                        render: function (data) {
+                            return '<span class="badge-rol"><i class="bi bi-shield-check"></i> ' + data + '</span>';
+                        }
+                    },
                     {
                         data: 'nombre_negocio',
                         render: function (data) {

@@ -1214,9 +1214,47 @@
             };
         }
 
-        // El fondo de los eventos es siempre un pastel claro (las variantes -soft),
-        // así que el texto necesita un color oscuro fijo para leerse bien encima,
-        // incluso en tema oscuro donde el resto del texto del panel es claro.
+        /**
+         * Decide el color de texto de un evento a partir de la luminancia real de
+         * su fondo: oscuro sobre fondos claros, claro sobre fondos intensos.
+         *
+         * Se calcula en vez de fijarse por tema porque el fondo depende del modo
+         * (claro/oscuro), del estado de la reserva y del acento del negocio; con
+         * el umbral se acierta en cualquier combinación, incluidas las futuras.
+         */
+        function luminanciaRelativa(colorTexto) {
+            var partes = colorTexto.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/);
+
+            if (!partes) {
+                return 1;
+            }
+
+            var alfa = partes[4] === undefined ? 1 : parseFloat(partes[4]);
+            // Un fondo translúcido se aplana contra el fondo de la tarjeta, que es
+            // lo que realmente se ve detrás del evento.
+            var fondoTarjeta = colorVariable('--bg-card') === '#ffffff' ? 255 : 23;
+
+            var canales = [1, 2, 3].map(function (i) {
+                var v = alfa * parseFloat(partes[i]) + (1 - alfa) * fondoTarjeta;
+                v = v / 255;
+
+                return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            });
+
+            return 0.2126 * canales[0] + 0.7152 * canales[1] + 0.0722 * canales[2];
+        }
+
+        function colorTextoSegunFondo(colorFondo) {
+            // 0.45 deja el punto de corte por encima de los tonos medios, de modo
+            // que los pasteles claros llevan texto oscuro y los tonos intensos
+            // (o los fondos translúcidos sobre negro) llevan texto claro.
+            return luminanciaRelativa(colorFondo) > 0.45
+                ? colorVariable('--texto-evento-oscuro')
+                : colorVariable('--texto-evento-claro');
+        }
+
+        // Color de respaldo a nivel del contenedor, por si algún evento no llega a
+        // pasar por eventDidMount (cada evento fija luego el suyo propio).
         function colorTextoEventosFijo() {
             // "body.modo-claro" solo puede matchear la etiqueta <body> real (no un
             // <div> aparte), así que se agrega esa clase al body de verdad por un
@@ -1327,6 +1365,14 @@
 
                     seleccionarDia(fechaTexto);
                     abrirFormularioNuevaReserva(fechaTexto, horaTexto);
+                },
+                // Cada evento fija su propio color de texto según su fondo real.
+                // La variable se define sobre el elemento del evento, así que gana
+                // sobre la del contenedor para ese evento y sus hijos.
+                eventDidMount: function (info) {
+                    var fondo = getComputedStyle(info.el).backgroundColor;
+
+                    info.el.style.setProperty('--color-texto-evento', colorTextoSegunFondo(fondo));
                 },
                 eventClick: function (info) {
                     mostrarPanelDetalle(info);

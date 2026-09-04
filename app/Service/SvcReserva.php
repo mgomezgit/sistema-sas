@@ -7,6 +7,98 @@ use Illuminate\Support\Facades\Log;
 
 class SvcReserva
 {
+    /* ================= MÉTRICAS DEL DASHBOARD ================= */
+
+    /**
+     * Reservas de hoy que siguen en pie (las canceladas no cuentan).
+     */
+    public function contarHoy($tenantId)
+    {
+        try {
+            return Reserva::where('tenant_id', $tenantId)
+                ->where('fecha_reserva', date('Y-m-d'))
+                ->where('estado', 1)
+                ->where('estado_reserva', '!=', 'cancelada')
+                ->count();
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return 0;
+        }
+    }
+
+    /**
+     * Ingresos del mes en curso: suma el precio del servicio de cada reserva
+     * confirmada o completada. Las pendientes no se cuentan porque todavía
+     * pueden caerse, y las canceladas obviamente tampoco.
+     */
+    public function calcularIngresosMes($tenantId)
+    {
+        try {
+            return (float) Reserva::from('reservas as r')
+                ->join('recursos_reservables as rec', 'rec.id_recurso', '=', 'r.id_recurso')
+                ->where('r.tenant_id', $tenantId)
+                ->where('r.estado', 1)
+                ->whereIn('r.estado_reserva', ['confirmada', 'completada'])
+                ->whereBetween('r.fecha_reserva', [date('Y-m-01'), date('Y-m-t')])
+                ->sum('rec.precio');
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return 0;
+        }
+    }
+
+    /**
+     * Porcentaje de la jornada de hoy que ya está reservado: minutos agendados
+     * sobre los minutos que el negocio atiende hoy. Devuelve 0 si hoy no se
+     * atiende o si no hay horario configurado, que es también lo que evita
+     * cualquier división por cero.
+     */
+    public function calcularOcupacionHoy($tenantId)
+    {
+        try {
+            $horario = (new SvcNegocio)->obtenerHorario($tenantId);
+
+            $apertura = $horario['hora_apertura'] ?? null;
+            $cierre = $horario['hora_cierre'] ?? null;
+            $diasAtencion = $horario['dias_atencion'] ?? null;
+
+            if (empty($apertura) || empty($cierre)) {
+                return 0;
+            }
+
+            // Si hay días configurados y hoy no es uno de ellos, no hay jornada.
+            if (! empty($diasAtencion)) {
+                $dias = array_map('intval', explode(',', $diasAtencion));
+
+                if (! in_array((int) date('N'), $dias, true)) {
+                    return 0;
+                }
+            }
+
+            $minutosDisponibles = (strtotime($cierre) - strtotime($apertura)) / 60;
+
+            if ($minutosDisponibles <= 0) {
+                return 0;
+            }
+
+            $minutosReservados = (float) Reserva::from('reservas as r')
+                ->join('recursos_reservables as rec', 'rec.id_recurso', '=', 'r.id_recurso')
+                ->where('r.tenant_id', $tenantId)
+                ->where('r.fecha_reserva', date('Y-m-d'))
+                ->where('r.estado', 1)
+                ->where('r.estado_reserva', '!=', 'cancelada')
+                ->sum('rec.duracion_minutos');
+
+            return (int) round($minutosReservados / $minutosDisponibles * 100);
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return 0;
+        }
+    }
+
     public function crear($info)
     {
         try {

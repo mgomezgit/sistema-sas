@@ -7,6 +7,22 @@ use Illuminate\Support\Facades\Log;
 
 class SvcCliente
 {
+    /**
+     * Total de clientes activos del negocio. Alimenta la tarjeta del dashboard.
+     */
+    public function contarActivos($tenantId)
+    {
+        try {
+            return Cliente::where('tenant_id', $tenantId)
+                ->where('estado', 1)
+                ->count();
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return 0;
+        }
+    }
+
     public function crear($info)
     {
         try {

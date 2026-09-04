@@ -50,9 +50,10 @@
 
     <div class="card-elevada card-tabla">
         <div class="card-tabla-body">
-            <table id="tabla-recursos" class="table table-striped align-middle w-100 fila-tabla-hover">
+            <table id="tabla-recursos" class="table table-striped align-middle w-100 fila-tabla-hover fila-tabla-amplia">
                 <thead>
                     <tr>
+                        <th></th>
                         <th>Categoría</th>
                         <th>Nombre</th>
                         <th>Duración</th>
@@ -166,6 +167,13 @@
                 data: recursos,
                 language: { url: 'https://cdn.datatables.net/plug-ins/1.13.11/i18n/es-ES.json' },
                 columns: [
+                    {
+                        data: null,
+                        orderable: false,
+                        render: function (fila) {
+                            return generarAvatar(fila.nombre, 'bi-stars');
+                        }
+                    },
                     {
                         data: 'categoria',
                         render: function (data) {

@@ -114,44 +114,56 @@
             <div>
                 <div class="kpi-icono"><i class="bi bi-calendar-check"></i></div>
                 <div class="kpi-label">Reservas de hoy</div>
-                <div class="kpi-valor">—</div>
+                <div class="kpi-valor">{{ $reservasHoy === null ? '—' : $reservasHoy }}</div>
             </div>
-            <span class="badge-proximamente align-self-start">
-                <i class="bi bi-hourglass-split"></i> Próximamente
-            </span>
+            {{-- Solo el super admin, que no pertenece a un negocio, se queda sin dato. --}}
+            @if ($reservasHoy === null)
+                <span class="badge-proximamente align-self-start">
+                    <i class="bi bi-hourglass-split"></i> Próximamente
+                </span>
+            @endif
         </div>
 
         <div class="card-elevada kpi-tile tile-pequena">
             <div>
                 <div class="kpi-icono"><i class="bi bi-people"></i></div>
                 <div class="kpi-label">Clientes activos</div>
-                <div class="kpi-valor">—</div>
+                <div class="kpi-valor">{{ $clientesActivos === null ? '—' : $clientesActivos }}</div>
             </div>
-            <span class="badge-proximamente align-self-start">
-                <i class="bi bi-hourglass-split"></i> Próximamente
-            </span>
+            {{-- Solo el super admin, que no pertenece a un negocio, se queda sin dato. --}}
+            @if ($clientesActivos === null)
+                <span class="badge-proximamente align-self-start">
+                    <i class="bi bi-hourglass-split"></i> Próximamente
+                </span>
+            @endif
         </div>
 
         <div class="card-elevada kpi-tile tile-pequena">
             <div>
                 <div class="kpi-icono"><i class="bi bi-cash-stack"></i></div>
                 <div class="kpi-label">Ingresos del mes</div>
-                <div class="kpi-valor">—</div>
+                <div class="kpi-valor">{{ $ingresosMes === null ? '—' : '$' . number_format($ingresosMes, 0, ',', '.') }}</div>
             </div>
-            <span class="badge-proximamente align-self-start">
-                <i class="bi bi-hourglass-split"></i> Próximamente
-            </span>
+            {{-- Solo el super admin, que no pertenece a un negocio, se queda sin dato. --}}
+            @if ($ingresosMes === null)
+                <span class="badge-proximamente align-self-start">
+                    <i class="bi bi-hourglass-split"></i> Próximamente
+                </span>
+            @endif
         </div>
 
         <div class="card-elevada kpi-tile tile-media">
             <div>
                 <div class="kpi-icono"><i class="bi bi-graph-up"></i></div>
                 <div class="kpi-label">Ocupación</div>
-                <div class="kpi-valor">—</div>
+                <div class="kpi-valor">{{ $ocupacionHoy === null ? '—' : $ocupacionHoy . '%' }}</div>
             </div>
-            <span class="badge-proximamente align-self-start">
-                <i class="bi bi-hourglass-split"></i> Próximamente
-            </span>
+            {{-- Solo el super admin, que no pertenece a un negocio, se queda sin dato. --}}
+            @if ($ocupacionHoy === null)
+                <span class="badge-proximamente align-self-start">
+                    <i class="bi bi-hourglass-split"></i> Próximamente
+                </span>
+            @endif
         </div>
 
         <div class="card-elevada tile-ancha">

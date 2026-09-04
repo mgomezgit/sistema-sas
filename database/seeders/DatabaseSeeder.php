@@ -23,5 +23,11 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(UsuarioDemoSeeder::class);
+
+        // Datos de prueba realistas para los negocios 1 y 5. Se deja fuera de la
+        // ejecución automática a propósito: solo inserta (nunca borra), así que
+        // llamarlo repetidamente duplicaría registros. Ejecutar a mano cuando se
+        // necesite:  php artisan db:seed --class=DatosPruebaSeeder
+        // $this->call(DatosPruebaSeeder::class);
     }
 }
