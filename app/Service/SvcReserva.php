@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Models\Reserva;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class SvcReserva
@@ -24,6 +25,37 @@ class SvcReserva
             Log::channel('database')->info($e);
 
             return 0;
+        }
+    }
+
+    /**
+     * Próximas citas de hoy que todavía no empiezan, para el resumen del panel.
+     * Se corta contra la hora actual, así la lista se va vaciando durante el día.
+     */
+    public function listarProximasHoy($tenantId, $limite = 4)
+    {
+        try {
+            return Reserva::from('reservas as r')
+                ->join('clientes as c', 'c.id_cliente', '=', 'r.id_cliente')
+                ->join('recursos_reservables as rec', 'rec.id_recurso', '=', 'r.id_recurso')
+                ->select(
+                    'r.hora_inicio',
+                    'c.nombre as nombre_cliente',
+                    'rec.nombre as nombre_recurso'
+                )
+                ->where('r.tenant_id', $tenantId)
+                ->where('r.fecha_reserva', date('Y-m-d'))
+                ->where('r.estado', 1)
+                ->where('r.estado_reserva', '!=', 'cancelada')
+                ->where('r.hora_inicio', '>=', Carbon::now()->format('H:i:s'))
+                ->orderBy('r.hora_inicio')
+                ->limit($limite)
+                ->get()
+                ->toArray() ?? [];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
         }
     }
 

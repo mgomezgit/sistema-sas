@@ -29,6 +29,108 @@
             margin-top: 0.85rem;
         }
 
+        /* ---------- Próximas citas de hoy (tarjeta grande) ---------- */
+        .lista-proximas {
+            margin-top: 1.1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .fila-proxima {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            padding: 0.6rem 0.4rem;
+            border-bottom: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            transition: var(--transition-base);
+        }
+
+        .fila-proxima:last-child {
+            border-bottom: none;
+        }
+
+        .fila-proxima:hover {
+            background-color: var(--bg-card-hover);
+        }
+
+        .fila-proxima .hora-proxima {
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 0.88rem;
+            min-width: 48px;
+        }
+
+        .fila-proxima .cliente-proxima {
+            color: var(--text-primary);
+            font-size: 0.88rem;
+            font-weight: 500;
+        }
+
+        .fila-proxima .servicio-proxima {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .enlace-calendario {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-top: 0.85rem;
+            color: var(--accent);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: var(--transition-base);
+        }
+
+        .enlace-calendario:hover {
+            gap: 0.6rem;
+            color: var(--accent-hover);
+        }
+
+        .sin-proximas {
+            margin-top: 1.1rem;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
+
+        /* ---------- Variación mensual de clientes ---------- */
+        .variacion-clientes {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            margin-top: 0.5rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .variacion-clientes.sube { color: var(--success); }
+        .variacion-clientes.baja { color: var(--danger); }
+        .variacion-clientes.igual { color: var(--text-secondary); }
+
+        .variacion-clientes i {
+            font-size: 1.1rem;
+        }
+
+        /* ---------- Barra de ocupación ---------- */
+        .barra-ocupacion {
+            margin-top: 0.85rem;
+            height: 8px;
+            width: 100%;
+            background-color: var(--border-color);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .barra-ocupacion .relleno-ocupacion {
+            height: 100%;
+            background-color: var(--accent);
+            border-radius: 999px;
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
         .bento-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -115,6 +217,26 @@
                 <div class="kpi-icono"><i class="bi bi-calendar-check"></i></div>
                 <div class="kpi-label">Reservas de hoy</div>
                 <div class="kpi-valor">{{ $reservasHoy === null ? '—' : $reservasHoy }}</div>
+
+                @if ($reservasHoy !== null)
+                    @if (count($proximasCitas) > 0)
+                        <div class="lista-proximas">
+                            @foreach ($proximasCitas as $cita)
+                                <div class="fila-proxima">
+                                    <span class="hora-proxima">{{ substr($cita['hora_inicio'], 0, 5) }}</span>
+                                    <span class="cliente-proxima">{{ $cita['nombre_cliente'] }}</span>
+                                    <span class="servicio-proxima">{{ $cita['nombre_recurso'] }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <a href="{{ url('backoffice/reservas') }}" class="enlace-calendario">
+                            Ver todas en el calendario <i class="bi bi-arrow-right"></i>
+                        </a>
+                    @else
+                        <div class="sin-proximas">No tienes más citas pendientes por hoy.</div>
+                    @endif
+                @endif
             </div>
             {{-- Solo el super admin, que no pertenece a un negocio, se queda sin dato. --}}
             @if ($reservasHoy === null)
@@ -129,6 +251,20 @@
                 <div class="kpi-icono"><i class="bi bi-people"></i></div>
                 <div class="kpi-label">Clientes activos</div>
                 <div class="kpi-valor">{{ $clientesActivos === null ? '—' : $clientesActivos }}</div>
+
+                @if ($variacionClientes !== null)
+                    @if ($variacionClientes > 0)
+                        <div class="variacion-clientes sube">
+                            <i class="bi bi-arrow-up-short"></i> +{{ $variacionClientes }} este mes
+                        </div>
+                    @elseif ($variacionClientes < 0)
+                        <div class="variacion-clientes baja">
+                            <i class="bi bi-arrow-down-short"></i> {{ $variacionClientes }} este mes
+                        </div>
+                    @else
+                        <div class="variacion-clientes igual">Sin cambios este mes</div>
+                    @endif
+                @endif
             </div>
             {{-- Solo el super admin, que no pertenece a un negocio, se queda sin dato. --}}
             @if ($clientesActivos === null)
@@ -157,6 +293,14 @@
                 <div class="kpi-icono"><i class="bi bi-graph-up"></i></div>
                 <div class="kpi-label">Ocupación</div>
                 <div class="kpi-valor">{{ $ocupacionHoy === null ? '—' : $ocupacionHoy . '%' }}</div>
+
+                @if ($ocupacionHoy !== null)
+                    {{-- Se acota a 100 para que la barra no se desborde si un día
+                         se agenda por encima de la jornada configurada. --}}
+                    <div class="barra-ocupacion">
+                        <div class="relleno-ocupacion" style="width: {{ min($ocupacionHoy, 100) }}%;"></div>
+                    </div>
+                @endif
             </div>
             {{-- Solo el super admin, que no pertenece a un negocio, se queda sin dato. --}}
             @if ($ocupacionHoy === null)

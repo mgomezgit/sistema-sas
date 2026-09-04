@@ -23,6 +23,24 @@ class SvcCliente
         }
     }
 
+    /**
+     * Clientes activos que ya existían antes de que empezara el mes actual.
+     * Comparado contra el total de hoy da la variación mensual del panel.
+     */
+    public function contarActivosMesAnterior($tenantId)
+    {
+        try {
+            return Cliente::where('tenant_id', $tenantId)
+                ->where('estado', 1)
+                ->where('fecha_registro', '<', date('Y-m-01').' 00:00:00')
+                ->count();
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return 0;
+        }
+    }
+
     public function crear($info)
     {
         try {
