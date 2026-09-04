@@ -78,8 +78,11 @@
             color: var(--text-sobre-accent);
         }
 
+        /* Encabezados de columna (LUN, MAR...) y números de día: van con el color
+           de texto principal para que no queden en el gris apagado por defecto de
+           FullCalendar, que sobre fondo oscuro casi no se lee. */
         #calendario-reservas .fc-col-header-cell-cushion {
-            color: var(--text-secondary);
+            color: var(--text-primary);
             font-size: 0.72rem;
             font-weight: 700;
             text-transform: uppercase;
@@ -93,8 +96,10 @@
             padding: 0.4rem;
         }
 
+        /* Los días del mes contiguo sí van atenuados a propósito, pero con el gris
+           secundario (legible) en vez del "muted", que era demasiado tenue. */
         #calendario-reservas .fc-day-other .fc-daygrid-day-number {
-            color: var(--text-muted);
+            color: var(--text-secondary);
         }
 
         #calendario-reservas .fc-daygrid-day-frame,
@@ -104,8 +109,39 @@
 
         #calendario-reservas .fc-timegrid-slot-label,
         #calendario-reservas .fc-timegrid-axis {
-            color: var(--text-secondary);
+            color: var(--text-primary);
             font-size: 0.78rem;
+        }
+
+        /* ---------- Días no disponibles (pasados o sin atención) ---------- */
+        #calendario-reservas .fc-day-no-disponible .fc-daygrid-day-frame,
+        #calendario-reservas .fc-day-no-disponible .fc-timegrid-col-frame {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background-color: var(--bg-input);
+        }
+
+        #calendario-reservas .fc-day-no-disponible .fc-daygrid-day-frame:hover {
+            background-color: var(--bg-input);
+        }
+
+        /* ---------- Aviso inline de fecha inválida en el formulario ---------- */
+        .aviso-fecha-invalida {
+            display: none;
+            color: var(--danger);
+            font-size: 0.8rem;
+            margin-top: 0.35rem;
+        }
+
+        .aviso-fecha-invalida.visible {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        #btn-guardar-reserva:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         #calendario-reservas .fc-event,
@@ -578,6 +614,10 @@
                         <div class="mb-3">
                             <label class="form-label">Fecha</label>
                             <input type="date" id="fecha_reserva" name="fecha_reserva" class="form-control system_validador_vacio">
+                            <small id="aviso-fecha-invalida" class="aviso-fecha-invalida">
+                                <i class="bi bi-exclamation-circle"></i>
+                                <span id="texto-aviso-fecha"></span>
+                            </small>
                         </div>
 
                         <div class="mb-3">
@@ -843,13 +883,56 @@
             jQuery('#notas').val('');
             jQuery('#contenedor-form-reserva .input_vacio').removeClass('input_vacio');
             jQuery('#contenedor-form-reserva #system_validador').remove();
+            ocultarAvisoFecha();
         }
+
+        /* ---------- Validación de la fecha dentro del formulario ---------- */
+
+        // En edición se guarda la fecha que ya tenía la reserva: si no se mueve de
+        // día, sigue siendo válida aunque sea pasada (igual que en el backend).
+        var fechaOriginalReserva = null;
+
+        // Así el propio calendario emergente del navegador ya no deja elegir días
+        // pasados. En edición de una reserva antigua el mínimo baja hasta su fecha
+        // original, para no dejar el campo fuera de rango.
+        function aplicarMinimoFecha() {
+            var hoy = fechaDeHoy();
+            var minimo = (fechaOriginalReserva && fechaOriginalReserva < hoy) ? fechaOriginalReserva : hoy;
+
+            jQuery('#fecha_reserva').attr('min', minimo);
+        }
+
+        function ocultarAvisoFecha() {
+            jQuery('#aviso-fecha-invalida').removeClass('visible');
+            jQuery('#btn-guardar-reserva').prop('disabled', false);
+        }
+
+        function mostrarAvisoFecha(motivo) {
+            jQuery('#texto-aviso-fecha').text(motivo);
+            jQuery('#aviso-fecha-invalida').addClass('visible');
+            jQuery('#btn-guardar-reserva').prop('disabled', true);
+        }
+
+        // Se ejecuta al cambiar el campo, sin esperar a que se presione "Guardar".
+        function validarFechaFormulario() {
+            var motivo = motivoFechaNoDisponible(jQuery('#fecha_reserva').val(), fechaOriginalReserva);
+
+            if (motivo === null) {
+                ocultarAvisoFecha();
+            } else {
+                mostrarAvisoFecha(motivo);
+            }
+        }
+
+        jQuery('#fecha_reserva').on('change', validarFechaFormulario);
 
         // Punto único para abrir el modal en modo "crear", con fecha (y opcionalmente hora) prellenadas.
         function abrirFormularioNuevaReserva(fechaTexto, horaTexto) {
             cargarCatalogos(function () {
                 modoFormularioReserva = 'crear';
                 estadoReservaOriginal = null;
+                // Al crear no hay fecha previa: cualquier día pasado es inválido.
+                fechaOriginalReserva = null;
                 jQuery('#modal-reserva-titulo-texto').text('Nueva reserva');
                 limpiarFormularioReserva();
                 jQuery('#contenedor-estado-reserva').hide();
@@ -858,6 +941,9 @@
                 if (horaTexto) {
                     jQuery('#hora_inicio').val(horaTexto);
                 }
+
+                aplicarMinimoFecha();
+                validarFechaFormulario();
 
                 var modalReserva = new bootstrap.Modal(document.getElementById('modal-reserva'));
                 modalReserva.show();
@@ -880,10 +966,16 @@
                 jQuery('#estado_reserva').val(datos.estado_reserva);
 
                 estadoReservaOriginal = datos.estado_reserva;
+                // Se recuerda la fecha que ya tenía para no marcar como inválida una
+                // reserva antigua a la que solo se le están corrigiendo detalles.
+                fechaOriginalReserva = datos.fecha_reserva;
 
                 jQuery('#id_cliente').val(datos.id_cliente);
                 jQuery('#id_recurso').val(datos.id_recurso);
                 jQuery('#id_empleado').val(datos.id_empleado ? datos.id_empleado : '');
+
+                aplicarMinimoFecha();
+                validarFechaFormulario();
 
                 var modalReserva = new bootstrap.Modal(document.getElementById('modal-reserva'));
                 modalReserva.show();
@@ -1008,16 +1100,117 @@
             cargarReservas();
         }
 
+        /* ================= DISPONIBILIDAD DE FECHAS =================
+         * Estas comprobaciones son una capa de prevención en el frontend, para que
+         * el usuario no llegue a "Guardar" con una fecha que el backend va a
+         * rechazar igualmente. La validación real sigue estando en el servidor.
+         */
+
+        // { dias_atencion, hora_apertura, hora_cierre }; se consulta una sola vez.
+        var horarioNegocio = null;
+
+        function cargarHorarioNegocio(alTerminar) {
+            axiosSipleInterno('GET', 'request/negocio/horario', {}, {}, false, function (respuesta) {
+                horarioNegocio = (respuesta.error == 0) ? respuesta.data.horario : null;
+
+                if (alTerminar) {
+                    alTerminar();
+                }
+            });
+        }
+
+        function esFechaPasada(fechaTexto) {
+            return fechaTexto < fechaDeHoy();
+        }
+
+        // Día de la semana en la convención del negocio: 1=lunes ... 7=domingo,
+        // la misma que usa dias_atencion y que valida el backend.
+        function negocioAtiendeEseDia(fechaTexto) {
+            var dias = (horarioNegocio && horarioNegocio.dias_atencion)
+                ? String(horarioNegocio.dias_atencion).split(',').map(function (d) { return parseInt(jQuery.trim(d), 10); })
+                : null;
+
+            // Sin días configurados no se restringe nada (igual que el backend).
+            if (dias === null || dias.length === 0) {
+                return true;
+            }
+
+            var partes = fechaTexto.split('-');
+            var fecha = new Date(partes[0], partes[1] - 1, partes[2]);
+            var diaSemana = fecha.getDay() === 0 ? 7 : fecha.getDay();
+
+            return dias.indexOf(diaSemana) !== -1;
+        }
+
+        /**
+         * Devuelve el motivo por el que una fecha no está disponible, o null si sí
+         * lo está. "fechaOriginal" permite editar una reserva antigua sin moverla
+         * de día, exactamente igual que lo permite el backend.
+         */
+        function motivoFechaNoDisponible(fechaTexto, fechaOriginal) {
+            if (!fechaTexto) {
+                return null;
+            }
+
+            var seMueveLaFecha = !fechaOriginal || fechaTexto !== fechaOriginal;
+
+            if (seMueveLaFecha && esFechaPasada(fechaTexto)) {
+                return 'Esta fecha ya pasó, elige un día de hoy en adelante';
+            }
+
+            if (!negocioAtiendeEseDia(fechaTexto)) {
+                return 'Tu negocio no atiende este día';
+            }
+
+            return null;
+        }
+
         /* ================= CALENDARIO (FullCalendar) ================= */
+
+        /**
+         * Resuelve una variable CSS a un color concreto "rgb(...)".
+         *
+         * colorVariable() devuelve el texto crudo de la variable, que puede ser una
+         * expresión sin resolver (por ejemplo "color-mix(...)" o "var(--otra)"). Como
+         * ese color viaja al backend por query string y vuelve como estilo del evento,
+         * aquí se pinta sobre un elemento de prueba para leer el valor ya calculado y
+         * normalizarlo, así siempre se envía un color plano.
+         */
+        function colorResuelto(nombreVariable) {
+            var sonda = document.createElement('div');
+            sonda.style.display = 'none';
+            sonda.style.backgroundColor = 'var(' + nombreVariable + ')';
+            document.body.appendChild(sonda);
+            var calculado = getComputedStyle(sonda).backgroundColor;
+            sonda.remove();
+
+            // Chrome devuelve las mezclas como "color(srgb 0.96 0.86 0.56)"; se pasa
+            // a rgb() para que sea un color plano estándar de punta a punta.
+            var mezcla = calculado.match(/^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\s*\)$/);
+
+            if (mezcla) {
+                var r = Math.round(parseFloat(mezcla[1]) * 255);
+                var g = Math.round(parseFloat(mezcla[2]) * 255);
+                var b = Math.round(parseFloat(mezcla[3]) * 255);
+
+                return mezcla[4] !== undefined
+                    ? 'rgba(' + r + ', ' + g + ', ' + b + ', ' + parseFloat(mezcla[4]) + ')'
+                    : 'rgb(' + r + ', ' + g + ', ' + b + ')';
+            }
+
+            return calculado;
+        }
 
         // Colores por estado: el backend no puede leer variables CSS, así que se
         // resuelven aquí (según el tema/acento activos) y se mandan como query string.
+        // Se usan las variantes "-evento", que en modo oscuro son pasteles claros
+        // legibles y en modo claro equivalen a las "-soft" de siempre.
         function coloresPorEstado() {
             return {
-                pendiente: { fondo: colorVariable('--warning-soft'), borde: colorVariable('--warning') },
-                confirmada: { fondo: colorVariable('--accent-soft'), borde: colorVariable('--accent') },
-                completada: { fondo: colorVariable('--success-soft'), borde: colorVariable('--success') },
-                cancelada: { fondo: colorVariable('--danger-soft'), borde: colorVariable('--danger') }
+                pendiente: { fondo: colorResuelto('--warning-evento'), borde: colorVariable('--warning') },
+                confirmada: { fondo: colorResuelto('--accent-evento'), borde: colorVariable('--accent') },
+                completada: { fondo: colorResuelto('--success-evento'), borde: colorVariable('--success') },
+                cancelada: { fondo: colorResuelto('--danger-evento'), borde: colorVariable('--danger') }
             };
         }
 
@@ -1105,9 +1298,32 @@
                         }
                     });
                 },
+                // Atenúa de entrada los días en los que no se puede reservar, para
+                // que se vea sin necesidad de hacer clic para descubrirlo.
+                dayCellDidMount: function (info) {
+                    var fechaTexto = formatearFechaISO(info.date);
+
+                    if (motivoFechaNoDisponible(fechaTexto, null) !== null) {
+                        info.el.classList.add('fc-day-no-disponible');
+                    }
+                },
+                // Mismo criterio para la selección por arrastre, por consistencia.
+                selectAllow: function (info) {
+                    return motivoFechaNoDisponible(formatearFechaISO(info.start), null) === null;
+                },
                 dateClick: function (info) {
                     var fechaTexto = info.dateStr.substring(0, 10);
                     var horaTexto = (!info.allDay && info.dateStr.length > 10) ? info.dateStr.substring(11, 16) : null;
+
+                    var motivo = motivoFechaNoDisponible(fechaTexto, null);
+
+                    // En un día no disponible no se abre el formulario: se explica
+                    // por qué, y ahí queda.
+                    if (motivo !== null) {
+                        notificarUsuario(motivo, 'info');
+
+                        return;
+                    }
 
                     seleccionarDia(fechaTexto);
                     abrirFormularioNuevaReserva(fechaTexto, horaTexto);
@@ -1250,8 +1466,13 @@
         jQuery(document).ready(function () {
             jQuery('#filtro-fecha').val(fechaDeHoy());
 
-            inicializarCalendario();
-            seleccionarDia(fechaDeHoy());
+            // El horario se consulta una sola vez y ANTES de pintar el calendario,
+            // para que dayCellDidMount ya sepa qué días atenuar desde el primer
+            // render (y no queden habilitados hasta que llegue la respuesta).
+            cargarHorarioNegocio(function () {
+                inicializarCalendario();
+                seleccionarDia(fechaDeHoy());
+            });
 
             iniciarGuiaSiCorresponde('reserva', function () {
                 iniciarTourContextual('reserva', [

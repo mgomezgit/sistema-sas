@@ -52,6 +52,15 @@
             --warning-soft: rgba(234, 179, 8, 0.12);
             --danger: #e11d2e;
             --danger-soft: rgba(225, 29, 46, 0.12);
+            /* Fondos de los eventos del calendario. Las variantes "-soft" son
+               translúcidas al 12%, así que sobre el fondo casi negro de este modo
+               quedan prácticamente invisibles. Estas versiones son pasteles claros
+               y opacos: mantienen la familia de color, se distinguen entre sí, y
+               dejan leer el texto oscuro que llevan encima. */
+            --warning-evento: #f4dc9e;
+            --accent-evento: color-mix(in srgb, var(--accent) 42%, #ffffff);
+            --success-evento: #a9e3bd;
+            --danger-evento: #f3adb5;
             --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);
             --stripe-fila: rgba(255, 255, 255, 0.02);
             --overlay-loader: rgba(10, 10, 13, 0.75);
@@ -75,6 +84,13 @@
             --warning-soft: rgba(192, 138, 62, 0.14);
             --danger: #c2596a;
             --danger-soft: rgba(194, 89, 106, 0.14);
+            /* Sobre el fondo claro de este modo las variantes "-soft" ya se ven
+               bien, así que los eventos del calendario las siguen usando tal cual
+               (se mantiene idéntico a como se veía antes). */
+            --warning-evento: var(--warning-soft);
+            --accent-evento: var(--accent-soft);
+            --success-evento: var(--success-soft);
+            --danger-evento: var(--danger-soft);
             --shadow-card: 0 1px 2px rgba(120, 80, 80, 0.06), 0 8px 24px rgba(120, 80, 80, 0.07);
             --stripe-fila: rgba(0, 0, 0, 0.018);
             --overlay-loader: rgba(253, 247, 245, 0.8);
