@@ -7,6 +7,7 @@ use App\Models\Empleado;
 use App\Models\Negocio;
 use App\Models\RecursoReservable;
 use App\Models\Reserva;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class SvcNegocio
@@ -123,19 +124,26 @@ class SvcNegocio
             $horaCierre = $horario['hora_cierre'] ?? null;
 
             if (! empty($diasAtencion)) {
+                // Carbon::parse() interpreta la fecha de forma consistente sin
+                // depender de la zona horaria del servidor (a diferencia de
+                // strtotime(), que sí se ve afectado por ella); dayOfWeekIso ya
+                // usa la misma convención que dias_atencion: 1=lunes...7=domingo.
                 $dias = array_map('intval', explode(',', $diasAtencion));
-                $diaSemana = (int) date('N', strtotime($fecha));
+                $diaSemana = Carbon::parse($fecha)->dayOfWeekIso;
 
                 if (! in_array($diaSemana, $dias, true)) {
                     return false;
                 }
             }
 
-            if (! empty($horaApertura) && strtotime($horaInicio) < strtotime($horaApertura)) {
+            // Se ancla al mismo día de referencia en ambos lados para que la
+            // comparación sea puramente de horas, sin importar el formato exacto
+            // ("08:00" vs "08:00:00") con el que llegue cada dato.
+            if (! empty($horaApertura) && Carbon::parse($horaInicio)->lt(Carbon::parse($horaApertura))) {
                 return false;
             }
 
-            if (! empty($horaCierre) && strtotime($horaFin) > strtotime($horaCierre)) {
+            if (! empty($horaCierre) && Carbon::parse($horaFin)->gt(Carbon::parse($horaCierre))) {
                 return false;
             }
 

@@ -96,7 +96,7 @@ class ReservaController extends Controller
 
         $datos = $this->getRequestData();
 
-        if ($datos['fecha_reserva'] < date('Y-m-d')) {
+        if (Carbon::parse($datos['fecha_reserva'])->lt(Carbon::today())) {
             $this->agregarError('No es posible crear reservas en fechas pasadas');
 
             return $this->sendResponse();
@@ -226,7 +226,7 @@ class ReservaController extends Controller
         // otros datos (notas, etc.) aunque esa fecha ya haya pasado.
         $seMueveLaFecha = empty($reservaOriginal) || $datos['fecha_reserva'] !== $reservaOriginal[0]['fecha_reserva'];
 
-        if ($seMueveLaFecha && $datos['fecha_reserva'] < date('Y-m-d')) {
+        if ($seMueveLaFecha && Carbon::parse($datos['fecha_reserva'])->lt(Carbon::today())) {
             $this->agregarError('No es posible crear reservas en fechas pasadas');
 
             return $this->sendResponse();
