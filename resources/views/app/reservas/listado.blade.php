@@ -179,7 +179,10 @@
             display: none;
             position: fixed;
             width: 320px;
-            z-index: 1500;
+            /* Por encima del contenido de la página, pero por debajo del modal de
+               Bootstrap (1055) y de las alertas de SweetAlert (1060): con un valor
+               mayor, el panel tapaba los botones del "¿Eliminar reserva?". */
+            z-index: 1040;
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-card);
@@ -663,7 +666,15 @@
         var reservasDelDia = [];
         var catalogosCargados = false;
         var calendar;
-        var eventoEnPanel = null;
+        // Instantánea de la reserva abierta en el panel de detalle.
+        //
+        // Antes se guardaba aquí el objeto Event de FullCalendar, pero
+        // refetchEvents() destruye sus eventos y crea otros nuevos: la
+        // referencia guardada quedaba inservible y al segundo cambio de estado
+        // incluso leer su .id reventaba ("Cannot read properties of undefined
+        // (reading 'publicId')"). Con una copia propia de los datos el panel
+        // sobrevive a cualquier cantidad de refrescos del calendario.
+        var reservaEnPanel = null;
 
         function inicializarTooltips() {
             jQuery('[data-bs-toggle="tooltip"]').each(function () {
@@ -1392,7 +1403,16 @@
             var props = evento.extendedProps;
             var partesTitulo = separarTituloEvento(evento.title);
 
-            eventoEnPanel = evento;
+            reservaEnPanel = {
+                id_reserva: evento.id,
+                id_cliente: props.id_cliente,
+                id_recurso: props.id_recurso,
+                id_empleado: props.id_empleado,
+                fecha_reserva: formatearFechaISO(evento.start),
+                hora_inicio: formatearHora(evento.start),
+                notas: props.notas,
+                estado_reserva: props.estado_reserva
+            };
 
             jQuery('#detalle-titulo-cliente').text('Cliente: ' + partesTitulo.cliente);
             jQuery('#detalle-servicio').text('Servicio: ' + partesTitulo.servicio);
@@ -1439,7 +1459,7 @@
 
         function cerrarPanelDetalle() {
             jQuery('#panel-detalle-evento').removeClass('visible');
-            eventoEnPanel = null;
+            reservaEnPanel = null;
         }
 
         jQuery('#btn-cerrar-detalle').on('click', cerrarPanelDetalle);
@@ -1457,12 +1477,12 @@
         jQuery('#panel-detalle-evento').on('click', '.chip-estado', function () {
             var chip = jQuery(this);
 
-            if (chip.hasClass('activo') || !eventoEnPanel) {
+            if (chip.hasClass('activo') || !reservaEnPanel) {
                 return;
             }
 
             var nuevoEstado = chip.data('estado');
-            var idReserva = eventoEnPanel.id;
+            var idReserva = reservaEnPanel.id_reserva;
 
             axiosSipleInterno('POST', 'request/reserva/cambiar-estado', {}, {
                 id_reserva: idReserva,
@@ -1470,7 +1490,9 @@
             }, true, function (respuesta) {
                 if (respuesta.error == 0) {
                     marcarChipActivo(nuevoEstado);
-                    eventoEnPanel.setExtendedProp('estado_reserva', nuevoEstado);
+                    // Se mantiene al día la copia local para que el siguiente
+                    // clic parta del estado correcto.
+                    reservaEnPanel.estado_reserva = nuevoEstado;
                     calendar.refetchEvents();
                     cargarReservas();
                 } else {
@@ -1480,33 +1502,22 @@
         });
 
         jQuery('#btn-detalle-editar').on('click', function () {
-            if (!eventoEnPanel) {
+            if (!reservaEnPanel) {
                 return;
             }
 
-            var props = eventoEnPanel.extendedProps;
-
-            var datos = {
-                id_reserva: eventoEnPanel.id,
-                id_cliente: props.id_cliente,
-                id_recurso: props.id_recurso,
-                id_empleado: props.id_empleado,
-                fecha_reserva: formatearFechaISO(eventoEnPanel.start),
-                hora_inicio: formatearHora(eventoEnPanel.start),
-                notas: props.notas,
-                estado_reserva: props.estado_reserva
-            };
+            var datos = reservaEnPanel;
 
             cerrarPanelDetalle();
             abrirEdicionReserva(datos);
         });
 
         jQuery('#btn-detalle-eliminar').on('click', function () {
-            if (!eventoEnPanel) {
+            if (!reservaEnPanel) {
                 return;
             }
 
-            eliminarReserva(eventoEnPanel.id, cerrarPanelDetalle);
+            eliminarReserva(reservaEnPanel.id_reserva, cerrarPanelDetalle);
         });
 
         jQuery(document).ready(function () {
