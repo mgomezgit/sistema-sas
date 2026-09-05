@@ -118,7 +118,11 @@ class ReservaController extends Controller
             return $this->sendResponse();
         }
 
-        $horaFin = Carbon::parse($datos['hora_inicio'])->addMinutes($recurso[0]['duracion_minutos'])->format('H:i:s');
+        // El formulario manda la hora como "HH:mm"; se normaliza a "HH:mm:ss"
+        // para que se guarde y se compare igual sin depender de que el motor
+        // de base de datos normalice la columna TIME por su cuenta.
+        $horaInicio = Carbon::parse($datos['hora_inicio'])->format('H:i:s');
+        $horaFin = Carbon::parse($horaInicio)->addMinutes($recurso[0]['duracion_minutos'])->format('H:i:s');
 
         $idEmpleado = $datos['id_empleado'] ?? null;
 
@@ -132,7 +136,7 @@ class ReservaController extends Controller
             }
         }
 
-        if (! $this->svcNegocio->estaDentroDelHorario($tenantId, $datos['fecha_reserva'], $datos['hora_inicio'], $horaFin)) {
+        if (! $this->svcNegocio->estaDentroDelHorario($tenantId, $datos['fecha_reserva'], $horaInicio, $horaFin)) {
             $this->agregarError('El negocio no atiende en la fecha u horario seleccionados');
 
             return $this->sendResponse();
@@ -142,7 +146,7 @@ class ReservaController extends Controller
             $disponible = $this->svcReserva->verificarDisponibilidad(
                 $idEmpleado,
                 $datos['fecha_reserva'],
-                $datos['hora_inicio'],
+                $horaInicio,
                 $horaFin,
                 $tenantId
             );
@@ -160,7 +164,7 @@ class ReservaController extends Controller
             'id_recurso' => $datos['id_recurso'],
             'id_empleado' => $idEmpleado ?: null,
             'fecha_reserva' => $datos['fecha_reserva'],
-            'hora_inicio' => $datos['hora_inicio'],
+            'hora_inicio' => $horaInicio,
             'hora_fin' => $horaFin,
             'estado_reserva' => 'pendiente',
             'notas' => $datos['notas'] ?? null,
@@ -248,7 +252,11 @@ class ReservaController extends Controller
             return $this->sendResponse();
         }
 
-        $horaFin = Carbon::parse($datos['hora_inicio'])->addMinutes($recurso[0]['duracion_minutos'])->format('H:i:s');
+        // El formulario manda la hora como "HH:mm"; se normaliza a "HH:mm:ss"
+        // para que se guarde y se compare igual sin depender de que el motor
+        // de base de datos normalice la columna TIME por su cuenta.
+        $horaInicio = Carbon::parse($datos['hora_inicio'])->format('H:i:s');
+        $horaFin = Carbon::parse($horaInicio)->addMinutes($recurso[0]['duracion_minutos'])->format('H:i:s');
 
         $idEmpleado = $datos['id_empleado'] ?? null;
 
@@ -262,7 +270,7 @@ class ReservaController extends Controller
             }
         }
 
-        if (! $this->svcNegocio->estaDentroDelHorario($tenantId, $datos['fecha_reserva'], $datos['hora_inicio'], $horaFin)) {
+        if (! $this->svcNegocio->estaDentroDelHorario($tenantId, $datos['fecha_reserva'], $horaInicio, $horaFin)) {
             $this->agregarError('El negocio no atiende en la fecha u horario seleccionados');
 
             return $this->sendResponse();
@@ -272,7 +280,7 @@ class ReservaController extends Controller
             $disponible = $this->svcReserva->verificarDisponibilidad(
                 $idEmpleado,
                 $datos['fecha_reserva'],
-                $datos['hora_inicio'],
+                $horaInicio,
                 $horaFin,
                 $tenantId,
                 $datos['id_reserva']
@@ -290,7 +298,7 @@ class ReservaController extends Controller
             'id_recurso' => $datos['id_recurso'],
             'id_empleado' => $idEmpleado ?: null,
             'fecha_reserva' => $datos['fecha_reserva'],
-            'hora_inicio' => $datos['hora_inicio'],
+            'hora_inicio' => $horaInicio,
             'hora_fin' => $horaFin,
             'notas' => $datos['notas'] ?? null,
         ];

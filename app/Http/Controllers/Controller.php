@@ -22,6 +22,26 @@ abstract class Controller
         $this->requestData = $this->request->all();
     }
 
+    /**
+     * Punto por el que Laravel entra a cada acción del controller.
+     *
+     * El router guarda la instancia del controller dentro del objeto Route, y
+     * ese objeto vive mientras viva la aplicación. Con un proceso por petición
+     * (PHP-FPM) da igual, pero cuando un mismo proceso atiende varias peticiones
+     * seguidas —las pruebas, o un servidor tipo Octane— se reutiliza la misma
+     * instancia y se arrastrarían la respuesta y los datos de la petición
+     * anterior. Por eso el estado por petición se refresca aquí.
+     */
+    public function callAction($method, $parameters)
+    {
+        $this->request = request();
+        $this->requestData = $this->request->all();
+        $this->respuesta = ['error' => 1, 'mensaje' => '', 'data' => []];
+        $this->validationRules = [];
+
+        return $this->{$method}(...array_values($parameters));
+    }
+
     protected function getRequestData(): array
     {
         return $this->requestData;
