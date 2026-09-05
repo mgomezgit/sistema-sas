@@ -60,6 +60,63 @@ class SvcReserva
     }
 
     /**
+     * Reservas de hoy repartidas por hora, para la franja visual del panel.
+     *
+     * Devuelve una entrada por cada hora de la jornada ("07:00" => 2, ...),
+     * incluidas las horas sin reservas, para que el gráfico muestre la forma
+     * real del día y no solo las horas ocupadas. Si el negocio no tiene horario
+     * configurado, devuelve un array vacío.
+     */
+    public function distribucionHoyPorHora($tenantId)
+    {
+        try {
+            $horario = (new SvcNegocio)->obtenerHorario($tenantId);
+
+            $apertura = $horario['hora_apertura'] ?? null;
+            $cierre = $horario['hora_cierre'] ?? null;
+
+            if (empty($apertura) || empty($cierre)) {
+                return [];
+            }
+
+            $horaApertura = (int) substr($apertura, 0, 2);
+            $horaCierre = (int) substr($cierre, 0, 2);
+
+            if ($horaCierre <= $horaApertura) {
+                return [];
+            }
+
+            // La jornada arranca en cero y luego se suman las reservas que caen
+            // en cada hora.
+            $distribucion = [];
+
+            for ($hora = $horaApertura; $hora < $horaCierre; $hora++) {
+                $distribucion[sprintf('%02d:00', $hora)] = 0;
+            }
+
+            $reservas = Reserva::where('tenant_id', $tenantId)
+                ->where('fecha_reserva', date('Y-m-d'))
+                ->where('estado', 1)
+                ->where('estado_reserva', '!=', 'cancelada')
+                ->pluck('hora_inicio');
+
+            foreach ($reservas as $horaInicio) {
+                $franja = sprintf('%02d:00', (int) substr($horaInicio, 0, 2));
+
+                if (array_key_exists($franja, $distribucion)) {
+                    $distribucion[$franja]++;
+                }
+            }
+
+            return $distribucion;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
+    /**
      * Ingresos del mes en curso: suma el precio del servicio de cada reserva
      * confirmada o completada. Las pendientes no se cuentan porque todavía
      * pueden caerse, y las canceladas obviamente tampoco.

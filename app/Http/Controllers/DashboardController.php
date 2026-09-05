@@ -24,6 +24,7 @@ class DashboardController extends Controller
             $templateView['ocupacionHoy'] = null;
             $templateView['proximasCitas'] = [];
             $templateView['variacionClientes'] = null;
+            $templateView['distribucionHoy'] = [];
 
             return view('app.dashboard', $templateView);
         }
@@ -43,6 +44,7 @@ class DashboardController extends Controller
         $templateView['proximasCitas'] = $svcReserva->listarProximasHoy($tenantId, 4);
         // Cuántos clientes se sumaron (o se dieron de baja) en lo que va del mes.
         $templateView['variacionClientes'] = $clientesActivos - $svcCliente->contarActivosMesAnterior($tenantId);
+        $templateView['distribucionHoy'] = $svcReserva->distribucionHoyPorHora($tenantId);
 
         return view('app.dashboard', $templateView);
     }

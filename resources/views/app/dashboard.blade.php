@@ -96,6 +96,16 @@
             font-size: 0.88rem;
         }
 
+        /* ---------- Mini gráfico de distribución del día ---------- */
+        .grafico-distribucion {
+            margin-top: 1rem;
+            padding-top: 0.9rem;
+            border-top: 1px solid var(--border-color);
+            /* Altura contenida: es una franja de contexto, no debe competir con
+               la lista de próximas citas de arriba. */
+            height: 90px;
+        }
+
         /* ---------- Variación mensual de clientes ---------- */
         .variacion-clientes {
             display: inline-flex;
@@ -236,6 +246,14 @@
                     @else
                         <div class="sin-proximas">No tienes más citas pendientes por hoy.</div>
                     @endif
+
+                    {{-- Franja de contexto: cómo se reparte el día completo. Solo
+                         tiene sentido si hoy hay al menos una reserva. --}}
+                    @if ($reservasHoy > 0 && count($distribucionHoy) > 0)
+                        <div class="grafico-distribucion">
+                            <canvas id="grafico-reservas-hoy"></canvas>
+                        </div>
+                    @endif
                 @endif
             </div>
             {{-- Solo el super admin, que no pertenece a un negocio, se queda sin dato. --}}
@@ -330,4 +348,72 @@
             @endif
         </div>
     </div>
+@endsection
+
+@section('scripts')
+    <script>
+        jQuery(document).ready(function () {
+            var lienzo = document.getElementById('grafico-reservas-hoy');
+
+            // El canvas solo existe si hoy hay reservas que mostrar.
+            if (!lienzo || typeof Chart === 'undefined') {
+                return;
+            }
+
+            var distribucion = @json($distribucionHoy);
+
+            // Los colores salen del tema activo, así el gráfico sigue el acento
+            // del negocio y se lee bien tanto en modo claro como en oscuro.
+            var colorBarra = colorVariable('--accent');
+            var colorTexto = colorVariable('--text-secondary');
+            var colorRejilla = colorVariable('--border-color');
+
+            new Chart(lienzo, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(distribucion),
+                    datasets: [{
+                        data: Object.values(distribucion),
+                        backgroundColor: colorBarra,
+                        borderRadius: 3,
+                        borderSkipped: false,
+                        // Sin esto las barras quedan demasiado anchas cuando la
+                        // jornada tiene pocas horas.
+                        maxBarThickness: 18
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    // Es una franja de contexto: sin leyenda ni adornos.
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            displayColors: false,
+                            callbacks: {
+                                label: function (contexto) {
+                                    var cantidad = contexto.parsed.y;
+
+                                    return cantidad === 1 ? '1 reserva' : cantidad + ' reservas';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            border: { color: colorRejilla },
+                            ticks: { color: colorTexto, font: { size: 10 }, maxRotation: 0, autoSkipPadding: 8 }
+                        },
+                        y: {
+                            display: false,
+                            beginAtZero: true,
+                            // Enteros: no tiene sentido "1,5 reservas".
+                            ticks: { precision: 0 }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 @endsection
