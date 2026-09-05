@@ -56,6 +56,16 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     Route::post('negocio/actualizar-configuracion', [App\Http\Controllers\Request\NegocioController::class, 'actualizarConfiguracion']);
     Route::post('negocio/completar-onboarding', [App\Http\Controllers\Request\NegocioController::class, 'completarOnboarding']);
     Route::post('negocio/marcar-bienvenida', [App\Http\Controllers\Request\NegocioController::class, 'marcarBienvenidaVista']);
+
+    // Reportes: consulta en pantalla y descarga del archivo Excel.
+    Route::get('reporte/ventas-preview', [App\Http\Controllers\Request\ReporteController::class, 'ventasPreview']);
+    Route::get('reporte/ventas-descargar', [App\Http\Controllers\Request\ReporteController::class, 'ventasDescargar']);
+    Route::get('reporte/servicios-preview', [App\Http\Controllers\Request\ReporteController::class, 'serviciosPreview']);
+    Route::get('reporte/servicios-descargar', [App\Http\Controllers\Request\ReporteController::class, 'serviciosDescargar']);
+
+    // Carga masiva: plantilla de ejemplo e importación del archivo lleno.
+    Route::get('carga-masiva/plantilla/{tipo}', [App\Http\Controllers\Request\CargaMasivaController::class, 'descargarPlantilla']);
+    Route::post('carga-masiva/importar/{tipo}', [App\Http\Controllers\Request\CargaMasivaController::class, 'importar']);
 });
 
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
@@ -72,4 +82,7 @@ Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('reservas/historial', [App\Http\Controllers\ReservaViewController::class, 'historial'])->middleware('restringir.empleado');
     Route::get('personalizar', [App\Http\Controllers\PersonalizarViewController::class, 'mostrar'])->middleware('restringir.empleado');
     Route::get('configuracion', [App\Http\Controllers\ConfiguracionViewController::class, 'mostrar'])->middleware('restringir.empleado');
+    Route::get('reportes/ventas', [App\Http\Controllers\ReporteViewController::class, 'ventas'])->middleware('restringir.empleado');
+    Route::get('reportes/servicios', [App\Http\Controllers\ReporteViewController::class, 'servicios'])->middleware('restringir.empleado');
+    Route::get('carga-masiva', [App\Http\Controllers\CargaMasivaViewController::class, 'index'])->middleware('restringir.empleado');
 });

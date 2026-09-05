@@ -1028,6 +1028,16 @@
             text-align: center;
         }
 
+        /* Enlace que cuelga del anterior (por ejemplo, el segundo reporte). */
+        .menu-item.submenu-item {
+            padding-left: 2.1rem;
+            font-size: 0.85rem;
+        }
+
+        .menu-item.submenu-item i {
+            font-size: 0.92rem;
+        }
+
         .menu-item:hover {
             background-color: var(--bg-card-hover);
             color: var(--text-primary);
@@ -1396,6 +1406,18 @@
                 <a href="{{ url('backoffice/reservas/historial') }}" class="menu-item @if (request()->is('backoffice/reservas/historial')) active @endif">
                     <i class="bi bi-clock-history"></i>
                     <span>Historial</span>
+                </a>
+                <a href="{{ url('backoffice/reportes/ventas') }}" class="menu-item @if (request()->is('backoffice/reportes/ventas')) active @endif">
+                    <i class="bi bi-graph-up"></i>
+                    <span>Reportes</span>
+                </a>
+                <a href="{{ url('backoffice/reportes/servicios') }}" class="menu-item submenu-item @if (request()->is('backoffice/reportes/servicios')) active @endif">
+                    <i class="bi bi-pie-chart"></i>
+                    <span>Por servicio</span>
+                </a>
+                <a href="{{ url('backoffice/carga-masiva') }}" class="menu-item @if (request()->is('backoffice/carga-masiva')) active @endif">
+                    <i class="bi bi-cloud-upload"></i>
+                    <span>Carga Masiva</span>
                 </a>
                 <a href="{{ url('backoffice/personalizar') }}" class="menu-item @if (request()->is('backoffice/personalizar')) active @endif">
                     <i class="bi bi-palette2"></i>

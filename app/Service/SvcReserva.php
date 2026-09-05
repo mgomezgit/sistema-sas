@@ -4,10 +4,87 @@ namespace App\Service;
 
 use App\Models\Reserva;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SvcReserva
 {
+    /* ================= REPORTES ================= */
+
+    /**
+     * Detalle de reservas de un rango de fechas, para el reporte de ventas.
+     * Los filtros de empleado y estado son opcionales: si no llegan, no acotan.
+     */
+    public function reportePorFecha($tenantId, $fechaInicio, $fechaFin, $idEmpleado = null, $estadoReserva = null)
+    {
+        try {
+            $query = Reserva::from('reservas as r')
+                ->join('clientes as c', 'c.id_cliente', '=', 'r.id_cliente')
+                ->join('recursos_reservables as rec', 'rec.id_recurso', '=', 'r.id_recurso')
+                ->leftJoin('empleados as e', 'e.id_empleado', '=', 'r.id_empleado')
+                ->select(
+                    'r.fecha_reserva',
+                    'r.hora_inicio',
+                    'r.hora_fin',
+                    'c.nombre as nombre_cliente',
+                    'rec.nombre as nombre_recurso',
+                    'e.nombre as nombre_empleado',
+                    'r.estado_reserva',
+                    'rec.precio'
+                )
+                ->where('r.tenant_id', $tenantId)
+                ->where('r.estado', 1)
+                ->whereBetween('r.fecha_reserva', [$fechaInicio, $fechaFin]);
+
+            if (! empty($idEmpleado)) {
+                $query->where('r.id_empleado', $idEmpleado);
+            }
+
+            if (! empty($estadoReserva)) {
+                $query->where('r.estado_reserva', $estadoReserva);
+            }
+
+            return $query->orderBy('r.fecha_reserva')
+                ->orderBy('r.hora_inicio')
+                ->get()
+                ->toArray() ?? [];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
+    /**
+     * Cuánto aportó cada servicio en el rango: número de reservas e ingresos.
+     * Solo cuenta confirmadas y completadas, igual que los ingresos del panel,
+     * porque las pendientes todavía pueden caerse y las canceladas no aportan.
+     */
+    public function reporteIngresosPorServicio($tenantId, $fechaInicio, $fechaFin)
+    {
+        try {
+            return Reserva::from('reservas as r')
+                ->join('recursos_reservables as rec', 'rec.id_recurso', '=', 'r.id_recurso')
+                ->select(
+                    'rec.nombre as nombre_recurso',
+                    DB::raw('COUNT(r.id_reserva) as cantidad_reservas'),
+                    DB::raw('SUM(rec.precio) as ingresos_totales')
+                )
+                ->where('r.tenant_id', $tenantId)
+                ->where('r.estado', 1)
+                ->whereIn('r.estado_reserva', ['confirmada', 'completada'])
+                ->whereBetween('r.fecha_reserva', [$fechaInicio, $fechaFin])
+                ->groupBy('r.id_recurso', 'rec.nombre')
+                ->orderByDesc('ingresos_totales')
+                ->get()
+                ->toArray() ?? [];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
     /* ================= MÉTRICAS DEL DASHBOARD ================= */
 
     /**
