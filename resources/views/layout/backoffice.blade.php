@@ -643,17 +643,21 @@
             background-color: var(--bg-card-hover) !important;
         }
 
-        /* Filas con más aire. Va aparte de .fila-tabla-hover para poder combinarlas
-           sin que una pise a la otra. */
+        /* Filas con algo más de aire que el Bootstrap base (0.5rem), pero sin
+           pasarse: con 0.85rem las tablas quedaban demasiado altas en pantallas
+           de portátil. Va aparte de .fila-tabla-hover para poder combinarlas sin
+           que una pise a la otra. */
         .fila-tabla-amplia tbody td {
-            padding-top: 0.85rem;
-            padding-bottom: 0.85rem;
+            padding-top: 0.6rem;
+            padding-bottom: 0.6rem;
+            font-size: 0.875rem;
             vertical-align: middle;
         }
 
         .fila-tabla-amplia thead th {
-            padding-top: 0.75rem;
-            padding-bottom: 0.75rem;
+            padding-top: 0.55rem;
+            padding-bottom: 0.55rem;
+            font-size: 0.8rem;
         }
 
         /* ---------- Avatar de iniciales para las tablas ---------- */
@@ -661,10 +665,10 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 34px;
-            height: 34px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
-            font-size: 0.78rem;
+            font-size: 0.7rem;
             font-weight: 700;
             line-height: 1;
             color: var(--texto-sobre-avatar);
@@ -672,7 +676,7 @@
         }
 
         .avatar-iniciales i {
-            font-size: 0.95rem;
+            font-size: 0.82rem;
         }
 
         .btn-accion-icono {

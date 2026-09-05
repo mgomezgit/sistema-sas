@@ -155,7 +155,7 @@
 
             tablaClientes = jQuery('#tabla-clientes').DataTable({
                 data: clientes,
-                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.11/i18n/es-ES.json' },
+                language: { url: 'https://cdn.datatables.net/plug-ins/2.1.8/i18n/es-ES.json' },
                 columns: [
                     {
                         data: null,
