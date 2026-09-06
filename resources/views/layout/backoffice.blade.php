@@ -1203,6 +1203,152 @@
             }
         }
 
+        /* ---------- Campana de stock bajo ---------- */
+
+        .disparador-campana {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            background-color: transparent;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 1.15rem;
+            transition: var(--transition-base);
+        }
+
+        .disparador-campana:hover,
+        .disparador-campana[aria-expanded="true"] {
+            background-color: var(--bg-card-hover);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .badge-campana {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            border-radius: 999px;
+            background-color: var(--danger);
+            color: #ffffff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        /* El "display: flex" de arriba le gana al [hidden] del navegador, así que
+           el ocultamiento hay que declararlo aquí de forma explícita. Sin esto se
+           alcanzaba a ver un "0" mientras la consulta de stock bajo iba en camino. */
+        .badge-campana[hidden] {
+            display: none;
+        }
+
+        .panel-campana {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
+            padding: 0;
+            min-width: 320px;
+            max-width: 360px;
+            margin-top: 0.4rem;
+            overflow: hidden;
+        }
+
+        .encabezado-panel-campana {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 0.92rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .encabezado-panel-campana i {
+            color: var(--accent);
+        }
+
+        .lista-panel-campana {
+            max-height: 340px;
+            overflow-y: auto;
+        }
+
+        .panel-campana-cargando,
+        .panel-campana-vacio {
+            padding: 1.5rem 1rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
+
+        .panel-campana-vacio i {
+            display: block;
+            font-size: 1.8rem;
+            color: var(--success);
+            margin-bottom: 0.5rem;
+        }
+
+        .item-stock-bajo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .item-stock-bajo:last-child {
+            border-bottom: none;
+        }
+
+        .item-stock-bajo .info-producto-bajo {
+            min-width: 0;
+        }
+
+        .item-stock-bajo .nombre-producto-bajo {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.88rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .item-stock-bajo .detalle-producto-bajo {
+            color: var(--danger);
+            font-size: 0.8rem;
+        }
+
+        .btn-ingresar-stock-campana {
+            background-color: var(--accent-soft);
+            border: 1px solid transparent;
+            color: var(--accent);
+            border-radius: var(--radius-sm);
+            padding: 0.35rem 0.6rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            white-space: nowrap;
+            text-decoration: none;
+            transition: var(--transition-base);
+        }
+
+        .btn-ingresar-stock-campana:hover {
+            background-color: var(--accent);
+            color: var(--text-sobre-accent);
+            text-decoration: none;
+        }
+
         .badge-rol-sesion {
             display: inline-flex;
             align-items: center;
@@ -1419,6 +1565,10 @@
                     <i class="bi bi-cloud-upload"></i>
                     <span>Carga Masiva</span>
                 </a>
+                <a href="{{ url('backoffice/productos') }}" class="menu-item @if (request()->is('backoffice/productos')) active @endif">
+                    <i class="bi bi-box-seam"></i>
+                    <span>Productos</span>
+                </a>
                 <a href="{{ url('backoffice/personalizar') }}" class="menu-item @if (request()->is('backoffice/personalizar')) active @endif">
                     <i class="bi bi-palette2"></i>
                     <span>Personalizar</span>
@@ -1444,6 +1594,25 @@
 
                 $esAdminDeNegocio = ! \App\Models\Rol::esRolEmpleado(session('id_rol')) && session('tenant_id') !== null;
             @endphp
+
+            <div class="d-flex align-items-center gap-3">
+            @if ($esAdminDeNegocio)
+                <div class="dropdown">
+                    <button type="button" id="btn-campana-stock" class="disparador-campana" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-bell"></i>
+                        <span id="badge-stock-bajo" class="badge-campana" hidden>0</span>
+                    </button>
+
+                    <div class="dropdown-menu dropdown-menu-end panel-campana" aria-labelledby="btn-campana-stock">
+                        <div class="encabezado-panel-campana">
+                            <i class="bi bi-box-seam"></i> Stock bajo
+                        </div>
+                        <div id="lista-stock-bajo" class="lista-panel-campana">
+                            <div class="panel-campana-cargando">Cargando...</div>
+                        </div>
+                    </div>
+                </div>
+            @endif
 
             <div class="dropdown">
                 <button type="button" id="btn-menu-usuario" class="disparador-usuario" data-bs-toggle="dropdown" aria-expanded="false">
@@ -1488,6 +1657,7 @@
                         </button>
                     </li>
                 </ul>
+            </div>
             </div>
         </header>
 
@@ -2090,6 +2260,56 @@
             cargarProgresoOnboarding();
         });
     </script>
+
+    {{-- Campana de stock bajo: solo se imprime para el admin de un negocio,
+         que es el único que ve el botón en el DOM. --}}
+    @if ($esAdminDeNegocio)
+        <script>
+            function pintarPanelCampana(productos) {
+                var lista = jQuery('#lista-stock-bajo');
+                var badge = jQuery('#badge-stock-bajo');
+
+                if (!productos || productos.length === 0) {
+                    badge.prop('hidden', true);
+                    lista.html(
+                        '<div class="panel-campana-vacio">' +
+                        '<i class="bi bi-check-circle"></i>' +
+                        'Todo tu inventario está en orden' +
+                        '</div>'
+                    );
+
+                    return;
+                }
+
+                badge.text(productos.length > 99 ? '99+' : productos.length).prop('hidden', false);
+
+                var html = '';
+                productos.forEach(function (producto) {
+                    html += '<div class="item-stock-bajo">' +
+                        '<div class="info-producto-bajo">' +
+                        '<div class="nombre-producto-bajo">' + jQuery('<div>').text(producto.nombre).html() + '</div>' +
+                        '<div class="detalle-producto-bajo">' + producto.cantidad_actual + ' de ' + producto.cantidad_minima + ' unidades</div>' +
+                        '</div>' +
+                        '<a class="btn-ingresar-stock-campana" href="' + UrlGlobal + 'backoffice/productos?producto=' + producto.id_producto + '">Ingresar stock</a>' +
+                        '</div>';
+                });
+
+                lista.html(html);
+            }
+
+            function cargarStockBajoCampana() {
+                axiosSipleInterno('GET', 'request/producto/stock-bajo', {}, {}, false, function (respuesta) {
+                    if (respuesta.error == 0) {
+                        pintarPanelCampana(respuesta.data.productos_bajos);
+                    }
+                });
+            }
+
+            jQuery(document).ready(function () {
+                cargarStockBajoCampana();
+            });
+        </script>
+    @endif
 
     @yield('scripts')
 </body>

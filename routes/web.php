@@ -66,6 +66,14 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     // Carga masiva: plantilla de ejemplo e importación del archivo lleno.
     Route::get('carga-masiva/plantilla/{tipo}', [App\Http\Controllers\Request\CargaMasivaController::class, 'descargarPlantilla']);
     Route::post('carga-masiva/importar/{tipo}', [App\Http\Controllers\Request\CargaMasivaController::class, 'importar']);
+
+    // Inventario de productos.
+    Route::post('producto/crear', [App\Http\Controllers\Request\ProductoController::class, 'crear']);
+    Route::post('producto/editar', [App\Http\Controllers\Request\ProductoController::class, 'editar']);
+    Route::post('producto/eliminar', [App\Http\Controllers\Request\ProductoController::class, 'eliminar']);
+    Route::get('producto/listar', [App\Http\Controllers\Request\ProductoController::class, 'listar']);
+    Route::post('producto/ingresar-stock', [App\Http\Controllers\Request\ProductoController::class, 'ingresarStock']);
+    Route::get('producto/stock-bajo', [App\Http\Controllers\Request\ProductoController::class, 'stockBajo']);
 });
 
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
@@ -85,4 +93,5 @@ Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('reportes/ventas', [App\Http\Controllers\ReporteViewController::class, 'ventas'])->middleware('restringir.empleado');
     Route::get('reportes/servicios', [App\Http\Controllers\ReporteViewController::class, 'servicios'])->middleware('restringir.empleado');
     Route::get('carga-masiva', [App\Http\Controllers\CargaMasivaViewController::class, 'index'])->middleware('restringir.empleado');
+    Route::get('productos', [App\Http\Controllers\ProductoViewController::class, 'listar'])->middleware('restringir.empleado');
 });

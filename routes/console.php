@@ -25,3 +25,9 @@ Artisan::command('inspire', function () {
 |   php artisan queue:work
 */
 Schedule::command('reservas:enviar-recordatorios')->dailyAt('08:00');
+
+/*
+| Resumen de inventario: productos con stock bajo, dos veces al día.
+| Prueba manual: "php artisan productos:enviar-resumen-stock-bajo".
+*/
+Schedule::command('productos:enviar-resumen-stock-bajo')->twiceDaily(8, 18);
