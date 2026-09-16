@@ -188,6 +188,38 @@ class NegocioController extends Controller
         return $this->sendResponse();
     }
 
+    /**
+     * Marca que el negocio terminó el tour guiado de Reportes. Es lo que
+     * completa ese paso del onboarding, que no tiene ningún registro que
+     * crear en base de datos.
+     */
+    public function marcarReportesTourVisto(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        if ($tenantId === null) {
+            $this->agregarError('Los reportes se consultan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
+
+            return $this->sendResponse();
+        }
+
+        if (Rol::esRolEmpleado(session('id_rol'))) {
+            $this->agregarError('No tienes permiso para completar esta acción. Pídeselo al administrador de tu negocio.');
+
+            return $this->sendResponse();
+        }
+
+        if (! $this->svcNegocio->marcarReportesTourVisto($tenantId)) {
+            $this->agregarErrorNoDisponible('el negocio', 'NEG-TOUR-REPORTES');
+
+            return $this->sendResponse();
+        }
+
+        $this->respSinError();
+
+        return $this->sendResponse();
+    }
+
     public function completarOnboarding(): JsonResponse
     {
         $tenantId = session('tenant_id');

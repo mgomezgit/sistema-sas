@@ -1026,32 +1026,97 @@
             font-size: 1.05rem;
             width: 1.25rem;
             text-align: center;
+            /* Se anima con transform, que no refluye: la fila no se mueve ni un
+               píxel cuando el ícono crece. */
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Enlace que cuelga del anterior (por ejemplo, el segundo reporte). */
+        /* Enlace que cuelga de un grupo desplegable (por ejemplo, cada reporte). */
         .menu-item.submenu-item {
             padding-left: 2.1rem;
             font-size: 0.85rem;
+            margin-top: 0;
+            margin-bottom: 0;
         }
 
         .menu-item.submenu-item i {
             font-size: 0.92rem;
         }
 
-        .menu-item:hover {
-            background-color: var(--bg-card-hover);
-            color: var(--text-primary);
+        /* Estas dos reglas van prefijadas con "body" a propósito.
+           Más arriba existe "body.modo-claro .menu-item { color: ... }", que en
+           modo claro pesa más (0,0,2,1) que un ".menu-item:hover" suelto (0,0,2,0)
+           y le ganaba el color: por eso hasta ahora, en modo claro, el ítem activo
+           se veía con fondo y borde de acento pero el TEXTO seguía gris.
+           Con "body" delante ambas quedan en 0,0,2,1 y, al declararse después,
+           mandan en los dos modos sin tener que tocar la regla de modo claro. */
+        body .menu-item:hover {
+            background-color: var(--accent-soft);
+            color: var(--accent);
             text-decoration: none;
         }
 
-        .menu-item.active {
+        .menu-item:hover i {
+            transform: scale(1.15);
+        }
+
+        body .menu-item.active {
             background-color: var(--accent-soft);
             border-left-color: var(--accent);
             color: var(--accent);
+            font-weight: 600;
         }
 
         .menu-item.active i {
             color: var(--accent);
+        }
+
+        /* ---------- Grupo desplegable del menú lateral ---------- */
+
+        /* El padre es un botón (no navega): solo abre/cierra sus subopciones. */
+        .menu-item.menu-padre {
+            width: calc(100% - 1.2rem);
+            background: none;
+            border: none;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .menu-item.menu-padre .icono-flecha-submenu {
+            margin-left: auto;
+            font-size: 0.75rem;
+            width: auto;
+            transition: transform 0.25s ease;
+        }
+
+        .menu-item.menu-padre[aria-expanded="true"] .icono-flecha-submenu {
+            transform: rotate(180deg);
+        }
+
+        .menu-item.menu-padre.padre-activo {
+            color: var(--accent);
+        }
+
+        .menu-item.menu-padre.padre-activo i:not(.icono-flecha-submenu) {
+            color: var(--accent);
+        }
+
+        /* Técnica grid-template-rows: anima de 0 al alto real del contenido sin
+           necesitar JS que mida el alto en píxeles. */
+        .submenu-lateral {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.28s ease;
+        }
+
+        .submenu-lateral.abierto {
+            grid-template-rows: 1fr;
+        }
+
+        .submenu-lateral-contenido {
+            overflow: hidden;
+            min-height: 0;
         }
 
         #contenido-principal {
@@ -1061,7 +1126,9 @@
         #topbar {
             background-color: var(--bg-sidebar);
             border-bottom: 1px solid var(--border-color);
-            padding: 0.85rem 1.5rem;
+            /* Más compacto en alto; el ancho se mantiene para no descuadrar el
+               contenido de las pantallas que ya existen. */
+            padding: 0.5rem 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -1100,8 +1167,8 @@
         }
 
         .avatar-usuario {
-            width: 38px;
-            height: 38px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background-color: var(--accent-soft);
             color: var(--accent);
@@ -1112,6 +1179,24 @@
             font-size: 0.85rem;
             letter-spacing: 0.02em;
             flex-shrink: 0;
+            /* Anillo del color del tema. Va como box-shadow y no como border
+               para no alterar el tamaño real del círculo. */
+            box-shadow: 0 0 0 2px var(--accent);
+            transition: var(--transition-base);
+        }
+
+        .disparador-usuario:hover .avatar-usuario,
+        .disparador-usuario[aria-expanded="true"] .avatar-usuario {
+            box-shadow: 0 0 0 2px var(--accent), 0 0 10px var(--accent-glow);
+        }
+
+        /* Rol de la sesión, debajo del negocio. */
+        .texto-rol-sesion {
+            color: var(--text-secondary);
+            font-size: 0.68rem;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            margin-top: 0.15rem;
         }
 
         .datos-disparador {
@@ -1518,21 +1603,36 @@
             </span>
         </div>
         <nav id="menu-lateral">
-            <a href="{{ url('backoffice/dashboard') }}" class="menu-item @if (request()->is('backoffice/dashboard')) active @endif">
-                <i class="bi bi-speedometer2"></i>
-                <span>Dashboard</span>
-            </a>
-            @if (\App\Models\Rol::esRolEmpleado(session('id_rol')))
+            @php
+                // El rol se determina con el MISMO helper que usa el middleware
+                // RestringirEmpleado, para que el menú nunca pueda desalinearse
+                // de lo que la seguridad real permite.
+                //
+                // Ojo: esconder un ítem es solo experiencia de usuario. La única
+                // fuente de verdad de seguridad sigue siendo el middleware sobre
+                // las rutas backoffice/* y request/*, que no se toca aquí.
+                $esEmpleadoMenu = \App\Models\Rol::esRolEmpleado(session('id_rol'));
+                $tieneNegocioMenu = session('tenant_id') !== null;
+            @endphp
+            @if ($esEmpleadoMenu)
+                {{-- El empleado ve exclusivamente su propia agenda: cualquier otro
+                     enlace le rebotaría en el middleware de todos modos. --}}
                 <a href="{{ url('backoffice/mis-citas') }}" class="menu-item @if (request()->is('backoffice/mis-citas')) active @endif">
                     <i class="bi bi-calendar2-check"></i>
                     <span>Mis Citas</span>
                 </a>
             @else
+            <a href="{{ url('backoffice/dashboard') }}" class="menu-item @if (request()->is('backoffice/dashboard')) active @endif">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
             <a href="{{ url('backoffice/usuarios') }}" class="menu-item @if (request()->is('backoffice/usuarios')) active @endif">
                 <i class="bi bi-people"></i>
                 <span>Usuarios</span>
             </a>
-            @if (session('tenant_id') !== null)
+            {{-- El super admin no opera un negocio concreto: de aquí en adelante
+                 son módulos operativos que no le aplican. --}}
+            @if ($tieneNegocioMenu)
                 <a href="{{ url('backoffice/clientes') }}" class="menu-item @if (request()->is('backoffice/clientes')) active @endif">
                     <i class="bi bi-person-vcard"></i>
                     <span>Clientes</span>
@@ -1553,14 +1653,31 @@
                     <i class="bi bi-clock-history"></i>
                     <span>Historial</span>
                 </a>
-                <a href="{{ url('backoffice/reportes/ventas') }}" class="menu-item @if (request()->is('backoffice/reportes/ventas')) active @endif">
+                @php
+                    $enSeccionReportes = request()->is('backoffice/reportes/*');
+                @endphp
+                <button
+                    type="button"
+                    class="menu-item menu-padre @if ($enSeccionReportes) padre-activo @endif"
+                    data-toggle-submenu="submenu-reportes"
+                    aria-expanded="{{ $enSeccionReportes ? 'true' : 'false' }}"
+                >
                     <i class="bi bi-graph-up"></i>
                     <span>Reportes</span>
-                </a>
-                <a href="{{ url('backoffice/reportes/servicios') }}" class="menu-item submenu-item @if (request()->is('backoffice/reportes/servicios')) active @endif">
-                    <i class="bi bi-pie-chart"></i>
-                    <span>Por servicio</span>
-                </a>
+                    <i class="bi bi-chevron-down icono-flecha-submenu"></i>
+                </button>
+                <div id="submenu-reportes" class="submenu-lateral @if ($enSeccionReportes) abierto @endif">
+                    <div class="submenu-lateral-contenido">
+                        <a href="{{ url('backoffice/reportes/ventas') }}" class="menu-item submenu-item @if (request()->is('backoffice/reportes/ventas')) active @endif">
+                            <i class="bi bi-cash-coin"></i>
+                            <span>Ventas</span>
+                        </a>
+                        <a href="{{ url('backoffice/reportes/servicios') }}" class="menu-item submenu-item @if (request()->is('backoffice/reportes/servicios')) active @endif">
+                            <i class="bi bi-pie-chart"></i>
+                            <span>Por servicio</span>
+                        </a>
+                    </div>
+                </div>
                 <a href="{{ url('backoffice/carga-masiva') }}" class="menu-item @if (request()->is('backoffice/carga-masiva')) active @endif">
                     <i class="bi bi-cloud-upload"></i>
                     <span>Carga Masiva</span>
@@ -1573,6 +1690,34 @@
                     <i class="bi bi-palette2"></i>
                     <span>Personalizar</span>
                 </a>
+
+                @php
+                    // Para sumar un módulo de pago nuevo basta con agregar su ruta
+                    // a este array y un <a class="menu-item submenu-item"> dentro
+                    // del contenedor de abajo. Nada más hay que tocar.
+                    $rutasModulosPago = ['backoffice/comisiones*'];
+                    $enModulosPago = request()->is($rutasModulosPago);
+                @endphp
+                <button
+                    type="button"
+                    class="menu-item menu-padre @if ($enModulosPago) padre-activo @endif"
+                    data-toggle-submenu="submenu-modulos-pago"
+                    aria-expanded="{{ $enModulosPago ? 'true' : 'false' }}"
+                >
+                    <i class="bi bi-stars"></i>
+                    <span>Módulos de pago</span>
+                    <i class="bi bi-chevron-down icono-flecha-submenu"></i>
+                </button>
+                <div id="submenu-modulos-pago" class="submenu-lateral @if ($enModulosPago) abierto @endif">
+                    <div class="submenu-lateral-contenido">
+                        <a href="{{ url('backoffice/comisiones') }}" class="menu-item submenu-item @if (request()->is('backoffice/comisiones')) active @endif">
+                            <i class="bi bi-percent"></i>
+                            <span>Comisiones</span>
+                        </a>
+                        {{-- Próximos módulos de pago (Contenido para redes sociales,
+                             Catálogo, Chatbot) van aquí, con este mismo formato. --}}
+                    </div>
+                </div>
             @endif
             @endif
             <!-- Los enlaces de cada módulo se agregan aquí a medida que se construyen -->
@@ -1592,7 +1737,15 @@
                 }
                 $inicialesUsuario = $inicialesUsuario ?: 'U';
 
-                $esAdminDeNegocio = ! \App\Models\Rol::esRolEmpleado(session('id_rol')) && session('tenant_id') !== null;
+                $esEmpleadoSesion = \App\Models\Rol::esRolEmpleado(session('id_rol'));
+                $esAdminDeNegocio = ! $esEmpleadoSesion && session('tenant_id') !== null;
+
+                // El rol se deduce igual que en el resto del proyecto (el helper
+                // del middleware + la ausencia de negocio), no leyendo un
+                // nombre_rol suelto que podría variar entre instalaciones.
+                $nombreRolSesion = session('tenant_id') === null
+                    ? 'Super Admin'
+                    : ($esEmpleadoSesion ? 'Empleado' : 'Administrador');
             @endphp
 
             <div class="d-flex align-items-center gap-3">
@@ -1628,6 +1781,7 @@
                                 <i class="bi bi-building"></i>
                                 <span id="nombre-negocio-sesion">{{ session('nombre_negocio_sesion') ?? 'Negocio' }}</span>
                             </span>
+                            <span class="texto-rol-sesion">{{ $nombreRolSesion }}</span>
                         @endif
                     </span>
                     <i class="bi bi-chevron-down flecha-usuario"></i>
@@ -1687,7 +1841,10 @@
         <div id="drawer-onboarding">
             <button type="button" id="pestana-onboarding" aria-label="Primeros pasos">
                 <i class="bi bi-rocket-takeoff icono-pestana"></i>
-                <span class="conteo-pestana" id="conteo-onboarding">0/6</span>
+                {{-- Marcador de arranque: el JS lo reemplaza con el conteo real
+                     apenas responde el backend. No se escribe un total fijo aquí
+                     para que no quede desactualizado al sumar pasos. --}}
+                <span class="conteo-pestana" id="conteo-onboarding">···</span>
             </button>
 
             <div id="panel-onboarding">
@@ -1698,7 +1855,7 @@
                     </button>
                 </div>
                 <p class="subtitulo-onboarding">
-                    Cinco cosas rápidas y tu agenda queda lista para recibir clientes.
+                    Unos pasos rápidos y tu negocio queda listo para recibir clientes.
                 </p>
 
                 <div class="barra-progreso-onboarding">
@@ -1733,6 +1890,22 @@
     </script>
     <script src="{{ asset('js/utilidades.js') }}"></script>
     <script src="{{ asset('js/validador.js') }}"></script>
+
+    <script>
+        /**
+         * Grupos desplegables del menú lateral (cualquier "menu-padre" con
+         * data-toggle-submenu). Genérico: el próximo módulo que necesite
+         * subopciones solo repite este mismo patrón de marcado, sin tocar JS.
+         */
+        jQuery('#menu-lateral').on('click', '[data-toggle-submenu]', function () {
+            var boton = jQuery(this);
+            var submenu = jQuery('#' + boton.data('toggle-submenu'));
+            var expandiendo = !submenu.hasClass('abierto');
+
+            submenu.toggleClass('abierto', expandiendo);
+            boton.attr('aria-expanded', expandiendo ? 'true' : 'false');
+        });
+    </script>
 
     <script>
         // Lee el valor real de una variable CSS del tema. Se usa donde una librería
@@ -1906,8 +2079,12 @@
          *                         ejecuta justo antes de mostrar ese paso (por
          *                         ejemplo, abrir un modal para poder señalar un
          *                         campo que vive dentro de él).
+         * @param {Function} alCompletar  Opcional. Se ejecuta SOLO si el usuario
+         *                         llega al final del tour, nunca si lo salta o lo
+         *                         cierra antes. Lo usa el tour de Reportes para
+         *                         persistir en servidor que ya se vio completo.
          */
-        function iniciarTourContextual(idTour, pasos) {
+        function iniciarTourContextual(idTour, pasos, alCompletar) {
             if (typeof Shepherd === 'undefined' || tourYaVisto(idTour)) {
                 return;
             }
@@ -1981,7 +2158,13 @@
                 });
             });
 
-            tour.on('complete', function () { marcarTourVisto(idTour); });
+            tour.on('complete', function () {
+                marcarTourVisto(idTour);
+
+                if (typeof alCompletar === 'function') {
+                    alCompletar();
+                }
+            });
             tour.on('cancel', function () { marcarTourVisto(idTour); });
 
             tour.start();
@@ -2018,15 +2201,19 @@
 
         /* ================= BIENVENIDA Y PRIMEROS PASOS ================= */
 
-        // Texto y destino de cada uno de los 6 pasos. El botón de cierre no es
-        // un paso: se muestra aparte cuando los 6 quedan completados.
+        // Texto y destino de cada paso. El total NO se escribe a mano en ningún
+        // lado: sale de la cantidad de pasos que devuelve el backend, así que
+        // sumar un paso aquí y en SvcNegocio basta para que el conteo lo siga.
+        // El botón de cierre no es un paso: aparece cuando están todos hechos.
         var PASOS_ONBOARDING = {
             personalizar: { texto: 'Personaliza los colores de tu panel', destino: 'backoffice/personalizar' },
             horario: { texto: 'Define tus días y horas de atención', destino: 'backoffice/configuracion' },
             recurso: { texto: 'Registra el primer servicio que ofreces', destino: 'backoffice/recursos' },
             empleado: { texto: 'Suma a alguien de tu equipo', destino: 'backoffice/empleados' },
             cliente: { texto: 'Registra a tu primer cliente', destino: 'backoffice/clientes' },
-            reserva: { texto: 'Agenda tu primera reserva', destino: 'backoffice/reservas' }
+            reserva: { texto: 'Agenda tu primera reserva', destino: 'backoffice/reservas' },
+            inventario: { texto: 'Carga tu primer producto de inventario', destino: 'backoffice/productos' },
+            reportes: { texto: 'Descubre tus reportes de ventas', destino: 'backoffice/reportes/ventas' }
         };
 
         // Se guardan los ids ya completados (no solo el total) para saber cuál

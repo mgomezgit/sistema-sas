@@ -30,6 +30,7 @@ class Negocio extends Model
         'tema_personalizado',
         'tour_completado',
         'bienvenida_vista',
+        'reportes_tour_visto',
         'usuario_registra',
         'fecha_registro',
         'estado',

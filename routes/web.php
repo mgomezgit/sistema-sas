@@ -56,6 +56,7 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     Route::post('negocio/actualizar-configuracion', [App\Http\Controllers\Request\NegocioController::class, 'actualizarConfiguracion']);
     Route::post('negocio/completar-onboarding', [App\Http\Controllers\Request\NegocioController::class, 'completarOnboarding']);
     Route::post('negocio/marcar-bienvenida', [App\Http\Controllers\Request\NegocioController::class, 'marcarBienvenidaVista']);
+    Route::post('negocio/marcar-reportes-tour', [App\Http\Controllers\Request\NegocioController::class, 'marcarReportesTourVisto']);
 
     // Reportes: consulta en pantalla y descarga del archivo Excel.
     Route::get('reporte/ventas-preview', [App\Http\Controllers\Request\ReporteController::class, 'ventasPreview']);
@@ -66,6 +67,14 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     // Carga masiva: plantilla de ejemplo e importación del archivo lleno.
     Route::get('carga-masiva/plantilla/{tipo}', [App\Http\Controllers\Request\CargaMasivaController::class, 'descargarPlantilla']);
     Route::post('carga-masiva/importar/{tipo}', [App\Http\Controllers\Request\CargaMasivaController::class, 'importar']);
+
+    // Comisiones: módulo solo del administrador del negocio.
+    Route::get('comisiones/informe', [App\Http\Controllers\Request\ComisionController::class, 'informe']);
+    Route::post('comisiones/marcar-pagado', [App\Http\Controllers\Request\ComisionController::class, 'marcarPagado']);
+    Route::get('comisiones/tarifas', [App\Http\Controllers\Request\ComisionController::class, 'listarTarifas']);
+    Route::post('comisiones/tarifas/guardar', [App\Http\Controllers\Request\ComisionController::class, 'guardarTarifa']);
+    Route::post('comisiones/tarifas/eliminar', [App\Http\Controllers\Request\ComisionController::class, 'eliminarTarifa']);
+    Route::get('comisiones/historial-pagos', [App\Http\Controllers\Request\ComisionController::class, 'historialPagos']);
 
     // Inventario de productos.
     Route::post('producto/crear', [App\Http\Controllers\Request\ProductoController::class, 'crear']);
@@ -94,4 +103,5 @@ Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('reportes/servicios', [App\Http\Controllers\ReporteViewController::class, 'servicios'])->middleware('restringir.empleado');
     Route::get('carga-masiva', [App\Http\Controllers\CargaMasivaViewController::class, 'index'])->middleware('restringir.empleado');
     Route::get('productos', [App\Http\Controllers\ProductoViewController::class, 'listar'])->middleware('restringir.empleado');
+    Route::get('comisiones', [App\Http\Controllers\ComisionViewController::class, 'informe'])->middleware('restringir.empleado');
 });

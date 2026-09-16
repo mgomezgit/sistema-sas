@@ -408,6 +408,42 @@
                     abrirModalIngresoStock(producto);
                 }
             });
+
+            iniciarGuiaSiCorresponde('inventario', function () {
+                iniciarTourContextual('inventario', [
+                    {
+                        attachTo: { element: '#btn-nuevo-producto', on: 'bottom' },
+                        title: 'Tu inventario',
+                        text: 'Aquí registras los productos que usas o vendes, como shampoo, cremas o esmaltes.'
+                    },
+                    {
+                        attachTo: { element: '#nombre', on: 'bottom' },
+                        title: 'Nombre del producto',
+                        text: 'Ponle un nombre claro, para que lo reconozcas rápido en la lista.',
+                        beforeShowMe: function () {
+                            return new Promise(function (resolver) {
+                                var elementoModal = document.getElementById('modal-producto');
+
+                                jQuery(elementoModal).one('shown.bs.modal', function () {
+                                    resolver();
+                                });
+
+                                document.getElementById('btn-nuevo-producto').click();
+                            });
+                        }
+                    },
+                    {
+                        attachTo: { element: '#cantidad_actual', on: 'bottom' },
+                        title: 'Cuánto tienes hoy',
+                        text: 'La cantidad con la que arrancas. Después puedes sumar más con el botón de ingresar stock.'
+                    },
+                    {
+                        attachTo: { element: '#cantidad_minima', on: 'bottom' },
+                        title: 'Tu punto de alerta',
+                        text: 'Cuando la cantidad actual baje de este número, el producto aparecerá en la campana de avisos para que repongas a tiempo.'
+                    }
+                ]);
+            });
         });
     </script>
 @endsection

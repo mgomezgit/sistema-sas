@@ -5,30 +5,24 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Reserva extends Model
+class ComisionTarifa extends Model
 {
     use HasFactory;
 
-    protected $table = 'reservas';
+    protected $table = 'comisiones_tarifas';
 
-    protected $primaryKey = 'id_reserva';
+    protected $primaryKey = 'id_comision_tarifa';
 
     const CREATED_AT = null;
 
     const UPDATED_AT = null;
 
     protected $fillable = [
-        'id_reserva',
+        'id_comision_tarifa',
         'tenant_id',
-        'id_cliente',
-        'id_recurso',
         'id_empleado',
-        'fecha_reserva',
-        'hora_inicio',
-        'hora_fin',
-        'estado_reserva',
-        'notas',
-        'id_pago_comision',
+        'id_recurso',
+        'porcentaje_comision',
         'usuario_registra',
         'fecha_registro',
         'estado',

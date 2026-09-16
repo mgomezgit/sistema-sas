@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Models\Cliente;
 use App\Models\Empleado;
 use App\Models\Negocio;
+use App\Models\Producto;
 use App\Models\RecursoReservable;
 use App\Models\Reserva;
 use Carbon\Carbon;
@@ -164,7 +165,13 @@ class SvcNegocio
     public function obtenerProgresoOnboarding($tenantId)
     {
         try {
-            $negocio = Negocio::select('dias_atencion', 'tema_personalizado', 'tour_completado', 'bienvenida_vista')
+            $negocio = Negocio::select(
+                'dias_atencion',
+                'tema_personalizado',
+                'tour_completado',
+                'bienvenida_vista',
+                'reportes_tour_visto'
+            )
                 ->where('id_negocio', $tenantId)
                 ->first();
 
@@ -200,6 +207,17 @@ class SvcNegocio
                         'id' => 'reserva',
                         'completado' => Reserva::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
                     ],
+                    [
+                        'id' => 'inventario',
+                        'completado' => Producto::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
+                    ],
+                    [
+                        // Único paso que no se deduce de un registro creado: no
+                        // hay nada que "crear" en reportes, así que se marca
+                        // cuando el negocio termina el tour que los explica.
+                        'id' => 'reportes',
+                        'completado' => (bool) $negocio->reportes_tour_visto,
+                    ],
                 ],
             ];
         } catch (\Exception $e) {
@@ -208,6 +226,29 @@ class SvcNegocio
             // Ante un fallo se responde como "ya terminado" para que el widget
             // simplemente no aparezca, en vez de romper la pantalla.
             return ['tour_completado' => true, 'bienvenida_vista' => true, 'pasos' => []];
+        }
+    }
+
+    /**
+     * Marca que el negocio ya completó el tour guiado de Reportes, que es lo
+     * que da por cumplido ese paso del onboarding.
+     */
+    public function marcarReportesTourVisto($tenantId): bool
+    {
+        try {
+            $query = Negocio::where('id_negocio', $tenantId);
+
+            if (! $query->exists()) {
+                return false;
+            }
+
+            $query->update(['reportes_tour_visto' => true]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
         }
     }
 

@@ -311,6 +311,52 @@
 
             cargarEmpleados();
             cargarReporte();
+
+            iniciarGuiaSiCorresponde('reportes', function () {
+                iniciarTourContextual('reportes', [
+                    {
+                        attachTo: { element: '#filtro-desde', on: 'bottom' },
+                        title: 'Elige el periodo',
+                        text: 'Todos los reportes parten de un rango de fechas. Por defecto viene el mes en curso.'
+                    },
+                    {
+                        attachTo: { element: '#filtro-empleado', on: 'bottom' },
+                        title: 'Afina lo que quieres ver',
+                        text: 'Puedes mirar solo las ventas de un empleado, o filtrar por el estado de la reserva.'
+                    },
+                    {
+                        attachTo: { element: '#tabla-ventas', on: 'top' },
+                        title: 'Ventas por fecha',
+                        text: 'Este reporte lista cita por cita: quién atendió, qué servicio fue y cuánto costó.'
+                    },
+                    {
+                        attachTo: { element: '#btn-descargar-excel', on: 'bottom' },
+                        title: 'Llévatelo en Excel',
+                        text: 'Cualquier reporte que veas en pantalla lo puedes descargar con los mismos filtros aplicados.'
+                    },
+                    {
+                        attachTo: { element: '#submenu-reportes', on: 'right' },
+                        title: 'El otro reporte',
+                        text: 'En "Por servicio" ves cuánto aportó cada servicio del catálogo: cuántas veces se reservó y cuánto dinero dejó. Útil para saber qué conviene impulsar.'
+                    }
+                ], function () {
+                    // Solo al terminar el tour completo: este paso del onboarding
+                    // no tiene nada que crear en base de datos, así que lo que se
+                    // persiste es justamente haberlo visto entero.
+                    axiosSipleInterno('POST', 'request/negocio/marcar-reportes-tour', {}, {}, false, function (respuesta) {
+                        if (respuesta.error != 0) {
+                            return;
+                        }
+
+                        dispararConfeti(110);
+
+                        // Refresca el drawer para que el paso se marque al vuelo.
+                        if (typeof cargarProgresoOnboarding === 'function') {
+                            cargarProgresoOnboarding();
+                        }
+                    });
+                });
+            });
         });
     </script>
 @endsection
