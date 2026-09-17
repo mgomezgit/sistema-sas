@@ -35,6 +35,55 @@
             /* Derivadas del acento: siguen automáticamente al acento activo. */
             --accent-glow: var(--accent-soft);
             --shadow-glow: 0 0 0 1px var(--accent-soft), 0 4px 20px var(--accent-soft);
+
+            /* Resplandor del ítem activo del menú lateral.
+               Van aquí, en :root, y NO en cada bloque body.acento-*, para no
+               romper la regla de "agregar un acento = 3 variables": color-mix
+               deriva la intensidad del --accent que esté activo en ese momento.
+               No se puede usar rgba(var(--accent), 0.3): --accent es un hex
+               sólido, no canales sueltos, así que rgba() no lo acepta.
+               Los valores de modo claro se ajustan más abajo. */
+            --menu-glow-fuerte: color-mix(in srgb, var(--accent) 36%, transparent);
+            --menu-glow-suave: color-mix(in srgb, var(--accent) 16%, transparent);
+            /* Resplandor concentrado de la cápsula del ítem activo. */
+            --capsula-glow: color-mix(in srgb, var(--accent) 45%, transparent);
+
+            /* Segundo nivel de acento translúcido, más presente que
+               --accent-soft (12%). Va aquí y no en cada body.acento-* para no
+               romper la regla de "agregar un acento = 3 variables": color-mix
+               lo deriva del --accent que esté activo. */
+            --accent-soft2: color-mix(in srgb, var(--accent) 26%, transparent);
+
+            /* Resplandor ambiental que rodea el sidebar completo: un aro ceñido
+               al borde y un halo amplio y difuso. */
+            --aro-ambiental: color-mix(in srgb, var(--accent) 20%, transparent);
+            --halo-ambiental: color-mix(in srgb, var(--accent) 16%, transparent);
+
+            /* Glow del navbar, concentrado hacia abajo (más presente en el
+               borde inferior que arriba o a los lados). */
+            --navbar-glow: color-mix(in srgb, var(--accent) 26%, transparent);
+            --navbar-aro: color-mix(in srgb, var(--accent) 14%, transparent);
+
+            /* Verde de estado "en línea". Es el ÚNICO color fijo fuera del
+               sistema de tema: no representa la marca del negocio sino un estado
+               universal (conectado / desconectado), igual que el rojo de error.
+               Si siguiera al acento, un negocio con acento rojo mostraría
+               "en línea" en rojo, que comunica lo contrario. */
+            --estado-en-linea: #2ecc71;
+
+            /* Geometría del armazón. El ancho del sidebar es una variable para
+               que el margen del contenido lo siga solo, sin repetir el número:
+               al colapsar basta con cambiarla en body. */
+            --ancho-sidebar: 250px;
+            --ancho-sidebar-colapsado: 84px;
+            --gap-flotante: 16px;
+            /* Curva con rebote suave para el colapso. */
+            --curva-elastica: cubic-bezier(.34, 1.56, .64, 1);
+        }
+
+        /* Estado colapsado del sidebar (lo activa el botón de la cabecera). */
+        body.sidebar-colapsado {
+            --ancho-sidebar: var(--ancho-sidebar-colapsado);
         }
 
         /* ---------- Capa 1: MODO ---------- */
@@ -108,6 +157,11 @@
             --shadow-card: 0 1px 2px rgba(120, 80, 80, 0.06), 0 8px 24px rgba(120, 80, 80, 0.07);
             --stripe-fila: rgba(0, 0, 0, 0.018);
             --overlay-loader: rgba(253, 247, 245, 0.8);
+            /* El sidebar de este modo es claro: el mismo resplandor del modo
+               oscuro se ve sucio encima, sobre todo con los acentos más claros
+               (amarillo, dorado). Aquí baja de intensidad. */
+            --menu-glow-fuerte: color-mix(in srgb, var(--accent) 24%, transparent);
+            --menu-glow-suave: color-mix(in srgb, var(--accent) 11%, transparent);
             /* Paleta de los avatares de las tablas; el nombre decide cuál toca. */
             --avatar-1: #f3d9a4;
             --avatar-2: #cfe3f7;
@@ -956,21 +1010,79 @@
 
         /* ---------- Sidebar ---------- */
 
+        /* Tarjeta flotante: se despega de los bordes y deja ver el fondo del
+           body alrededor, para que sidebar y navbar se lean como dos piezas
+           independientes y no como un marco pegado a la pantalla. */
         #sidebar {
             position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            width: 250px;
-            background-color: var(--bg-sidebar);
+            top: var(--gap-flotante);
+            left: var(--gap-flotante);
+            bottom: var(--gap-flotante);
+            width: var(--ancho-sidebar);
+            /* Gradiente casi imperceptible: solo da sensación de volumen. */
+            background-image: linear-gradient(
+                180deg,
+                var(--bg-sidebar) 0%,
+                color-mix(in srgb, var(--bg-sidebar) 92%, black 8%) 100%
+            );
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
+            /* El scroll vive ahora en #menu-lateral, no aquí: así la tarjeta de
+               perfil del pie queda anclada y no se va con el desplazamiento. */
+            overflow: hidden;
             z-index: 1030;
-            border-right: 1px solid var(--border-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-card);
+            transition: width 0.5s var(--curva-elastica);
+            /* Resplandor ambiental: un aro delgado ceñido al borde, un halo
+               amplio que envuelve toda la tarjeta, y por último la sombra de
+               profundidad en negro. En ese orden: lo más ceñido primero. */
+            box-shadow:
+                0 0 0 1px var(--aro-ambiental),
+                0 0 52px var(--halo-ambiental),
+                0 20px 50px rgba(0, 0, 0, 0.32);
+        }
+
+        /* En modo claro el sidebar es claro: el degradado tiene que ACLARAR
+           hacia abajo, no oscurecer, o se ve como una sombra sucia. */
+        body.modo-claro #sidebar {
+            background-image: linear-gradient(
+                180deg,
+                var(--bg-sidebar) 0%,
+                color-mix(in srgb, var(--bg-sidebar) 92%, white 8%) 100%
+            );
+        }
+
+        /* Scrollbar temático y delgado. */
+        #sidebar,
+        #menu-lateral {
+            scrollbar-width: thin;
+            scrollbar-color: color-mix(in srgb, var(--accent) 20%, transparent) transparent;
+        }
+
+        #sidebar::-webkit-scrollbar,
+        #menu-lateral::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        #sidebar::-webkit-scrollbar-track,
+        #menu-lateral::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #sidebar::-webkit-scrollbar-thumb,
+        #menu-lateral::-webkit-scrollbar-thumb {
+            background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+            border-radius: 999px;
+        }
+
+        #sidebar::-webkit-scrollbar-thumb:hover,
+        #menu-lateral::-webkit-scrollbar-thumb:hover {
+            background-color: color-mix(in srgb, var(--accent) 38%, transparent);
         }
 
         #sidebar .sidebar-header {
+            position: relative;
             display: flex;
             align-items: center;
             gap: 0.65rem;
@@ -978,13 +1090,100 @@
             border-bottom: 1px solid var(--border-color);
         }
 
+        /* Franja de luz superior: firma visual, apenas un hilo de acento que se
+           desvanece hacia los lados. */
+        #sidebar .sidebar-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-image: linear-gradient(90deg, transparent, var(--accent), transparent);
+            /* "Respiración": la franja late muy despacio, lo justo para que el
+               panel se sienta vivo sin distraer. */
+            animation: respiracionFranja 3.4s ease-in-out infinite;
+        }
+
+        @keyframes respiracionFranja {
+            0%, 100% {
+                opacity: 0.55;
+                filter: brightness(1);
+            }
+            50% {
+                opacity: 1;
+                filter: brightness(1.35);
+            }
+        }
+
         #sidebar .sidebar-header .logo-dot {
-            width: 9px;
-            height: 9px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background-color: var(--accent);
             box-shadow: 0 0 10px var(--accent-glow);
             flex-shrink: 0;
+            /* Indicador de "sesión activa". */
+            animation: pulsoSesion 2.8s ease-in-out infinite;
+        }
+
+        @keyframes pulsoSesion {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.45;
+                transform: scale(0.82);
+            }
+        }
+
+        /* Botón que colapsa/expande el sidebar: badge rectangular redondeado,
+           más ancho que alto, con dos chevrons enfrentados. */
+        #btn-colapsar-sidebar {
+            margin-left: auto;
+            flex-shrink: 0;
+            width: 32px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
+            background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+            border: 1px solid var(--border-color);
+            border-radius: 9px;
+            color: var(--text-secondary);
+            font-size: 0.6rem;
+            cursor: pointer;
+            transition: transform 0.25s var(--curva-elastica),
+                        box-shadow 0.25s ease, color 0.2s ease,
+                        border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        #btn-colapsar-sidebar:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+            background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+            box-shadow: 0 0 12px var(--accent-soft2);
+            transform: scale(1.06);
+        }
+
+        /* Sensación de "presionado". */
+        #btn-colapsar-sidebar:active {
+            transform: scale(0.9);
+        }
+
+        /* Cada chevron gira sobre sí mismo: "‹ ›" pasa a "› ‹". Rotar el par
+           completo no serviría, porque el conjunto es simétrico y la vuelta de
+           180° no se notaría. */
+        #btn-colapsar-sidebar i {
+            display: block;
+            line-height: 1;
+            transition: transform 0.5s var(--curva-elastica);
+        }
+
+        body.sidebar-colapsado #btn-colapsar-sidebar i {
+            transform: rotate(180deg);
         }
 
         #sidebar .sidebar-header span {
@@ -1006,9 +1205,15 @@
         #menu-lateral {
             flex: 1;
             padding: 0.75rem 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            /* Sin esto un hijo de flex no se deja encoger por debajo de su
+               contenido y el scroll nunca aparecería. */
+            min-height: 0;
         }
 
         .menu-item {
+            position: relative;
             display: flex;
             align-items: center;
             gap: 0.65rem;
@@ -1022,21 +1227,68 @@
             font-size: 0.9rem;
         }
 
-        .menu-item i {
-            font-size: 1.05rem;
-            width: 1.25rem;
-            text-align: center;
-            /* Se anima con transform, que no refluye: la fila no se mueve ni un
-               píxel cuando el ícono crece. */
-            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        /* Cada ícono va dentro de un "chip" redondeado. Se estiliza el propio
+           <i>, así ninguna vista tiene que cambiar su marcado. La flecha de los
+           grupos colapsables queda fuera: no es un ícono de sección. */
+        .menu-item i:not(.icono-flecha-submenu) {
+            font-size: 1rem;
+            width: 29px;
+            height: 29px;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+            /* El escalado se anima con transform, que no refluye: la fila no se
+               mueve ni un píxel cuando el ícono crece. */
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                        background-color 0.2s ease, color 0.2s ease;
         }
 
-        /* Enlace que cuelga de un grupo desplegable (por ejemplo, cada reporte). */
+        /* Los labels se deslizan mientras se apagan, no solo desvanecen. */
+        .menu-item > span {
+            transition: opacity 0.22s ease, transform 0.22s ease;
+        }
+
+        .menu-item:hover i:not(.icono-flecha-submenu) {
+            background-color: color-mix(in srgb, var(--accent) 16%, transparent);
+        }
+
+        .menu-item.active i:not(.icono-flecha-submenu) {
+            background-color: color-mix(in srgb, var(--accent) 24%, transparent);
+        }
+
+        /* Etiqueta discreta que agrupa visualmente los ítems. No es un enlace ni
+           un contenedor: solo un rótulo, sin caja ni borde. */
+        .etiqueta-seccion {
+            color: var(--text-secondary);
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 0 1rem;
+            margin: 1.1rem 0.6rem 0.35rem;
+            opacity: 0.7;
+            user-select: none;
+        }
+
+        #menu-lateral .etiqueta-seccion:first-child {
+            margin-top: 0.25rem;
+        }
+
+        /* Enlace que cuelga de un grupo desplegable (por ejemplo, cada reporte).
+           El indentado lo pone ahora la línea del árbol (el contenedor), así que
+           aquí solo queda el espacio entre esa línea y el ícono. */
         .menu-item.submenu-item {
-            padding-left: 2.1rem;
+            position: relative;
+            padding-left: 1.15rem;
+            padding-right: 0.8rem;
             font-size: 0.85rem;
-            margin-top: 0;
-            margin-bottom: 0;
+            /* Un respiro vertical: además de separar los hijos, le da sitio al
+               resplandor del activo para no chocar contra el recorte del
+               contenedor que anima la apertura. */
+            margin: 2px 0.6rem 2px 0;
         }
 
         .menu-item.submenu-item i {
@@ -1050,26 +1302,112 @@
            se veía con fondo y borde de acento pero el TEXTO seguía gris.
            Con "body" delante ambas quedan en 0,0,2,1 y, al declararse después,
            mandan en los dos modos sin tener que tocar la regla de modo claro. */
+        /* El hover levanta apenas la fila y le pone una sombra corta: da la
+           sensación de que el ítem se despega, sin cápsula (esa es del activo). */
         body .menu-item:hover {
-            background-color: var(--accent-soft);
+            background-color: var(--bg-card-hover);
             color: var(--accent);
             text-decoration: none;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
         }
 
-        .menu-item:hover i {
-            transform: scale(1.15);
+        .menu-item:hover i:not(.icono-flecha-submenu) {
+            transform: scale(1.08);
         }
 
+        /* El activo YA NO se rellena de color: se marca con una cápsula lateral
+           corta y su propio resplandor concentrado. */
         body .menu-item.active {
-            background-color: var(--accent-soft);
-            border-left-color: var(--accent);
+            background-color: transparent;
+            border-left-color: transparent;
             color: var(--accent);
             font-weight: 600;
         }
 
-        .menu-item.active i {
+        .menu-item.active i:not(.icono-flecha-submenu) {
             color: var(--accent);
         }
+
+        /* La cápsula. Va en ::after porque ::before ya lo usa la rama del árbol
+           en los hijos de submenú: así conviven sin pisarse. */
+        .menu-item.active::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 60%;
+            border-radius: 999px;
+            background-color: var(--accent);
+            /* El resplandor se concentra en la barra, no se dispersa por la fila. */
+            box-shadow: 0 0 9px var(--capsula-glow);
+        }
+
+        /* ---------- Submenú en árbol ---------- */
+
+        /* Línea troncal: cae justo debajo del ícono del padre. */
+        .submenu-lateral-contenido {
+            margin-left: 2.2rem;
+            border-left: 1.5px solid var(--border-color);
+            transition: border-color 0.25s ease;
+        }
+
+        /* Cuando el hijo activo vive dentro de este grupo, el tronco se tiñe del
+           acento para que la jerarquía se lea de un vistazo. Si el navegador no
+           soporta :has(), simplemente se queda en --border-color: degrada bien. */
+        .submenu-lateral-contenido:has(.menu-item.submenu-item.active) {
+            border-left-color: var(--accent);
+        }
+
+        /* Rama horizontal que une el tronco con cada hijo. */
+        .menu-item.submenu-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 0.72rem;
+            height: 1.5px;
+            background-color: var(--border-color);
+            transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body .menu-item.submenu-item:hover::before,
+        body .menu-item.submenu-item.active::before {
+            background-color: var(--accent);
+        }
+
+        /* En los hijos la cápsula se corre hacia la derecha, justo donde termina
+           la rama: así la rama conecta el tronco CON la cápsula, en vez de
+           quedar una encima de la otra. */
+        .menu-item.submenu-item.active::after {
+            left: 0.78rem;
+            height: 55%;
+        }
+
+        /* Los hijos entran con un fade + deslizamiento corto. Se listan las
+           propiedades una a una en vez de "all" para no pisar la transición del
+           ícono ni la del fondo. */
+        .submenu-lateral .menu-item.submenu-item {
+            opacity: 0;
+            transform: translateX(-6px);
+            transition: opacity 0.25s ease, transform 0.25s ease,
+                        background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .submenu-lateral.abierto .menu-item.submenu-item {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* Escalonado leve al abrir. Va solo en ".abierto" para que al cerrar se
+           desvanezcan de inmediato, sin retardo que se sienta pesado. */
+        .submenu-lateral.abierto .menu-item.submenu-item:nth-child(1) { transition-delay: 0.04s; }
+        .submenu-lateral.abierto .menu-item.submenu-item:nth-child(2) { transition-delay: 0.08s; }
+        .submenu-lateral.abierto .menu-item.submenu-item:nth-child(3) { transition-delay: 0.12s; }
+        .submenu-lateral.abierto .menu-item.submenu-item:nth-child(4) { transition-delay: 0.16s; }
+        .submenu-lateral.abierto .menu-item.submenu-item:nth-child(5) { transition-delay: 0.20s; }
 
         /* ---------- Grupo desplegable del menú lateral ---------- */
 
@@ -1083,6 +1421,178 @@
             font-family: inherit;
         }
 
+        /* Bloque que arranca su propia sección sin necesitar un rótulo encima.
+           Lleva además un lavado de acento que se desvanece hacia la derecha,
+           para que la sección de pago se sienta distinta sin gritar. */
+        .menu-item.menu-padre-separado {
+            margin-top: 1rem;
+            padding-top: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            background-image: linear-gradient(
+                90deg,
+                color-mix(in srgb, var(--accent) 8%, transparent),
+                transparent
+            );
+        }
+
+        /* ---------- Sidebar colapsado (solo íconos) ---------- */
+
+        /* Los textos se apagan con opacidad + ancho 0 en vez de display:none,
+           para que la transición se vea fluida y no un corte seco, y además se
+           corren hacia la izquierda mientras desaparecen. */
+        body.sidebar-colapsado .menu-item > span,
+        body.sidebar-colapsado #sidebar .sidebar-header .nombre-marca,
+        body.sidebar-colapsado .datos-perfil-sidebar {
+            opacity: 0;
+            width: 0;
+            transform: translateX(-8px);
+            overflow: hidden;
+            white-space: nowrap;
+            transition: opacity 0.22s ease, transform 0.22s ease, width 0.3s ease;
+        }
+
+        /* Los rótulos de sección y los submenús desaparecen por completo:
+           colapsado no hay sitio donde leerlos. */
+        body.sidebar-colapsado .etiqueta-seccion,
+        body.sidebar-colapsado .submenu-lateral,
+        body.sidebar-colapsado .icono-flecha-submenu {
+            display: none;
+        }
+
+        /* Íconos centrados en la fila. */
+        body.sidebar-colapsado .menu-item {
+            justify-content: center;
+            gap: 0;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+
+        body.sidebar-colapsado .menu-item.menu-padre {
+            width: calc(100% - 1.2rem);
+        }
+
+        /* La cápsula se pega al borde del ítem también en modo colapsado. */
+        body.sidebar-colapsado .menu-item.active::after {
+            left: 0;
+        }
+
+        body.sidebar-colapsado #sidebar .sidebar-header {
+            justify-content: center;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+            gap: 0.4rem;
+        }
+
+        body.sidebar-colapsado #btn-colapsar-sidebar {
+            margin-left: 0;
+        }
+
+        /* Colapsado, la tarjeta de perfil se reduce al avatar centrado. */
+        body.sidebar-colapsado .tarjeta-perfil {
+            padding: 0.5rem;
+            justify-content: center;
+            gap: 0;
+        }
+
+        body.sidebar-colapsado #btn-opciones-perfil {
+            display: none;
+        }
+
+        /* ---------- Tarjeta de perfil del pie del sidebar ---------- */
+
+        .pie-sidebar {
+            padding: 0.75rem;
+            margin-top: auto;
+        }
+
+        .tarjeta-perfil {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.6rem;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            /* Anillo tenue de acento, para que la tarjeta no se vea plana. */
+            box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+            transition: var(--transition-base);
+        }
+
+        .avatar-perfil {
+            position: relative;
+            width: 38px;
+            height: 38px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background-color: var(--accent-soft);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+        }
+
+        /* Punto de "en línea" en la esquina del avatar. */
+        .punto-en-linea {
+            position: absolute;
+            right: -1px;
+            bottom: -1px;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background-color: var(--estado-en-linea);
+            /* El aro del color del sidebar lo recorta del avatar. */
+            box-shadow: 0 0 0 2px var(--bg-sidebar);
+        }
+
+        .datos-perfil-sidebar {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            line-height: 1.25;
+        }
+
+        .datos-perfil-sidebar .nombre-perfil {
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .datos-perfil-sidebar .rol-perfil {
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #btn-opciones-perfil {
+            margin-left: auto;
+            flex-shrink: 0;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: transparent;
+            border: none;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition-base);
+        }
+
+        #btn-opciones-perfil:hover {
+            color: var(--accent);
+            background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+        }
+
         .menu-item.menu-padre .icono-flecha-submenu {
             margin-left: auto;
             font-size: 0.75rem;
@@ -1094,8 +1604,13 @@
             transform: rotate(180deg);
         }
 
+        /* El padre de un hijo activo se marca, pero a media tinta: color de
+           acento y una barra lateral translúcida, SIN fondo ni resplandor. Así
+           el hijo realmente activo sigue siendo lo más fuerte de la jerarquía y
+           el usuario no se pierde de dónde está parado. */
         .menu-item.menu-padre.padre-activo {
             color: var(--accent);
+            border-left-color: var(--menu-glow-fuerte);
         }
 
         .menu-item.menu-padre.padre-activo i:not(.icono-flecha-submenu) {
@@ -1119,23 +1634,104 @@
             min-height: 0;
         }
 
-        #contenido-principal {
-            margin-left: 250px;
+        /* Quien pidió menos movimiento en su sistema operativo no debería
+           recibir escalados ni deslizamientos. El color y el resplandor sí se
+           conservan: son información, no animación. */
+        @media (prefers-reduced-motion: reduce) {
+            /* Todo lo que se mueve se apaga; lo que informa (color, resplandor,
+               posición final) se conserva. Las transiciones no se eliminan del
+               todo sino que bajan al mínimo, para que los cambios de estado
+               sigan siendo perceptibles sin llegar a ser una animación. */
+            #sidebar,
+            #contenido-principal,
+            .menu-item,
+            .menu-item i,
+            .menu-item > span,
+            .submenu-lateral,
+            .submenu-lateral .menu-item.submenu-item,
+            #btn-colapsar-sidebar,
+            #btn-colapsar-sidebar i,
+            .tarjeta-perfil {
+                transition-duration: 0.01ms;
+            }
+
+            /* Animaciones en bucle: fuera, pero el elemento sigue visible en su
+               estado base (el punto y la franja no desaparecen). */
+            #sidebar .sidebar-header .logo-dot,
+            #sidebar .sidebar-header::before {
+                animation: none;
+                opacity: 1;
+            }
+
+            .menu-item:hover {
+                transform: none;
+            }
+
+            .menu-item:hover i:not(.icono-flecha-submenu) {
+                transform: none;
+            }
+
+            #btn-colapsar-sidebar:hover,
+            #btn-colapsar-sidebar:active {
+                transform: none;
+            }
+
+            .submenu-lateral .menu-item.submenu-item {
+                opacity: 1;
+                transform: none;
+            }
         }
 
+        /* El margen sigue al ancho del sidebar (que es variable) más el hueco
+           flotante de cada lado, así al colapsar el contenido se reacomoda solo. */
+        #contenido-principal {
+            margin-left: calc(var(--ancho-sidebar) + var(--gap-flotante) * 2);
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Navbar como píldora flotante: despegado del borde superior y del
+           derecho, separado del sidebar, con fondo semitransparente para que se
+           sienta por encima del contenido y no como parte del marco. */
         #topbar {
-            background-color: var(--bg-sidebar);
-            border-bottom: 1px solid var(--border-color);
-            /* Más compacto en alto; el ancho se mantiene para no descuadrar el
-               contenido de las pantallas que ya existen. */
-            padding: 0.5rem 1.5rem;
+            position: relative;
+            z-index: 1020;
+            margin: var(--gap-flotante) var(--gap-flotante) 0 0;
+            padding: 0.5rem 0.75rem 0.5rem 1.5rem;
+            background-color: color-mix(in srgb, var(--bg-card) 82%, transparent);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            /* Resplandor sutil volcado hacia ABAJO: los dos primeros shadows
+               llevan desplazamiento vertical positivo, así el halo cae bajo la
+               barra en vez de repartirse por igual alrededor. Después, el aro
+               tenue que la recorta y la sombra de profundidad en negro. */
+            box-shadow:
+                0 10px 26px var(--navbar-glow),
+                0 2px 10px var(--navbar-glow),
+                0 0 0 1px var(--navbar-aro),
+                0 18px 40px rgba(0, 0, 0, 0.26);
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 1rem;
         }
 
         #topbar h1 {
             color: var(--text-primary);
+            /* Un título largo no debe empujar el bloque de usuario fuera. */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+        }
+
+        /* Separador vertical entre la campana y el bloque de usuario. */
+        .separador-topbar {
+            width: 1px;
+            height: 26px;
+            background-color: var(--border-color);
+            flex-shrink: 0;
         }
 
         /* ---------- Menú de usuario del topbar ---------- */
@@ -1179,9 +1775,10 @@
             font-size: 0.85rem;
             letter-spacing: 0.02em;
             flex-shrink: 0;
-            /* Anillo del color del tema. Va como box-shadow y no como border
-               para no alterar el tamaño real del círculo. */
-            box-shadow: 0 0 0 2px var(--accent);
+            /* Anillo sutil del color del tema. Va como box-shadow y no como
+               border para no alterar el tamaño real del círculo, y mezclado con
+               transparencia para que acompañe sin competir con las iniciales. */
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
             transition: var(--transition-base);
         }
 
@@ -1190,20 +1787,42 @@
             box-shadow: 0 0 0 2px var(--accent), 0 0 10px var(--accent-glow);
         }
 
-        /* Rol de la sesión, debajo del negocio. */
-        .texto-rol-sesion {
+        /* Línea 1 del bloque de usuario: nombre + negocio juntos. */
+        .linea-identidad {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            min-width: 0;
+        }
+
+        .linea-identidad .separador-identidad {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .linea-identidad .nombre-negocio-topbar {
             color: var(--text-secondary);
+            font-size: 0.82rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Línea 2: el rol, en el acento del negocio. */
+        .texto-rol-sesion {
+            color: var(--accent);
             font-size: 0.68rem;
-            letter-spacing: 0.03em;
+            font-weight: 600;
+            letter-spacing: 0.04em;
             text-transform: uppercase;
-            margin-top: 0.15rem;
+            margin-top: 0.1rem;
         }
 
         .datos-disparador {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            line-height: 1.2;
+            line-height: 1.25;
             min-width: 0;
         }
 
@@ -1290,26 +1909,28 @@
 
         /* ---------- Campana de stock bajo ---------- */
 
+        /* Círculo con borde, a juego con la píldora del navbar. */
         .disparador-campana {
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 42px;
-            height: 42px;
+            width: 38px;
+            height: 38px;
+            flex-shrink: 0;
             background-color: transparent;
-            border: 1px solid transparent;
-            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
             color: var(--text-secondary);
-            font-size: 1.15rem;
+            font-size: 1.05rem;
             transition: var(--transition-base);
         }
 
         .disparador-campana:hover,
         .disparador-campana[aria-expanded="true"] {
-            background-color: var(--bg-card-hover);
-            border-color: var(--border-color);
-            color: var(--text-primary);
+            background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+            border-color: var(--accent);
+            color: var(--accent);
         }
 
         .badge-campana {
@@ -1321,7 +1942,7 @@
             padding: 0 4px;
             border-radius: 999px;
             background-color: var(--danger);
-            color: #ffffff;
+            color: var(--text-sobre-accent);
             font-size: 0.68rem;
             font-weight: 700;
             display: flex;
@@ -1487,18 +2108,48 @@
             justify-content: center;
         }
 
+        /* En pantallas angostas el sidebar va siempre colapsado, usando el mismo
+           mecanismo de la variable de ancho: el botón manual no pelea con esto
+           porque ambos terminan escribiendo la misma variable. */
         @media (max-width: 991.98px) {
-            #sidebar {
-                width: 72px;
+            body {
+                --ancho-sidebar: var(--ancho-sidebar-colapsado);
             }
 
-            #sidebar .sidebar-header span,
-            .menu-item span {
+            #sidebar .sidebar-header .nombre-marca,
+            .menu-item > span {
+                opacity: 0;
+                width: 0;
+                overflow: hidden;
+                white-space: nowrap;
+            }
+
+            .etiqueta-seccion,
+            .submenu-lateral,
+            .icono-flecha-submenu,
+            #btn-colapsar-sidebar,
+            #btn-opciones-perfil,
+            .datos-perfil-sidebar {
                 display: none;
             }
 
-            #contenido-principal {
-                margin-left: 72px;
+            .tarjeta-perfil {
+                justify-content: center;
+                gap: 0;
+                padding: 0.5rem;
+            }
+
+            .menu-item {
+                justify-content: center;
+                gap: 0;
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+
+            #sidebar .sidebar-header {
+                justify-content: center;
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
             }
         }
 
@@ -1588,6 +2239,19 @@
     @yield('estilos')
 </head>
 <body class="modo-{{ session('modo_tema') ?? 'oscuro' }} acento-{{ str_replace('_', '-', session('color_acento') ?? 'rojo') }}">
+    <script>
+        // Va aquí arriba, y no en el bloque de scripts del final, para que el
+        // sidebar ya nazca colapsado si esa era la preferencia guardada: puesto
+        // más abajo se vería un parpadeo de ancho completo antes de encogerse.
+        // En try/catch porque el navegador puede tener bloqueado el almacenamiento.
+        try {
+            if (localStorage.getItem('sidebar_colapsado') === '1') {
+                document.body.classList.add('sidebar-colapsado');
+            }
+        } catch (e) {
+            // Sin localStorage simplemente arranca expandido.
+        }
+    </script>
 
     <div id="loader_proceso">
         <div class="spinner-border" role="status" style="width: 3rem; height: 3rem; color: var(--accent);">
@@ -1595,12 +2259,39 @@
         </div>
     </div>
 
+    @php
+        // Estos datos los consumen tanto la tarjeta de perfil del sidebar como
+        // el bloque de usuario del navbar, así que se calculan antes de ambos.
+        // Iniciales del usuario para el avatar (máximo dos letras).
+        $nombreSesion = session('nombre_usuario', 'Invitado');
+        $partesNombre = preg_split('/\s+/', trim($nombreSesion));
+        $inicialesUsuario = '';
+        foreach (array_slice($partesNombre, 0, 2) as $parte) {
+            $inicialesUsuario .= mb_strtoupper(mb_substr($parte, 0, 1));
+        }
+        $inicialesUsuario = $inicialesUsuario ?: 'U';
+
+        $esEmpleadoSesion = \App\Models\Rol::esRolEmpleado(session('id_rol'));
+        $esAdminDeNegocio = ! $esEmpleadoSesion && session('tenant_id') !== null;
+
+        // El rol se deduce igual que en el resto del proyecto (el helper
+        // del middleware + la ausencia de negocio), no leyendo un
+        // nombre_rol suelto que podría variar entre instalaciones.
+        $nombreRolSesion = session('tenant_id') === null
+            ? 'Super Admin'
+            : ($esEmpleadoSesion ? 'Empleado' : 'Administrador');
+    @endphp
+
     <aside id="sidebar">
         <div class="sidebar-header">
             <span class="logo-dot"></span>
             <span class="nombre-marca" id="nombre-negocio-lateral" title="{{ session('nombre_negocio_sesion') ?? 'Plataforma Reservas' }}">
                 {{ session('nombre_negocio_sesion') ?? 'Plataforma Reservas' }}
             </span>
+            <button type="button" id="btn-colapsar-sidebar" aria-label="Contraer o expandir el menú">
+                <i class="bi bi-chevron-left"></i>
+                <i class="bi bi-chevron-right"></i>
+            </button>
         </div>
         <nav id="menu-lateral">
             @php
@@ -1622,10 +2313,15 @@
                     <span>Mis Citas</span>
                 </a>
             @else
+            {{-- Rótulos de sección: solo separan visualmente. No cambian el orden
+                 de los ítems ni a qué grupo colapsable pertenece cada uno. --}}
+            <div class="etiqueta-seccion">Principal</div>
             <a href="{{ url('backoffice/dashboard') }}" class="menu-item @if (request()->is('backoffice/dashboard')) active @endif">
                 <i class="bi bi-speedometer2"></i>
                 <span>Dashboard</span>
             </a>
+
+            <div class="etiqueta-seccion">Gestión</div>
             <a href="{{ url('backoffice/usuarios') }}" class="menu-item @if (request()->is('backoffice/usuarios')) active @endif">
                 <i class="bi bi-people"></i>
                 <span>Usuarios</span>
@@ -1653,6 +2349,7 @@
                     <i class="bi bi-clock-history"></i>
                     <span>Historial</span>
                 </a>
+                <div class="etiqueta-seccion">Herramientas</div>
                 @php
                     $enSeccionReportes = request()->is('backoffice/reportes/*');
                 @endphp
@@ -1698,9 +2395,12 @@
                     $rutasModulosPago = ['backoffice/comisiones*'];
                     $enModulosPago = request()->is($rutasModulosPago);
                 @endphp
+                {{-- Sin rótulo de sección propio: el encabezado del grupo ya se
+                     llama "Módulos de pago" y repetirlo encima sobra. En su lugar
+                     lleva una línea fina que lo separa del bloque anterior. --}}
                 <button
                     type="button"
-                    class="menu-item menu-padre @if ($enModulosPago) padre-activo @endif"
+                    class="menu-item menu-padre menu-padre-separado @if ($enModulosPago) padre-activo @endif"
                     data-toggle-submenu="submenu-modulos-pago"
                     aria-expanded="{{ $enModulosPago ? 'true' : 'false' }}"
                 >
@@ -1722,33 +2422,53 @@
             @endif
             <!-- Los enlaces de cada módulo se agregan aquí a medida que se construyen -->
         </nav>
+
+        <div class="pie-sidebar">
+            <div class="tarjeta-perfil">
+                <span class="avatar-perfil">
+                    {{ $inicialesUsuario }}
+                    <span class="punto-en-linea" title="En línea"></span>
+                </span>
+                <span class="datos-perfil-sidebar">
+                    <span class="nombre-perfil">{{ $nombreSesion }}</span>
+                    <span class="rol-perfil">{{ $nombreRolSesion }}</span>
+                </span>
+
+                {{-- Menú propio que se abre hacia arriba: repetir aquí el
+                     dropdown del navbar sería desorientador (se abriría lejos
+                     del clic), así que este tiene el suyo con las mismas
+                     acciones. El botón de salir comparte la clase "item-salir"
+                     con el del navbar, que es por donde escucha el JS. --}}
+                <div class="dropdown dropup">
+                    <button type="button" id="btn-opciones-perfil" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Opciones de la cuenta">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+
+                    <ul class="dropdown-menu menu-usuario" aria-labelledby="btn-opciones-perfil">
+                        @if ($esAdminDeNegocio)
+                            <li>
+                                <a class="dropdown-item" href="{{ url('backoffice/configuracion') }}">
+                                    <i class="bi bi-gear"></i> Configurar negocio
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                        @endif
+                        <li>
+                            <button type="button" class="dropdown-item item-salir">
+                                <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </aside>
 
     <div id="contenido-principal">
         <header id="topbar">
             <h1 class="h5 mb-0">@yield('title')</h1>
-            @php
-                // Iniciales del usuario para el avatar (máximo dos letras).
-                $nombreSesion = session('nombre_usuario', 'Invitado');
-                $partesNombre = preg_split('/\s+/', trim($nombreSesion));
-                $inicialesUsuario = '';
-                foreach (array_slice($partesNombre, 0, 2) as $parte) {
-                    $inicialesUsuario .= mb_strtoupper(mb_substr($parte, 0, 1));
-                }
-                $inicialesUsuario = $inicialesUsuario ?: 'U';
 
-                $esEmpleadoSesion = \App\Models\Rol::esRolEmpleado(session('id_rol'));
-                $esAdminDeNegocio = ! $esEmpleadoSesion && session('tenant_id') !== null;
-
-                // El rol se deduce igual que en el resto del proyecto (el helper
-                // del middleware + la ausencia de negocio), no leyendo un
-                // nombre_rol suelto que podría variar entre instalaciones.
-                $nombreRolSesion = session('tenant_id') === null
-                    ? 'Super Admin'
-                    : ($esEmpleadoSesion ? 'Empleado' : 'Administrador');
-            @endphp
-
-            <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2">
             @if ($esAdminDeNegocio)
                 <div class="dropdown">
                     <button type="button" id="btn-campana-stock" class="disparador-campana" data-bs-toggle="dropdown" aria-expanded="false">
@@ -1765,21 +2485,24 @@
                         </div>
                     </div>
                 </div>
+                <span class="separador-topbar"></span>
             @endif
 
             <div class="dropdown">
                 <button type="button" id="btn-menu-usuario" class="disparador-usuario" data-bs-toggle="dropdown" aria-expanded="false">
                     <span class="avatar-usuario">{{ $inicialesUsuario }}</span>
                     <span class="datos-disparador">
-                        <span class="nombre-usuario">{{ $nombreSesion }}</span>
                         @if (session('tenant_id') === null)
+                            <span class="nombre-usuario">{{ $nombreSesion }}</span>
                             <span class="badge-rol-sesion super-admin">
                                 <i class="bi bi-shield-check"></i> Super Admin
                             </span>
                         @else
-                            <span class="badge-rol-sesion negocio">
-                                <i class="bi bi-building"></i>
-                                <span id="nombre-negocio-sesion">{{ session('nombre_negocio_sesion') ?? 'Negocio' }}</span>
+                            {{-- Línea 1: quién es y en qué negocio. Línea 2: su rol. --}}
+                            <span class="linea-identidad">
+                                <span class="nombre-usuario">{{ $nombreSesion }}</span>
+                                <span class="separador-identidad">·</span>
+                                <span class="nombre-negocio-topbar" id="nombre-negocio-sesion">{{ session('nombre_negocio_sesion') ?? 'Negocio' }}</span>
                             </span>
                             <span class="texto-rol-sesion">{{ $nombreRolSesion }}</span>
                         @endif
@@ -1897,6 +2620,44 @@
          * data-toggle-submenu). Genérico: el próximo módulo que necesite
          * subopciones solo repite este mismo patrón de marcado, sin tocar JS.
          */
+        /**
+         * Colapsar / expandir el sidebar.
+         *
+         * El estado es preferencia de interfaz de ESTE navegador, no dato de
+         * negocio: vive en localStorage, sin backend ni tabla. Todos los accesos
+         * van en try/catch porque el navegador puede bloquear el almacenamiento
+         * (modo privado, cookies de terceros, políticas corporativas). Si falla,
+         * el sidebar sigue colapsando y expandiendo igual: lo único que se pierde
+         * es recordar el estado tras recargar.
+         */
+        // La LECTURA del estado no vive aquí sino en un script al inicio del
+        // <body>: tiene que correr antes del primer pintado para que el sidebar
+        // no aparezca ancho y se encoja de golpe.
+        var CLAVE_SIDEBAR_COLAPSADO = 'sidebar_colapsado';
+
+        function guardarSidebarColapsado(colapsado) {
+            try {
+                localStorage.setItem(CLAVE_SIDEBAR_COLAPSADO, colapsado ? '1' : '0');
+            } catch (e) {
+                // Sin almacenamiento disponible no se recuerda entre recargas,
+                // pero la interfaz funciona igual. No hay nada que avisarle al
+                // usuario por esto.
+            }
+        }
+
+        jQuery('#btn-colapsar-sidebar').on('click', function () {
+            var colapsado = !jQuery('body').hasClass('sidebar-colapsado');
+
+            jQuery('body').toggleClass('sidebar-colapsado', colapsado);
+            guardarSidebarColapsado(colapsado);
+
+            // Al colapsar no debe quedar ningún submenú desplegado por debajo.
+            if (colapsado) {
+                jQuery('.submenu-lateral').removeClass('abierto');
+                jQuery('[data-toggle-submenu]').attr('aria-expanded', 'false');
+            }
+        });
+
         jQuery('#menu-lateral').on('click', '[data-toggle-submenu]', function () {
             var boton = jQuery(this);
             var submenu = jQuery('#' + boton.data('toggle-submenu'));
@@ -2008,7 +2769,9 @@
             }
         }
 
-        jQuery("#btn-salir").on("click", function () {
+        // Se escucha por clase y no por id: el mismo botón de salir existe en el
+        // menú del navbar y en la tarjeta de perfil del pie del sidebar.
+        jQuery("body").on("click", ".item-salir", function () {
             Swal.fire({
                 title: '¿Seguro que quieres cerrar sesión?',
                 icon: 'question',

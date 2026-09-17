@@ -30,6 +30,33 @@ class ProductoController extends Controller
         $this->svcProducto = new SvcProducto;
     }
 
+    /**
+     * ¿Ese SKU ya está tomado por OTRO producto del mismo negocio?
+     *
+     * Se comprueba antes de escribir, en vez de dejar que reviente la
+     * restricción única de MySQL: así el usuario recibe un mensaje claro y no
+     * un error técnico genérico.
+     *
+     * Un SKU vacío no se valida: la columna admite varios NULL a propósito,
+     * porque el SKU es opcional.
+     *
+     * @param  int|null  $idExcluir  El propio registro, al editar.
+     */
+    private function skuYaExiste(?string $sku, $tenantId, $idExcluir = null): bool
+    {
+        if (trim((string) $sku) === '') {
+            return false;
+        }
+
+        $existente = $this->svcProducto->buscarPorSku($sku, $tenantId);
+
+        if ($existente === null) {
+            return false;
+        }
+
+        return $idExcluir === null || (int) $existente['id_producto'] !== (int) $idExcluir;
+    }
+
     public function crear(): JsonResponse
     {
         $tenantId = session('tenant_id');
@@ -52,9 +79,18 @@ class ProductoController extends Controller
 
         $datos = $this->getRequestData();
 
+        $sku = trim((string) ($datos['sku'] ?? ''));
+
+        if ($this->skuYaExiste($sku, $tenantId)) {
+            $this->agregarError('Ya existe un producto con ese SKU');
+
+            return $this->sendResponse();
+        }
+
         $info = [
             'tenant_id' => $tenantId,
             'nombre' => $datos['nombre'],
+            'sku' => $sku !== '' ? $sku : null,
             'descripcion' => $datos['descripcion'] ?? null,
             'cantidad_actual' => $datos['cantidad_actual'],
             'cantidad_minima' => $datos['cantidad_minima'],
@@ -100,8 +136,17 @@ class ProductoController extends Controller
 
         $datos = $this->getRequestData();
 
+        $sku = trim((string) ($datos['sku'] ?? ''));
+
+        if ($this->skuYaExiste($sku, $tenantId, $datos['id_producto'])) {
+            $this->agregarError('Ya existe un producto con ese SKU');
+
+            return $this->sendResponse();
+        }
+
         $info = [
             'nombre' => $datos['nombre'],
+            'sku' => $sku !== '' ? $sku : null,
             'descripcion' => $datos['descripcion'] ?? null,
             'cantidad_actual' => $datos['cantidad_actual'],
             'cantidad_minima' => $datos['cantidad_minima'],

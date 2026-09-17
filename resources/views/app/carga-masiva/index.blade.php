@@ -159,6 +159,7 @@
         ['tipo' => 'empleados', 'titulo' => 'Empleados', 'icono' => 'bi-person-badge', 'ayuda' => 'Columnas: Nombre, Telefono, Email, Cargo, Porcentaje Comision. Nombre y teléfono son obligatorios.'],
         ['tipo' => 'recursos', 'titulo' => 'Servicios', 'icono' => 'bi-collection', 'ayuda' => 'Columnas: Categoria, Nombre, Descripcion, Duracion Minutos, Precio, Capacidad. Nombre, duración y precio son obligatorios.'],
         ['tipo' => 'usuarios', 'titulo' => 'Usuarios', 'icono' => 'bi-people', 'ayuda' => 'Columnas: Usuario, Nombre, Email, Clave Temporal, Rol. El rol debe decir "admin" o "empleado".'],
+        ['tipo' => 'productos', 'titulo' => 'Productos', 'icono' => 'bi-box-seam', 'ayuda' => 'Columnas: SKU, Nombre, Descripcion, Cantidad Actual, Cantidad Minima. Nombre y cantidades son obligatorios. Si el SKU ya existe se actualiza ese producto (sin tocar su cantidad actual); si no, se crea uno nuevo.'],
     ] as $bloque)
         <div class="card-elevada bloque-carga" data-tipo="{{ $bloque['tipo'] }}">
             <div class="encabezado-bloque">

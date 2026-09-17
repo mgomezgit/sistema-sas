@@ -278,6 +278,178 @@ class ProductoTest extends TestCase
             ->assertRedirect(url('backoffice/dashboard'));
     }
 
+    /* ================= 8) SKU: ÚNICO POR NEGOCIO, NO GLOBAL =================
+     *
+     * ---------- PRUEBA DE MUTACIÓN DEL TENANT_ID ----------
+     *
+     * test_dos_negocios_pueden_usar_el_mismo_sku_cada_uno_el_suyo() se verificó
+     * rompiendo el código a propósito. Procedimiento ejecutado:
+     *
+     *   1. En app/Service/SvcProducto.php, dentro de buscarPorSku(), se comentó
+     *      la línea del filtro por negocio:
+     *          ->where('tenant_id', $tenantId)
+     *      Con eso la búsqueda de SKU pasa a ser GLOBAL, y el negocio B ya no
+     *      puede registrar un SKU que el negocio A esté usando.
+     *   2. Se ejecutó: php artisan test --filter=ProductoTest
+     *      Resultado: 17 tests, 15 passed, 2 FAILED:
+     *        - test_dos_negocios_pueden_usar_el_mismo_sku_cada_uno_el_suyo:
+     *          "El negocio B debe poder usar un SKU que ya usa el negocio A
+     *           Failed asserting that 1 is identical to 0."
+     *          (el endpoint respondió error=1: rechazó el SKU del vecino).
+     *        - test_buscar_por_sku_no_alcanza_el_producto_de_otro_negocio:
+     *          buscarPorSku() devolvió el producto del negocio B al preguntarle
+     *          por el negocio A.
+     *   3. Se restauró la línea tal cual estaba.
+     *   4. Se volvió a ejecutar: php artisan test --filter=ProductoTest
+     *      Resultado: 17 passed.
+     *
+     * De paso, la mutación destapó que la prueba equivalente de CargaMasivaTest
+     * (test_importar_productos_por_sku_no_toca_el_producto_de_otro_negocio)
+     * pasaba por casualidad: con el filtro roto, el ->first() seguía devolviendo
+     * el producto correcto solo por el orden de inserción. Se corrigió allá
+     * invirtiendo ese orden, y se verificó que con la mutación puesta ahora sí
+     * falla.
+     *
+     * Es decir: la prueba falla exactamente cuando el aislamiento por negocio
+     * desaparece, que es lo que debe custodiar.
+     */
+
+    public function test_no_permite_dos_productos_con_el_mismo_sku_en_el_mismo_negocio(): void
+    {
+        $this->crearProducto($this->negocioA, ['nombre' => 'Original', 'sku' => 'SH-500']);
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/producto/crear', [
+                'nombre' => 'Repetido',
+                'sku' => 'SH-500',
+                'cantidad_actual' => 5,
+                'cantidad_minima' => 2,
+            ]);
+
+        // Rechazo limpio y con mensaje entendible, no una excepción de MySQL.
+        $respuesta->assertJsonPath('error', 1);
+        $this->assertSame('Ya existe un producto con ese SKU', $respuesta->json('mensaje'));
+
+        // Y no se creó nada.
+        $this->assertSame(1, DB::table('productos')->count());
+    }
+
+    public function test_dos_negocios_pueden_usar_el_mismo_sku_cada_uno_el_suyo(): void
+    {
+        $this->crearProducto($this->negocioA, ['nombre' => 'Shampoo del A', 'sku' => 'SH-500']);
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioB))
+            ->postJson('request/producto/crear', [
+                'nombre' => 'Shampoo del B',
+                'sku' => 'SH-500',
+                'cantidad_actual' => 7,
+                'cantidad_minima' => 3,
+            ]);
+
+        $respuesta->assertJsonPath(
+            'error',
+            0,
+            'El negocio B debe poder usar un SKU que ya usa el negocio A'
+        );
+
+        // Cada negocio con su producto, mismo SKU, sin estorbarse.
+        $this->assertSame(1, DB::table('productos')->where('tenant_id', $this->negocioA)->where('sku', 'SH-500')->count());
+        $this->assertSame(1, DB::table('productos')->where('tenant_id', $this->negocioB)->where('sku', 'SH-500')->count());
+    }
+
+    public function test_editar_permite_conservar_el_propio_sku_pero_no_tomar_el_de_otro(): void
+    {
+        $idPropio = $this->crearProducto($this->negocioA, ['nombre' => 'Propio', 'sku' => 'AAA-1']);
+        $this->crearProducto($this->negocioA, ['nombre' => 'Vecino', 'sku' => 'BBB-2']);
+
+        // Guardar el mismo registro con su propio SKU no debe chocar consigo mismo.
+        $conSuPropio = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/producto/editar', [
+                'id_producto' => $idPropio,
+                'nombre' => 'Propio Renombrado',
+                'sku' => 'AAA-1',
+                'cantidad_actual' => 9,
+                'cantidad_minima' => 2,
+            ]);
+
+        $conSuPropio->assertJsonPath('error', 0);
+        $this->assertSame('Propio Renombrado', DB::table('productos')->where('id_producto', $idPropio)->value('nombre'));
+
+        // Pero tomar el SKU de otro producto del mismo negocio sí se rechaza.
+        $conElAjeno = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/producto/editar', [
+                'id_producto' => $idPropio,
+                'nombre' => 'Propio',
+                'sku' => 'BBB-2',
+                'cantidad_actual' => 9,
+                'cantidad_minima' => 2,
+            ]);
+
+        $conElAjeno->assertJsonPath('error', 1);
+        $this->assertSame('AAA-1', DB::table('productos')->where('id_producto', $idPropio)->value('sku'));
+    }
+
+    public function test_varios_productos_sin_sku_conviven_sin_chocar(): void
+    {
+        $sesion = $this->sesionAdmin($this->negocioA);
+
+        foreach (['Sin SKU Uno', 'Sin SKU Dos'] as $nombre) {
+            $this->withSession($sesion)->postJson('request/producto/crear', [
+                'nombre' => $nombre,
+                'cantidad_actual' => 3,
+                'cantidad_minima' => 1,
+            ])->assertJsonPath('error', 0);
+        }
+
+        $this->assertSame(2, DB::table('productos')->whereNull('sku')->count());
+    }
+
+    public function test_buscar_por_sku_no_alcanza_el_producto_de_otro_negocio(): void
+    {
+        $this->crearProducto($this->negocioB, ['nombre' => 'Del B', 'sku' => 'XYZ-9']);
+
+        $this->assertNull($this->svcProducto->buscarPorSku('XYZ-9', $this->negocioA));
+        $this->assertNotNull($this->svcProducto->buscarPorSku('XYZ-9', $this->negocioB));
+    }
+
+    /* ================= 9) URGENCIA: AGOTADO VS BAJO ================= */
+
+    public function test_stock_bajo_distingue_agotado_de_bajo(): void
+    {
+        $this->crearProducto($this->negocioA, [
+            'nombre' => 'Agotado',
+            'cantidad_actual' => 0,
+            'cantidad_minima' => 5,
+        ]);
+        $this->crearProducto($this->negocioA, [
+            'nombre' => 'Bajo',
+            'cantidad_actual' => 2,
+            'cantidad_minima' => 5,
+        ]);
+
+        $stockBajo = collect($this->svcProducto->listarStockBajo($this->negocioA))->keyBy('nombre');
+
+        $this->assertCount(2, $stockBajo);
+        $this->assertSame('agotado', $stockBajo['Agotado']['urgencia']);
+        $this->assertSame('bajo', $stockBajo['Bajo']['urgencia']);
+    }
+
+    public function test_el_resumen_de_todos_los_negocios_tambien_trae_la_urgencia(): void
+    {
+        $this->crearUsuarioAdmin($this->negocioA, 'admin.a', 'admin.a@test.local');
+
+        $this->crearProducto($this->negocioA, [
+            'nombre' => 'Agotado',
+            'cantidad_actual' => 0,
+            'cantidad_minima' => 4,
+        ]);
+
+        $todos = $this->svcProducto->listarStockBajoTodosLosNegocios();
+
+        $this->assertCount(1, $todos);
+        $this->assertSame('agotado', $todos[0]['urgencia']);
+    }
+
     /* ================= 7) listarStockBajoTodosLosNegocios() PARA EL SCHEDULER ================= */
 
     public function test_listar_stock_bajo_todos_los_negocios_segmenta_correctamente_entre_negocios(): void

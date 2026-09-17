@@ -21,6 +21,7 @@ class Producto extends Model
         'id_producto',
         'tenant_id',
         'nombre',
+        'sku',
         'descripcion',
         'cantidad_actual',
         'cantidad_minima',

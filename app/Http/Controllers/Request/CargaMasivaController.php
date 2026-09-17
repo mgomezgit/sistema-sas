@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Request;
 
 use App\Exports\PlantillaEmpleadosExport;
+use App\Exports\PlantillaProductosExport;
 use App\Exports\PlantillaRecursosExport;
 use App\Exports\PlantillaUsuariosExport;
 use App\Http\Controllers\Controller;
 use App\Imports\EmpleadosImport;
+use App\Imports\ProductosImport;
 use App\Imports\RecursosImport;
 use App\Imports\UsuariosImport;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +23,7 @@ use Maatwebsite\Excel\Facades\Excel;
  */
 class CargaMasivaController extends Controller
 {
-    const TIPOS_VALIDOS = ['empleados', 'recursos', 'usuarios'];
+    const TIPOS_VALIDOS = ['empleados', 'recursos', 'usuarios', 'productos'];
 
     /** Peso máximo del archivo subido, en kilobytes. */
     const PESO_MAXIMO_KB = 5120;
@@ -46,6 +48,7 @@ class CargaMasivaController extends Controller
             'empleados' => PlantillaEmpleadosExport::class,
             'recursos' => PlantillaRecursosExport::class,
             'usuarios' => PlantillaUsuariosExport::class,
+            'productos' => PlantillaProductosExport::class,
         ];
 
         $clase = $plantillas[$tipo];
@@ -85,6 +88,7 @@ class CargaMasivaController extends Controller
             'empleados' => EmpleadosImport::class,
             'recursos' => RecursosImport::class,
             'usuarios' => UsuariosImport::class,
+            'productos' => ProductosImport::class,
         ];
 
         $clase = $importadores[$tipo];

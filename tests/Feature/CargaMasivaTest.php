@@ -191,6 +191,107 @@ class CargaMasivaTest extends TestCase
         $this->assertStringStartsWith('$2y$', $clave);
     }
 
+    /* ================= 2.1) PRODUCTOS: EL SKU DECIDE CREAR VS ACTUALIZAR ================= */
+
+    public function test_importar_productos_con_sku_nuevo_o_sin_sku_crea_productos(): void
+    {
+        $archivo = $this->crearExcel([
+            ['SKU', 'Nombre', 'Descripcion', 'Cantidad Actual', 'Cantidad Minima', 'tenant_id'],
+            ['SH-500', 'Shampoo', 'Hidratante', 12, 4, $this->negocioB],
+            ['', 'Toallas', 'Paquete x100', 30, 10, $this->negocioB],
+        ], 'productos.xlsx');
+
+        $respuesta = $this->importar('productos', $archivo, $this->sesionAdmin($this->negocioA));
+
+        $respuesta->assertJsonPath('error', 0);
+
+        $this->assertSame(2, DB::table('productos')->count());
+        // Todo al negocio de la sesión, ignorando la columna del archivo.
+        $this->assertSame(2, DB::table('productos')->where('tenant_id', $this->negocioA)->count());
+        $this->assertSame(0, DB::table('productos')->where('tenant_id', $this->negocioB)->count());
+
+        // El que no traía SKU queda con null, sin inventarle uno.
+        $this->assertNull(DB::table('productos')->where('nombre', 'Toallas')->value('sku'));
+        $this->assertSame('SH-500', DB::table('productos')->where('nombre', 'Shampoo')->value('sku'));
+    }
+
+    public function test_importar_productos_con_sku_existente_actualiza_ese_producto(): void
+    {
+        $idExistente = DB::table('productos')->insertGetId([
+            'tenant_id' => $this->negocioA,
+            'nombre' => 'Nombre Viejo',
+            'sku' => 'SH-500',
+            'descripcion' => 'Descripcion vieja',
+            'cantidad_actual' => 7,
+            'cantidad_minima' => 2,
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 1,
+        ]);
+
+        $archivo = $this->crearExcel([
+            ['SKU', 'Nombre', 'Descripcion', 'Cantidad Actual', 'Cantidad Minima'],
+            ['SH-500', 'Nombre Nuevo', 'Descripcion nueva', 999, 8],
+        ], 'productos.xlsx');
+
+        $respuesta = $this->importar('productos', $archivo, $this->sesionAdmin($this->negocioA));
+
+        $respuesta->assertJsonPath('error', 0);
+
+        // No se duplicó: sigue habiendo un solo producto.
+        $this->assertSame(1, DB::table('productos')->count());
+
+        $actualizado = DB::table('productos')->where('id_producto', $idExistente)->first();
+
+        $this->assertSame('Nombre Nuevo', $actualizado->nombre);
+        $this->assertSame('Descripcion nueva', $actualizado->descripcion);
+        $this->assertSame(8, $actualizado->cantidad_minima);
+
+        // La cantidad actual NO se toca desde la carga masiva: el stock real solo
+        // se mueve con ingresarStock(), para no descuadrarlo en silencio.
+        $this->assertSame(7, $actualizado->cantidad_actual);
+    }
+
+    /**
+     * Dos negocios con el MISMO SKU: la carga del negocio A no puede alcanzar
+     * el producto del negocio B.
+     */
+    public function test_importar_productos_por_sku_no_toca_el_producto_de_otro_negocio(): void
+    {
+        // El del negocio B se inserta PRIMERO a propósito: si la búsqueda por
+        // SKU perdiera el filtro de negocio, un ->first() devolvería este (id
+        // más bajo) y la carga del negocio A terminaría pisándolo. Con el orden
+        // al revés la prueba pasaría por casualidad aunque el filtro no
+        // estuviera, y dejaría de custodiar nada.
+        $idDelB = DB::table('productos')->insertGetId([
+            'tenant_id' => $this->negocioB, 'nombre' => 'Del B', 'sku' => 'MISMO-SKU',
+            'cantidad_actual' => 5, 'cantidad_minima' => 1, 'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'), 'estado' => 1,
+        ]);
+        $idDelA = DB::table('productos')->insertGetId([
+            'tenant_id' => $this->negocioA, 'nombre' => 'Del A', 'sku' => 'MISMO-SKU',
+            'cantidad_actual' => 5, 'cantidad_minima' => 1, 'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'), 'estado' => 1,
+        ]);
+
+        $archivo = $this->crearExcel([
+            ['SKU', 'Nombre', 'Descripcion', 'Cantidad Actual', 'Cantidad Minima'],
+            ['MISMO-SKU', 'Renombrado Por El A', '', 5, 3],
+        ], 'productos.xlsx');
+
+        $this->importar('productos', $archivo, $this->sesionAdmin($this->negocioA))
+            ->assertJsonPath('error', 0);
+
+        // El del negocio A cambió...
+        $this->assertSame('Renombrado Por El A', DB::table('productos')->where('id_producto', $idDelA)->value('nombre'));
+        // ...y el del negocio B quedó exactamente igual.
+        $this->assertSame('Del B', DB::table('productos')->where('id_producto', $idDelB)->value('nombre'));
+        $this->assertSame(1, DB::table('productos')->where('id_producto', $idDelB)->value('cantidad_minima'));
+
+        // Y no se creó ningún producto de más.
+        $this->assertSame(2, DB::table('productos')->count());
+    }
+
     /* ================= 3) LISTADOS AISLADOS ENTRE NEGOCIOS ================= */
 
     /**

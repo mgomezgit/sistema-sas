@@ -65,6 +65,7 @@ class SvcProducto
             return Producto::select(
                 'id_producto',
                 'nombre',
+                'sku',
                 'descripcion',
                 'cantidad_actual',
                 'cantidad_minima',
@@ -86,6 +87,7 @@ class SvcProducto
             return Producto::select(
                 'id_producto',
                 'nombre',
+                'sku',
                 'descripcion',
                 'cantidad_actual',
                 'cantidad_minima',
@@ -102,19 +104,73 @@ class SvcProducto
         }
     }
 
+    /**
+     * Etiqueta la urgencia de cada producto ya filtrado como falto de stock:
+     * "agotado" si no queda ninguna unidad, "bajo" si todavía queda algo pero
+     * por debajo del mínimo. Es solo una etiqueta: no decide quién entra a la
+     * lista, eso ya lo resolvió la consulta.
+     *
+     * Se calcula en PHP y no con un CASE en SQL para que dé exactamente igual en
+     * MySQL (producción) y en SQLite (pruebas).
+     */
+    private function etiquetarUrgencia(array $productos): array
+    {
+        return array_map(function ($producto) {
+            $producto['urgencia'] = (int) $producto['cantidad_actual'] === 0 ? 'agotado' : 'bajo';
+
+            return $producto;
+        }, $productos);
+    }
+
     public function listarStockBajo($tenantId)
     {
         try {
-            return Producto::select('id_producto', 'nombre', 'cantidad_actual', 'cantidad_minima')
+            $productos = Producto::select('id_producto', 'nombre', 'sku', 'cantidad_actual', 'cantidad_minima')
                 ->where('tenant_id', $tenantId)
                 ->where('estado', 1)
                 ->whereColumn('cantidad_actual', '<', 'cantidad_minima')
                 ->get()
                 ->toArray() ?? [];
+
+            return $this->etiquetarUrgencia($productos);
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
             return [];
+        }
+    }
+
+    /**
+     * Busca un producto por su SKU dentro del negocio indicado.
+     *
+     * @return array|null El registro, o null si ese negocio no tiene ese SKU.
+     */
+    public function buscarPorSku($sku, $tenantId): ?array
+    {
+        try {
+            if (trim((string) $sku) === '') {
+                return null;
+            }
+
+            $producto = Producto::select(
+                'id_producto',
+                'tenant_id',
+                'nombre',
+                'sku',
+                'descripcion',
+                'cantidad_actual',
+                'cantidad_minima',
+                'estado'
+            )
+                ->where('tenant_id', $tenantId)
+                ->where('sku', $sku)
+                ->first();
+
+            return $producto ? $producto->toArray() : null;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return null;
         }
     }
 
@@ -129,10 +185,11 @@ class SvcProducto
         try {
             $idRolAdmin = Rol::where('nombre_rol', 'admin')->value('id_rol');
 
-            return Producto::select(
+            $productos = Producto::select(
                 'productos.id_producto',
                 'productos.tenant_id',
                 'productos.nombre',
+                'productos.sku',
                 'productos.cantidad_actual',
                 'productos.cantidad_minima',
                 'negocios.nombre_negocio',
@@ -147,6 +204,8 @@ class SvcProducto
                 ->whereColumn('productos.cantidad_actual', '<', 'productos.cantidad_minima')
                 ->get()
                 ->toArray() ?? [];
+
+            return $this->etiquetarUrgencia($productos);
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
