@@ -212,13 +212,15 @@ class EmpleadoController extends Controller
 
         // El usuario y el email son únicos en toda la tabla, así que se avisa cuál de
         // los dos está ocupado antes de intentar el insert y caer en un error genérico.
-        if (Usuario::where('usuario', $datos['usuario'])->exists()) {
+        // Solo cuentan las cuentas activas: las credenciales de una cuenta
+        // desactivada quedan libres para volver a usarse.
+        if (Usuario::where('usuario', $datos['usuario'])->where('estado', 1)->exists()) {
             $this->agregarError('El usuario "'.$datos['usuario'].'" ya está en uso. Elige otro nombre de usuario, por ejemplo agregándole un número o un apellido.');
 
             return $this->sendResponse();
         }
 
-        if (Usuario::where('email', $datos['email'])->exists()) {
+        if (Usuario::where('email', $datos['email'])->where('estado', 1)->exists()) {
             $this->agregarError('El correo "'.$datos['email'].'" ya está registrado en otra cuenta. Usa un correo diferente para este empleado.');
 
             return $this->sendResponse();

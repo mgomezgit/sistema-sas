@@ -23,9 +23,29 @@ class SvcUsuario
         }
     }
 
+    /**
+     * El negocio del usuario NUNCA se toma de $info.
+     *
+     * Cuando la edición la hace el administrador de un negocio, su tenant llega
+     * como $tenantId (desde la sesión) y se impone sobre cualquier tenant_id que
+     * venga en el cuerpo de la petición. Sin esto, un admin podía mover a un
+     * usuario suyo al negocio de otro: al siguiente inicio de sesión, ese usuario
+     * entraba al panel ajeno, porque el tenant de la sesión sale de esta columna.
+     *
+     * El formulario ya manda el campo bloqueado, pero eso vive en el navegador y
+     * se salta armando la petición a mano; la garantía tiene que estar aquí.
+     *
+     * Con $tenantId null (el super admin, que no pertenece a ningún negocio) se
+     * respeta la asignación que haga desde su panel, donde elegir el negocio es
+     * parte del flujo.
+     */
     public function editar($id, $info, $tenantId = null): bool
     {
         try {
+            if ($tenantId !== null) {
+                $info['tenant_id'] = $tenantId;
+            }
+
             if (array_key_exists('clave', $info)) {
                 if (! empty($info['clave'])) {
                     $info['clave'] = Hash::make($info['clave']);

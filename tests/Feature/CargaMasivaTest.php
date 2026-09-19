@@ -402,4 +402,124 @@ class CargaMasivaTest extends TestCase
         // Lo importante: ninguno de los cuatro intentos creó nada.
         $this->assertSame(0, DB::table('empleados')->count());
     }
+
+    /* ================= 5) CORREO REPETIDO EN LA CARGA DE USUARIOS ================= */
+
+    /**
+     * El correo identifica la cuenta en toda la plataforma, no dentro de un
+     * negocio: el login es una sola pantalla global. Así que un correo que ya
+     * usa OTRO negocio tampoco sirve aquí, y la fila debe decir exactamente eso
+     * en vez del "no se pudo guardar" genérico que daba antes la restricción de
+     * la base.
+     */
+    public function test_carga_masiva_rechaza_un_correo_que_ya_existe_en_otro_negocio(): void
+    {
+        DB::table('usuarios')->insert([
+            'tenant_id' => $this->negocioB,
+            'id_rol' => 1,
+            'usuario' => 'ya.existe.en.b',
+            'nombre' => 'Usuario Del B',
+            'email' => 'repetido@test.local',
+            'clave' => bcrypt('secreta'),
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 1,
+        ]);
+
+        $archivo = $this->crearExcel([
+            ['Usuario', 'Nombre', 'Email', 'Clave Temporal', 'Rol'],
+            // Nombre de usuario libre, pero el correo ya es de una cuenta del negocio B.
+            ['usuario.nuevo', 'Usuario Nuevo', 'repetido@test.local', 'Temporal2026', 'empleado'],
+            // Esta fila está bien y debe crearse igual: un correo repetido no
+            // puede llevarse por delante al resto del archivo.
+            ['usuario.bueno', 'Usuario Bueno', 'bueno@test.local', 'Temporal2026', 'empleado'],
+        ], 'usuarios.xlsx');
+
+        $respuesta = $this->importar('usuarios', $archivo, $this->sesionAdmin($this->negocioA));
+
+        $respuesta->assertJsonPath('error', 0);
+
+        $resultados = $respuesta->json('data.resultados');
+
+        $this->assertFalse($resultados[0]['exito']);
+        $this->assertStringContainsString('repetido@test.local', $resultados[0]['mensaje']);
+        $this->assertStringContainsString('Ya existe un usuario con el correo', $resultados[0]['mensaje']);
+
+        $this->assertTrue($resultados[1]['exito']);
+
+        // No se creó nada con el correo repetido...
+        $this->assertSame(0, DB::table('usuarios')->where('usuario', 'usuario.nuevo')->count());
+        // ...la cuenta original del negocio B sigue intacta y en su negocio...
+        $this->assertSame(1, DB::table('usuarios')->where('email', 'repetido@test.local')->count());
+        $this->assertSame(
+            $this->negocioB,
+            DB::table('usuarios')->where('email', 'repetido@test.local')->value('tenant_id')
+        );
+        // ...y la fila buena sí entró, en el negocio de la sesión.
+        $this->assertSame(
+            $this->negocioA,
+            DB::table('usuarios')->where('usuario', 'usuario.bueno')->value('tenant_id')
+        );
+    }
+
+    /**
+     * Un correo que quedó en una cuenta DESACTIVADA está libre: la carga masiva
+     * debe aceptarlo, aunque la cuenta vieja fuera de otro negocio.
+     */
+    public function test_carga_masiva_acepta_el_correo_de_una_cuenta_desactivada(): void
+    {
+        DB::table('usuarios')->insert([
+            'tenant_id' => $this->negocioB,
+            'id_rol' => 1,
+            'usuario' => 'cuenta.vieja',
+            'nombre' => 'Cuenta Vieja',
+            'email' => 'liberado@test.local',
+            'clave' => bcrypt('secreta'),
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            // Desactivada: su correo y su usuario quedan libres.
+            'estado' => 0,
+        ]);
+
+        $archivo = $this->crearExcel([
+            ['Usuario', 'Nombre', 'Email', 'Clave Temporal', 'Rol'],
+            ['cuenta.vieja', 'Cuenta Nueva', 'liberado@test.local', 'Temporal2026', 'empleado'],
+        ], 'usuarios.xlsx');
+
+        $respuesta = $this->importar('usuarios', $archivo, $this->sesionAdmin($this->negocioA));
+
+        $respuesta->assertJsonPath('error', 0);
+
+        $resultados = $respuesta->json('data.resultados');
+        $this->assertTrue($resultados[0]['exito'], 'Un correo liberado debe poder reutilizarse en la carga masiva');
+
+        // La cuenta nueva quedó en el negocio de la sesión; la vieja sigue donde estaba.
+        $this->assertSame(
+            $this->negocioA,
+            DB::table('usuarios')->where('email', 'liberado@test.local')->where('estado', 1)->value('tenant_id')
+        );
+        $this->assertSame(2, DB::table('usuarios')->where('email', 'liberado@test.local')->count());
+    }
+
+    /** Un correo repetido dentro del propio archivo tampoco puede colarse dos veces. */
+    public function test_carga_masiva_rechaza_un_correo_repetido_dentro_del_mismo_archivo(): void
+    {
+        $archivo = $this->crearExcel([
+            ['Usuario', 'Nombre', 'Email', 'Clave Temporal', 'Rol'],
+            ['usuario.uno', 'Usuario Uno', 'mismo@test.local', 'Temporal2026', 'empleado'],
+            ['usuario.dos', 'Usuario Dos', 'mismo@test.local', 'Temporal2026', 'empleado'],
+        ], 'usuarios.xlsx');
+
+        $respuesta = $this->importar('usuarios', $archivo, $this->sesionAdmin($this->negocioA));
+
+        $respuesta->assertJsonPath('error', 0);
+
+        $resultados = $respuesta->json('data.resultados');
+
+        $this->assertTrue($resultados[0]['exito']);
+        $this->assertFalse($resultados[1]['exito']);
+        $this->assertStringContainsString('Ya existe un usuario con el correo', $resultados[1]['mensaje']);
+
+        $this->assertSame(1, DB::table('usuarios')->where('email', 'mismo@test.local')->count());
+    }
 }

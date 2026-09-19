@@ -83,6 +83,8 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     Route::get('producto/listar', [App\Http\Controllers\Request\ProductoController::class, 'listar']);
     Route::post('producto/ingresar-stock', [App\Http\Controllers\Request\ProductoController::class, 'ingresarStock']);
     Route::get('producto/stock-bajo', [App\Http\Controllers\Request\ProductoController::class, 'stockBajo']);
+    // GET: solo sugiere un código libre, no guarda ni lo reserva.
+    Route::get('producto/generar-sku', [App\Http\Controllers\Request\ProductoController::class, 'generarSku']);
 });
 
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {

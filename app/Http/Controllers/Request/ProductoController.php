@@ -37,8 +37,9 @@ class ProductoController extends Controller
      * restricción única de MySQL: así el usuario recibe un mensaje claro y no
      * un error técnico genérico.
      *
-     * Un SKU vacío no se valida: la columna admite varios NULL a propósito,
-     * porque el SKU es opcional.
+     * El SKU es obligatorio al crear y al editar, así que aquí nunca debería
+     * llegar vacío; la guarda se conserva porque la columna sí admite NULL
+     * (los productos registrados antes de que el código fuera obligatorio).
      *
      * @param  int|null  $idExcluir  El propio registro, al editar.
      */
@@ -69,6 +70,7 @@ class ProductoController extends Controller
 
         $this->setRequestValidationRules([
             'nombre' => 'required',
+            'sku' => 'required',
             'cantidad_actual' => 'required|numeric|min:0',
             'cantidad_minima' => 'required|numeric|min:0',
         ]);
@@ -90,7 +92,7 @@ class ProductoController extends Controller
         $info = [
             'tenant_id' => $tenantId,
             'nombre' => $datos['nombre'],
-            'sku' => $sku !== '' ? $sku : null,
+            'sku' => $sku,
             'descripcion' => $datos['descripcion'] ?? null,
             'cantidad_actual' => $datos['cantidad_actual'],
             'cantidad_minima' => $datos['cantidad_minima'],
@@ -126,6 +128,7 @@ class ProductoController extends Controller
         $this->setRequestValidationRules([
             'id_producto' => 'required',
             'nombre' => 'required',
+            'sku' => 'required',
             'cantidad_actual' => 'required|numeric|min:0',
             'cantidad_minima' => 'required|numeric|min:0',
         ]);
@@ -146,7 +149,7 @@ class ProductoController extends Controller
 
         $info = [
             'nombre' => $datos['nombre'],
-            'sku' => $sku !== '' ? $sku : null,
+            'sku' => $sku,
             'descripcion' => $datos['descripcion'] ?? null,
             'cantidad_actual' => $datos['cantidad_actual'],
             'cantidad_minima' => $datos['cantidad_minima'],
@@ -260,6 +263,42 @@ class ProductoController extends Controller
 
         $this->respSinError();
         $this->setDataResponse($this->svcProducto->listarStockBajo($tenantId), 'productos_bajos');
+
+        return $this->sendResponse();
+    }
+
+    /**
+     * Propone un SKU libre para el nombre que se esté escribiendo.
+     *
+     * Va por GET porque solo consulta: no guarda nada ni reserva el código
+     * sugerido, igual que "listar" o "stock-bajo". Se puede repetir sin efectos.
+     *
+     * El "nombre" es opcional: sin él (o con uno demasiado corto) la sugerencia
+     * sale con el prefijo genérico, que es justo lo que se necesita cuando el
+     * formulario pide el código antes de escribir el nombre.
+     */
+    public function generarSku(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        if ($tenantId === null) {
+            $this->agregarError('Los productos se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
+
+            return $this->sendResponse();
+        }
+
+        $datos = $this->getRequestData();
+
+        $sugerido = $this->svcProducto->generarSkuSugerido($tenantId, $datos['nombre'] ?? '');
+
+        if ($sugerido === false) {
+            $this->agregarError('No fue posible sugerir un código disponible. Escribe uno manualmente.');
+
+            return $this->sendResponse();
+        }
+
+        $this->respSinError();
+        $this->setDataResponse($sugerido, 'sku');
 
         return $this->sendResponse();
     }

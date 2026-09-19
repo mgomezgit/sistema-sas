@@ -98,13 +98,29 @@ class UsuariosImport implements ToCollection
                 continue;
             }
 
-            // El nombre de usuario es la credencial de acceso: si ya existe, el
-            // alta fallaría con un error opaco de base de datos.
-            if (Usuario::where('usuario', $datos['usuario'])->exists()) {
+            // El nombre de usuario es la credencial de acceso: si ya lo tiene una
+            // cuenta activa, el alta fallaría con un error opaco de base de datos.
+            // Las cuentas desactivadas no compiten: su usuario queda libre.
+            if (Usuario::where('usuario', $datos['usuario'])->where('estado', 1)->exists()) {
                 $this->resultados[] = [
                     'fila' => $numeroFila,
                     'exito' => false,
                     'mensaje' => 'El usuario "'.$datos['usuario'].'" ya está registrado',
+                ];
+
+                continue;
+            }
+
+            // El correo es único en toda la plataforma, no solo dentro del negocio,
+            // porque el login es una sola pantalla global: un mismo correo no puede
+            // apuntar a dos cuentas ACTIVAS. Se comprueba aquí para decir cuál es
+            // el problema; sin esto la fila fallaba con un "no se pudo guardar" que
+            // no le explicaba nada a quien hizo la carga.
+            if (Usuario::where('email', $datos['email'])->where('estado', 1)->exists()) {
+                $this->resultados[] = [
+                    'fila' => $numeroFila,
+                    'exito' => false,
+                    'mensaje' => 'Ya existe un usuario con el correo "'.$datos['email'].'"',
                 ];
 
                 continue;

@@ -1,0 +1,485 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Http\Middleware\VerificarSesion;
+use App\Models\Usuario;
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
+
+/**
+ * Usuarios: aislamiento entre negocios y unicidad de credenciales.
+ */
+class UsuarioTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private int $negocioA;
+
+    private int $negocioB;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        DB::table('roles')->insert([
+            ['id_rol' => 1, 'nombre_rol' => 'admin', 'estado' => 1],
+            ['id_rol' => 2, 'nombre_rol' => 'empleado', 'estado' => 1],
+            ['id_rol' => 3, 'nombre_rol' => 'super_admin', 'estado' => 1],
+        ]);
+
+        $this->negocioA = $this->crearNegocio('Negocio A');
+        $this->negocioB = $this->crearNegocio('Negocio B');
+    }
+
+    /* ================= AYUDANTES ================= */
+
+    private function crearNegocio(string $nombre): int
+    {
+        return DB::table('negocios')->insertGetId([
+            'nombre_negocio' => $nombre,
+            'rubro' => 'spa',
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 1,
+        ]);
+    }
+
+    private function crearUsuario(?int $tenantId, string $usuario, string $email, int $idRol = 1, int $estado = 1): int
+    {
+        return DB::table('usuarios')->insertGetId([
+            'tenant_id' => $tenantId,
+            'id_rol' => $idRol,
+            'usuario' => $usuario,
+            'nombre' => 'Usuario '.$usuario,
+            'email' => $email,
+            'clave' => bcrypt('secreta'),
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => $estado,
+        ]);
+    }
+
+    private function sesionAdmin(int $tenantId): array
+    {
+        return [
+            'app_sesion' => VerificarSesion::CLAVE_SESION,
+            'id_usuario' => 1,
+            'usuario' => 'admin.test',
+            'nombre_usuario' => 'Admin Test',
+            'tenant_id' => $tenantId,
+            'id_rol' => 1,
+        ];
+    }
+
+    /* ================= 1) FUGA DE TENANT AL EDITAR =================
+     *
+     * ---------- PRUEBA DE MUTACIÓN ----------
+     *
+     * test_editar_usuario_no_permite_cambiar_el_negocio_desde_el_request() se
+     * verificó rompiendo la protección a propósito. Procedimiento ejecutado:
+     *
+     *   1. En app/Service/SvcUsuario.php, dentro de editar(), se quitaron las
+     *      tres líneas que imponen el negocio de la sesión:
+     *          if ($tenantId !== null) { $info['tenant_id'] = $tenantId; }
+     *      Con eso el tenant_id vuelve a tomarse del cuerpo de la petición.
+     *   2. Se ejecutó: php artisan test --filter=test_editar_usuario_no_permite...
+     *      Resultado: 1 test, 0 passed, 1 FAILED:
+     *        "El usuario debe seguir en su negocio original, no en el que llegó
+     *         por el request / Failed asserting that 2 is identical to 1."
+     *      (el usuario del negocio 1 había quedado en el negocio 2).
+     *   3. Se restauró el archivo y la prueba volvió a pasar (2 tests, 5 asserts).
+     *
+     * Antes de la corrección, esta misma prueba fallaba igual: así se confirmó
+     * que la fuga era real y no una sospecha al leer el código.
+     */
+
+    /**
+     * El negocio de un usuario no puede cambiarse desde el cuerpo de la
+     * petición: aunque el request traiga un tenant_id de otro negocio, el
+     * usuario debe quedarse donde estaba.
+     *
+     * Mover un usuario a otro negocio le daría acceso a los datos de ese
+     * negocio (sus clientes, sus reservas, su inventario) en el siguiente
+     * inicio de sesión, porque el tenant de la sesión sale de esta columna.
+     */
+    public function test_editar_usuario_no_permite_cambiar_el_negocio_desde_el_request(): void
+    {
+        $idUsuario = $this->crearUsuario($this->negocioA, 'usuario.del.a', 'a@test.local');
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/usuario/editar', [
+                'id_usuario' => $idUsuario,
+                'usuario' => 'usuario.del.a',
+                'nombre' => 'Usuario Del A',
+                'email' => 'a@test.local',
+                'id_rol' => 1,
+                // El intento: mandar el negocio ajeno en el cuerpo de la petición.
+                'tenant_id' => $this->negocioB,
+            ]);
+
+        $respuesta->assertJsonPath('error', 0);
+
+        $tenantFinal = DB::table('usuarios')->where('id_usuario', $idUsuario)->value('tenant_id');
+
+        $this->assertSame(
+            $this->negocioA,
+            $tenantFinal,
+            'El usuario debe seguir en su negocio original, no en el que llegó por el request'
+        );
+        $this->assertNotSame($this->negocioB, $tenantFinal);
+    }
+
+    /** Un admin no puede editar usuarios de otro negocio. */
+    public function test_editar_usuario_de_otro_negocio_es_rechazado(): void
+    {
+        $idUsuario = $this->crearUsuario($this->negocioA, 'usuario.del.a', 'a@test.local');
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioB))
+            ->postJson('request/usuario/editar', [
+                'id_usuario' => $idUsuario,
+                'usuario' => 'secuestrado',
+                'nombre' => 'Secuestrado',
+                'email' => 'secuestrado@test.local',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioB,
+            ]);
+
+        $respuesta->assertJsonPath('error', 1);
+        $this->assertSame('usuario.del.a', DB::table('usuarios')->where('id_usuario', $idUsuario)->value('usuario'));
+    }
+
+    /* ================= 2) UNICIDAD AL EDITAR ================= */
+
+    /** Guardar sin tocar las credenciales no debe chocar consigo mismo. */
+    public function test_editar_usuario_sin_cambiar_sus_credenciales_funciona(): void
+    {
+        $idUsuario = $this->crearUsuario($this->negocioA, 'usuario.uno', 'uno@test.local');
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/usuario/editar', [
+                'id_usuario' => $idUsuario,
+                'usuario' => 'usuario.uno',
+                'email' => 'uno@test.local',
+                'nombre' => 'Nombre Cambiado',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioA,
+            ]);
+
+        $respuesta->assertJsonPath('error', 0);
+        $this->assertSame('Nombre Cambiado', DB::table('usuarios')->where('id_usuario', $idUsuario)->value('nombre'));
+    }
+
+    public function test_editar_usuario_con_correo_de_otra_cuenta_es_rechazado(): void
+    {
+        $idUno = $this->crearUsuario($this->negocioA, 'usuario.uno', 'uno@test.local');
+        $this->crearUsuario($this->negocioA, 'usuario.dos', 'dos@test.local');
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/usuario/editar', [
+                'id_usuario' => $idUno,
+                'usuario' => 'usuario.uno',
+                'email' => 'dos@test.local',
+                'nombre' => 'Usuario Uno',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioA,
+            ]);
+
+        $respuesta->assertJsonPath('error', 1);
+        $this->assertStringContainsString('ya está registrado en otra cuenta', $respuesta->json('mensaje'));
+        $this->assertSame('uno@test.local', DB::table('usuarios')->where('id_usuario', $idUno)->value('email'));
+    }
+
+    public function test_editar_usuario_con_nombre_de_usuario_de_otra_cuenta_es_rechazado(): void
+    {
+        $idUno = $this->crearUsuario($this->negocioA, 'usuario.uno', 'uno@test.local');
+        $this->crearUsuario($this->negocioA, 'usuario.dos', 'dos@test.local');
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/usuario/editar', [
+                'id_usuario' => $idUno,
+                'usuario' => 'usuario.dos',
+                'email' => 'uno@test.local',
+                'nombre' => 'Usuario Uno',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioA,
+            ]);
+
+        $respuesta->assertJsonPath('error', 1);
+        $this->assertStringContainsString('ya está en uso', $respuesta->json('mensaje'));
+        $this->assertSame('usuario.uno', DB::table('usuarios')->where('id_usuario', $idUno)->value('usuario'));
+    }
+
+    /**
+     * La unicidad es global, no por negocio: el login es una sola pantalla para
+     * toda la plataforma, así que un correo ya usado en otro negocio tampoco
+     * sirve aquí.
+     */
+    public function test_editar_usuario_con_correo_de_otro_negocio_tambien_es_rechazado(): void
+    {
+        $idDelA = $this->crearUsuario($this->negocioA, 'usuario.del.a', 'a@test.local');
+        $this->crearUsuario($this->negocioB, 'usuario.del.b', 'b@test.local');
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/usuario/editar', [
+                'id_usuario' => $idDelA,
+                'usuario' => 'usuario.del.a',
+                'email' => 'b@test.local',
+                'nombre' => 'Usuario Del A',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioA,
+            ]);
+
+        $respuesta->assertJsonPath('error', 1);
+        $this->assertSame('a@test.local', DB::table('usuarios')->where('id_usuario', $idDelA)->value('email'));
+        // Y el usuario del otro negocio queda intacto.
+        $this->assertSame(1, DB::table('usuarios')->where('email', 'b@test.local')->where('tenant_id', $this->negocioB)->count());
+    }
+
+    /* ================= 3) UNICIDAD SOLO ENTRE CUENTAS ACTIVAS =================
+     *
+     * Al desactivar una cuenta, su correo y su nombre de usuario quedan libres.
+     * Las columnas originales conservan el dato real; lo que deja de contar para
+     * la restricción son las columnas generadas, que valen NULL si estado = 0.
+     */
+
+    public function test_se_puede_reutilizar_el_correo_de_una_cuenta_desactivada(): void
+    {
+        $this->crearUsuario($this->negocioA, 'usuario.viejo', 'liberado@test.local', 1, 0);
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/usuario/crear', [
+                'usuario' => 'usuario.nuevo',
+                'nombre' => 'Usuario Nuevo',
+                'email' => 'liberado@test.local',
+                'clave' => 'Clave2026',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioA,
+            ]);
+
+        $respuesta->assertJsonPath('error', 0);
+
+        // Conviven: la vieja conserva su correo para auditoría, la nueva lo usa.
+        $this->assertSame(2, DB::table('usuarios')->where('email', 'liberado@test.local')->count());
+        $this->assertSame(1, DB::table('usuarios')->where('email', 'liberado@test.local')->where('estado', 1)->count());
+    }
+
+    /** La liberación cruza negocios: el correo queda libre para cualquiera. */
+    public function test_se_puede_reutilizar_en_otro_negocio_el_correo_de_una_cuenta_desactivada(): void
+    {
+        $this->crearUsuario($this->negocioA, 'usuario.viejo', 'liberado@test.local', 1, 0);
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioB))
+            ->postJson('request/usuario/crear', [
+                'usuario' => 'usuario.del.b',
+                'nombre' => 'Usuario Del B',
+                'email' => 'liberado@test.local',
+                'clave' => 'Clave2026',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioB,
+            ]);
+
+        $respuesta->assertJsonPath('error', 0);
+        $this->assertSame(
+            $this->negocioB,
+            DB::table('usuarios')->where('email', 'liberado@test.local')->where('estado', 1)->value('tenant_id')
+        );
+    }
+
+    public function test_se_puede_reutilizar_el_nombre_de_usuario_de_una_cuenta_desactivada(): void
+    {
+        $this->crearUsuario($this->negocioA, 'nombre.liberado', 'viejo@test.local', 1, 0);
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/usuario/crear', [
+                'usuario' => 'nombre.liberado',
+                'nombre' => 'Usuario Nuevo',
+                'email' => 'nuevo@test.local',
+                'clave' => 'Clave2026',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioA,
+            ]);
+
+        $respuesta->assertJsonPath('error', 0);
+        $this->assertSame(1, DB::table('usuarios')->where('usuario', 'nombre.liberado')->where('estado', 1)->count());
+    }
+
+    /** La regla de siempre sigue en pie: una cuenta ACTIVA no cede su correo. */
+    public function test_el_correo_de_una_cuenta_activa_se_sigue_rechazando(): void
+    {
+        $this->crearUsuario($this->negocioA, 'usuario.activo', 'ocupado@test.local', 1, 1);
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioB))
+            ->postJson('request/usuario/crear', [
+                'usuario' => 'otro.usuario',
+                'nombre' => 'Otro Usuario',
+                'email' => 'ocupado@test.local',
+                'clave' => 'Clave2026',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioB,
+            ]);
+
+        $respuesta->assertJsonPath('error', 1);
+        $this->assertStringContainsString('ya está registrado en otra cuenta', $respuesta->json('mensaje'));
+        $this->assertSame(1, DB::table('usuarios')->where('email', 'ocupado@test.local')->count());
+    }
+
+    /* ================= 4) LA PROTECCIÓN VIVE EN LA BASE ================= */
+
+    /**
+     * Saltándose por completo el controller y su validación, la base debe seguir
+     * rechazando dos cuentas ACTIVAS con el mismo correo.
+     *
+     * Esto es lo que distingue una regla de negocio protegida de una que solo
+     * está escrita en un if: si alguien quita la validación sin querer, el dato
+     * sigue a salvo.
+     */
+    public function test_la_base_rechaza_dos_cuentas_activas_con_el_mismo_correo(): void
+    {
+        $this->crearUsuario($this->negocioA, 'usuario.uno', 'choque@test.local', 1, 1);
+
+        $this->expectException(QueryException::class);
+
+        // Insert directo por Eloquent: ni controller ni Service de por medio.
+        Usuario::create([
+            'tenant_id' => $this->negocioB,
+            'id_rol' => 1,
+            'usuario' => 'usuario.dos',
+            'nombre' => 'Usuario Dos',
+            'email' => 'choque@test.local',
+            'clave' => 'da-igual',
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 1,
+        ]);
+    }
+
+    public function test_la_base_rechaza_dos_cuentas_activas_con_el_mismo_nombre_de_usuario(): void
+    {
+        $this->crearUsuario($this->negocioA, 'choque.usuario', 'uno@test.local', 1, 1);
+
+        $this->expectException(QueryException::class);
+
+        Usuario::create([
+            'tenant_id' => $this->negocioB,
+            'id_rol' => 1,
+            'usuario' => 'choque.usuario',
+            'nombre' => 'Usuario Dos',
+            'email' => 'dos@test.local',
+            'clave' => 'da-igual',
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 1,
+        ]);
+    }
+
+    /** La otra cara: con una de las dos inactiva, la base sí lo permite. */
+    public function test_la_base_permite_el_mismo_correo_si_una_de_las_cuentas_esta_inactiva(): void
+    {
+        $this->crearUsuario($this->negocioA, 'usuario.inactivo', 'compartido@test.local', 1, 0);
+
+        $creado = Usuario::create([
+            'tenant_id' => $this->negocioB,
+            'id_rol' => 1,
+            'usuario' => 'usuario.activo',
+            'nombre' => 'Usuario Activo',
+            'email' => 'compartido@test.local',
+            'clave' => 'da-igual',
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 1,
+        ]);
+
+        $this->assertNotNull($creado->id_usuario);
+        $this->assertSame(2, DB::table('usuarios')->where('email', 'compartido@test.local')->count());
+
+        // La columna original conserva el dato en las dos; solo la generada
+        // distingue cuál compite por la unicidad.
+        $this->assertSame(1, DB::table('usuarios')
+            ->where('email', 'compartido@test.local')
+            ->whereNotNull('email_activo_unico')
+            ->count());
+    }
+
+    /* ================= 5) EL LOGIN NO CAMBIA ================= */
+
+    /**
+     * El login ya filtraba por estado = 1, así que no necesitó tocarse. Se
+     * comprueba de verdad, por HTTP, que sigue entrando la cuenta activa y que
+     * la desactivada que comparte correo no interfiere.
+     */
+    public function test_el_login_sigue_funcionando_con_un_correo_reutilizado(): void
+    {
+        // La vieja cuenta, desactivada, conserva el correo con OTRA clave.
+        DB::table('usuarios')->insert([
+            'tenant_id' => $this->negocioA,
+            'id_rol' => 1,
+            'usuario' => 'cuenta.vieja',
+            'nombre' => 'Cuenta Vieja',
+            'email' => 'reutilizado@test.local',
+            'clave' => bcrypt('ClaveVieja'),
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 0,
+        ]);
+
+        // La nueva, activa, con el mismo correo y su propia clave.
+        $idNuevo = DB::table('usuarios')->insertGetId([
+            'tenant_id' => $this->negocioB,
+            'id_rol' => 1,
+            'usuario' => 'cuenta.nueva',
+            'nombre' => 'Cuenta Nueva',
+            'email' => 'reutilizado@test.local',
+            'clave' => bcrypt('ClaveNueva'),
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 1,
+        ]);
+
+        $respuesta = $this->postJson('request/autenticacion/login', [
+            'email' => 'reutilizado@test.local',
+            'clave' => 'ClaveNueva',
+        ]);
+
+        $respuesta->assertJsonPath('error', 0);
+
+        // Entró la cuenta activa, con su negocio, no la desactivada.
+        $this->assertSame($idNuevo, session('id_usuario'));
+        $this->assertSame($this->negocioB, session('tenant_id'));
+
+        // Y la clave de la cuenta desactivada no sirve para entrar.
+        $this->flushSession();
+
+        $this->postJson('request/autenticacion/login', [
+            'email' => 'reutilizado@test.local',
+            'clave' => 'ClaveVieja',
+        ])->assertJsonPath('error', 1);
+    }
+
+    /** Login normal, sin correos reutilizados de por medio. */
+    public function test_el_login_normal_sigue_funcionando(): void
+    {
+        DB::table('usuarios')->insert([
+            'tenant_id' => $this->negocioA,
+            'id_rol' => 1,
+            'usuario' => 'admin.normal',
+            'nombre' => 'Admin Normal',
+            'email' => 'normal@test.local',
+            'clave' => bcrypt('Clave2026'),
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 1,
+        ]);
+
+        $respuesta = $this->postJson('request/autenticacion/login', [
+            'email' => 'normal@test.local',
+            'clave' => 'Clave2026',
+        ]);
+
+        $respuesta->assertJsonPath('error', 0);
+        $this->assertSame($this->negocioA, session('tenant_id'));
+        $this->assertSame(VerificarSesion::CLAVE_SESION, session('app_sesion'));
+    }
+}

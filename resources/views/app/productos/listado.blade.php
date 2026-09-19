@@ -45,16 +45,50 @@
             font-weight: 600;
         }
 
-        .badge-stock-bajo {
+        /* Los dos niveles de alerta comparten forma y se diferencian por color:
+           quedarse sin existencias (--danger) pesa más que tocar el mínimo
+           (--warning), que todavía deja margen para reponer. */
+        .badge-agotado,
+        .badge-bajo-minimo {
             display: inline-flex;
             align-items: center;
             gap: 0.3rem;
             font-size: 0.78rem;
             padding: 0.2rem 0.6rem;
             border-radius: 999px;
+            font-weight: 600;
+        }
+
+        .badge-agotado {
             background-color: var(--danger-soft);
             color: var(--danger);
-            font-weight: 600;
+        }
+
+        .badge-bajo-minimo {
+            background-color: var(--warning-soft);
+            color: var(--warning);
+        }
+
+        .celda-sku {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.1rem 0.45rem;
+        }
+
+        .etiqueta-opcional {
+            color: var(--text-muted);
+            font-weight: 400;
+            font-size: 0.82rem;
+        }
+
+        .ayuda-campo {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin-top: 0.3rem;
         }
     </style>
 @endsection
@@ -77,6 +111,7 @@
                     <tr>
                         <th></th>
                         <th>Nombre</th>
+                        <th>SKU</th>
                         <th>Descripción</th>
                         <th>Cantidad actual</th>
                         <th>Cantidad mínima</th>
@@ -106,6 +141,12 @@
                         <div class="mb-3">
                             <label class="form-label">Nombre</label>
                             <input type="text" id="nombre" name="nombre" maxlength="150" class="form-control system_validador_vacio">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">SKU <span class="etiqueta-opcional">(opcional)</span></label>
+                            <input type="text" id="sku" name="sku" maxlength="60" class="form-control">
+                            <div class="ayuda-campo">Tu código interno para identificar el producto. No puede repetirse dentro de tu negocio.</div>
                         </div>
 
                         <div class="mb-3">
@@ -186,6 +227,25 @@
             });
         }
 
+        /**
+         * Misma regla que SvcProducto: "agotado" si no queda ninguna unidad,
+         * "bajo" si llegó al mínimo o lo pasó, cadena vacía si está surtido.
+         *
+         * Se calcula aquí porque el listado completo no trae la etiqueta: solo
+         * la traen las consultas de stock bajo, que alimentan la campana. Si la
+         * regla del Service cambia, este es el otro sitio que hay que tocar.
+         */
+        function urgenciaDeProducto(fila) {
+            var actual = parseInt(fila.cantidad_actual, 10);
+            var minima = parseInt(fila.cantidad_minima, 10);
+
+            if (actual === 0) {
+                return 'agotado';
+            }
+
+            return actual <= minima ? 'bajo' : '';
+        }
+
         function cargarProductos(alTerminar) {
             axiosSipleInterno('GET', 'request/producto/listar', {}, {}, true, function (respuesta) {
                 if (respuesta.error == 0) {
@@ -218,6 +278,12 @@
                     },
                     { data: 'nombre' },
                     {
+                        data: 'sku',
+                        render: function (data) {
+                            return data ? '<span class="celda-sku">' + data + '</span>' : '<span class="text-muted">—</span>';
+                        }
+                    },
+                    {
                         data: 'descripcion',
                         render: function (data) {
                             return data ? data : '<span class="text-muted">—</span>';
@@ -226,9 +292,18 @@
                     {
                         data: null,
                         render: function (fila) {
-                            var bajo = parseInt(fila.cantidad_actual, 10) < parseInt(fila.cantidad_minima, 10);
+                            var urgencia = urgenciaDeProducto(fila);
                             var texto = fila.cantidad_actual;
-                            return bajo ? texto + ' <span class="badge-stock-bajo"><i class="bi bi-exclamation-triangle-fill"></i> Bajo</span>' : texto;
+
+                            if (urgencia === 'agotado') {
+                                return texto + ' <span class="badge-agotado"><i class="bi bi-x-octagon-fill"></i> Agotado</span>';
+                            }
+
+                            if (urgencia === 'bajo') {
+                                return texto + ' <span class="badge-bajo-minimo"><i class="bi bi-exclamation-triangle-fill"></i> Bajo mínimo</span>';
+                            }
+
+                            return texto;
                         }
                     },
                     { data: 'cantidad_minima' },
@@ -260,6 +335,7 @@
         function limpiarFormularioProducto() {
             jQuery('#id_producto').val('');
             jQuery('#nombre').val('');
+            jQuery('#sku').val('');
             jQuery('#descripcion').val('');
             jQuery('#cantidad_actual').val('');
             jQuery('#cantidad_minima').val('');
@@ -300,6 +376,7 @@
 
             jQuery('#id_producto').val(fila.id_producto);
             jQuery('#nombre').val(fila.nombre);
+            jQuery('#sku').val(fila.sku);
             jQuery('#descripcion').val(fila.descripcion);
             jQuery('#cantidad_actual').val(fila.cantidad_actual);
             jQuery('#cantidad_minima').val(fila.cantidad_minima);
@@ -440,7 +517,7 @@
                     {
                         attachTo: { element: '#cantidad_minima', on: 'bottom' },
                         title: 'Tu punto de alerta',
-                        text: 'Cuando la cantidad actual baje de este número, el producto aparecerá en la campana de avisos para que repongas a tiempo.'
+                        text: 'Cuando la cantidad actual llegue a este número, el producto aparecerá en la campana de avisos para que repongas a tiempo.'
                     }
                 ]);
             });

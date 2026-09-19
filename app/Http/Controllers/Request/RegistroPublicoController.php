@@ -62,7 +62,9 @@ class RegistroPublicoController extends Controller
             return $this->sendResponse();
         }
 
-        if (Usuario::where('email', $datos['email'])->exists()) {
+        // Solo compiten las cuentas activas: un correo que quedó en una cuenta
+        // desactivada vuelve a estar libre para registrarse de nuevo.
+        if (Usuario::where('email', $datos['email'])->where('estado', 1)->exists()) {
             $this->agregarError('Ya existe una cuenta con ese correo');
 
             return $this->sendResponse();

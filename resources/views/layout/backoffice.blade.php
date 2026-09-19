@@ -2032,8 +2032,43 @@
         }
 
         .item-stock-bajo .detalle-producto-bajo {
-            color: var(--danger);
             font-size: 0.8rem;
+        }
+
+        /* Dos niveles de alerta: sin existencias (--danger) pesa más que haber
+           tocado el mínimo (--warning). La franja lateral hace que la diferencia
+           se note de un vistazo, sin tener que leer cada renglón. */
+        .item-stock-bajo.urgencia-agotado {
+            border-left: 3px solid var(--danger);
+            background-color: var(--danger-soft);
+        }
+
+        .item-stock-bajo.urgencia-agotado .detalle-producto-bajo {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .item-stock-bajo.urgencia-bajo {
+            border-left: 3px solid var(--warning);
+        }
+
+        .item-stock-bajo.urgencia-bajo .detalle-producto-bajo {
+            color: var(--warning);
+        }
+
+        .etiqueta-urgencia {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-left: 0.35rem;
+        }
+
+        .urgencia-agotado .etiqueta-urgencia {
+            color: var(--danger);
         }
 
         .btn-ingresar-stock-campana {
@@ -2233,6 +2268,566 @@
 
         .shepherd-modal-overlay-container {
             opacity: 0.55;
+        }
+
+        /* ================= FORMULARIOS MODERNOS (clases reutilizables) =================
+         *
+         * Piezas sueltas para ir modernizando los formularios de cada módulo sin
+         * tocar su estructura: todo se monta DENTRO del modal de Bootstrap que ya
+         * se usa. No se reemplaza nada del ciclo de vida de Bootstrap (.fade /
+         * .show, el backdrop, cerrar con Escape o clicando fuera): solo se
+         * redefine el aspecto de la transición que Bootstrap ya dispara.
+         *
+         * Ningún formulario las usa todavía; se aplican módulo por módulo.
+         */
+
+        /* ---------- 1) Entrada y salida del panel ---------- */
+
+        /* Bootstrap anima .modal-dialog con un translate vertical. Aquí se
+           sustituye por la curva elástica que ya usa el resto del panel, sin
+           tocar cuándo se agrega o se quita .show.
+         *
+         * Los selectores repiten .modal y .fade a propósito: la regla de
+         * Bootstrap es ".modal.fade .modal-dialog" y le gana en especificidad a
+         * un ".modal-moderno .modal-dialog" a secas, así que la transición
+         * personalizada no llegaba a aplicarse. */
+        .modal.modal-moderno.fade .modal-dialog {
+            transform: scale(0.92) translateY(16px);
+            opacity: 0;
+            transition: transform 0.38s cubic-bezier(.34, 1.56, .64, 1), opacity 0.28s ease;
+        }
+
+        .modal.modal-moderno.fade.show .modal-dialog {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+
+        /* Quien prefiera menos movimiento recibe el mismo cambio, sin el rebote. */
+        @media (prefers-reduced-motion: reduce) {
+            .modal.modal-moderno.fade .modal-dialog {
+                transform: none;
+                transition: opacity 0.2s ease;
+            }
+
+            .modal.modal-moderno.fade.show .modal-dialog {
+                transform: none;
+            }
+        }
+
+        .modal-moderno .modal-content {
+            position: relative;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+        }
+
+        /* ---------- 2) Reflejo de vidrio del borde superior ---------- */
+
+        .modal-moderno .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        /* ---------- 3) Encabezado con aura ---------- */
+
+        .modal-header-moderno {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            padding: 1.15rem 1.35rem;
+            border-bottom: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        /* El resplandor va detrás de todo y no intercepta clics, para no estorbar
+           al botón de cerrar de Bootstrap. */
+        .modal-header-moderno::before {
+            content: '';
+            position: absolute;
+            top: -70%;
+            left: -10%;
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, var(--accent-soft2), transparent 70%);
+            filter: blur(26px);
+            pointer-events: none;
+            z-index: 0;
+            animation: auraEncabezado 14s ease-in-out infinite;
+        }
+
+        @keyframes auraEncabezado {
+            0%, 100% {
+                transform: rotate(0deg) scale(1);
+                opacity: 0.75;
+            }
+            50% {
+                transform: rotate(180deg) scale(1.25);
+                opacity: 1;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .modal-header-moderno::before {
+                animation: none;
+            }
+        }
+
+        .modal-header-moderno > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .insignia-encabezado {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent-soft), var(--accent-soft2));
+            color: var(--accent);
+            font-size: 1.15rem;
+            flex-shrink: 0;
+        }
+
+        .titulo-modal-moderno {
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1.05rem;
+            line-height: 1.25;
+            margin: 0;
+        }
+
+        .subtitulo-modal-moderno {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            margin: 0;
+        }
+
+        .modal-header-moderno .btn-close {
+            margin-left: auto;
+            transition: var(--transition-base);
+        }
+
+        .modal-header-moderno .btn-close:hover {
+            transform: rotate(90deg);
+        }
+
+        /* ---------- 4) Tarjetas de sección ---------- */
+
+        .tarjeta-seccion-form {
+            background-color: color-mix(in srgb, var(--bg-body) 55%, var(--bg-card));
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .tarjeta-seccion-form + .tarjeta-seccion-form {
+            margin-top: 0.85rem;
+        }
+
+        .etiqueta-seccion-form {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.85rem;
+        }
+
+        .etiqueta-seccion-form::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: var(--accent);
+            flex-shrink: 0;
+        }
+
+        /* ---------- 5) Campos con label flotante (sin JavaScript) ---------- */
+
+        /* Estructura esperada:
+         *   <div class="campo-flotante">
+         *       <i class="bi bi-person"></i>
+         *       <input id="nombre" name="nombre" placeholder=" ">
+         *       <label for="nombre">Nombre</label>
+         *       <span class="mensaje-error-campo">...</span>
+         *   </div>
+         *
+         * El placeholder DEBE ser un espacio (" "): de ahí sale :placeholder-shown,
+         * que es lo que permite detectar "campo vacío" sin JavaScript. El label va
+         * DESPUÉS del campo para poder seleccionarlo como hermano (~). */
+        .campo-flotante {
+            position: relative;
+            display: block;
+        }
+
+        .campo-flotante + .campo-flotante {
+            margin-top: 0.9rem;
+        }
+
+        .campo-flotante > i {
+            position: absolute;
+            left: 0.9rem;
+            top: 1.05rem;
+            color: var(--text-muted);
+            font-size: 1rem;
+            pointer-events: none;
+            transition: var(--transition-base);
+            z-index: 1;
+        }
+
+        .campo-flotante > input,
+        .campo-flotante > textarea,
+        .campo-flotante > select {
+            width: 100%;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 0.92rem;
+            padding: 1.35rem 0.9rem 0.5rem 2.6rem;
+            transition: var(--transition-base);
+            appearance: none;
+        }
+
+        .campo-flotante > textarea {
+            min-height: 92px;
+            resize: vertical;
+        }
+
+        /* Sin ícono, el texto no necesita el sangrado izquierdo. */
+        .campo-flotante.sin-icono > input,
+        .campo-flotante.sin-icono > textarea,
+        .campo-flotante.sin-icono > select {
+            padding-left: 0.9rem;
+        }
+
+        .campo-flotante.sin-icono > label {
+            left: 0.9rem;
+        }
+
+        .campo-flotante > label {
+            position: absolute;
+            left: 2.6rem;
+            top: 0.95rem;
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            pointer-events: none;
+            transform-origin: left center;
+            transition: var(--transition-base);
+        }
+
+        /* El label sube si el campo tiene foco o ya trae contenido. */
+        .campo-flotante > input:focus ~ label,
+        .campo-flotante > input:not(:placeholder-shown) ~ label,
+        .campo-flotante > textarea:focus ~ label,
+        .campo-flotante > textarea:not(:placeholder-shown) ~ label,
+        .campo-flotante > select:focus ~ label {
+            top: 0.35rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .campo-flotante > input:focus,
+        .campo-flotante > textarea:focus,
+        .campo-flotante > select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        .campo-flotante > input:focus ~ i,
+        .campo-flotante > textarea:focus ~ i,
+        .campo-flotante > select:focus ~ i {
+            color: var(--accent);
+        }
+
+        /* Estado de error */
+        .campo-flotante.con-error > input,
+        .campo-flotante.con-error > textarea,
+        .campo-flotante.con-error > select {
+            border-color: var(--danger);
+            animation: sacudidaCampo 0.34s ease;
+        }
+
+        .campo-flotante.con-error > input:focus,
+        .campo-flotante.con-error > textarea:focus,
+        .campo-flotante.con-error > select:focus {
+            box-shadow: 0 0 0 3px var(--danger-soft);
+        }
+
+        .campo-flotante.con-error > i,
+        .campo-flotante.con-error > label {
+            color: var(--danger);
+        }
+
+        @keyframes sacudidaCampo {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .campo-flotante.con-error > input,
+            .campo-flotante.con-error > textarea,
+            .campo-flotante.con-error > select {
+                animation: none;
+            }
+        }
+
+        /* El mensaje solo ocupa espacio cuando el campo está en error. */
+        .mensaje-error-campo {
+            display: none;
+            color: var(--danger);
+            font-size: 0.76rem;
+            margin-top: 0.3rem;
+        }
+
+        .campo-flotante.con-error .mensaje-error-campo {
+            display: block;
+        }
+
+        /* ---------- 6) Contador (+/-) para cantidades ---------- */
+
+        /* Estructura esperada:
+         *   <div class="stepper-campo">
+         *       <button type="button" class="btn-stepper" data-paso="-1">...</button>
+         *       <input type="number" class="valor-stepper" min="0" ...>
+         *       <button type="button" class="btn-stepper" data-paso="1">...</button>
+         *   </div>
+         * El <input> real se conserva: los formularios lo siguen enviando igual. */
+        .stepper-campo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.6rem 0.9rem;
+        }
+
+        .btn-stepper {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1;
+            flex-shrink: 0;
+            transition: var(--transition-base);
+        }
+
+        .btn-stepper:hover:not(:disabled) {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: var(--text-sobre-accent);
+        }
+
+        .btn-stepper:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .stepper-campo .valor-stepper {
+            width: 5.5rem;
+            background-color: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.45rem;
+            font-weight: 700;
+            text-align: center;
+            padding: 0;
+        }
+
+        .stepper-campo .valor-stepper:focus {
+            outline: none;
+        }
+
+        /* Se ocultan las flechas nativas: las reemplazan los botones. */
+        .stepper-campo .valor-stepper::-webkit-outer-spin-button,
+        .stepper-campo .valor-stepper::-webkit-inner-spin-button {
+            appearance: none;
+            margin: 0;
+        }
+
+        .stepper-campo .valor-stepper[type=number] {
+            appearance: textfield;
+        }
+
+        /* ---------- 7) Interruptor para booleanos ---------- */
+
+        /* El <input type="checkbox"> real sigue ahí, solo que invisible: el
+           formulario se envía igual y el control mantiene foco y teclado. */
+        .interruptor-moderno {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.7rem;
+            cursor: pointer;
+        }
+
+        .interruptor-moderno > input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .interruptor-moderno .pista-interruptor {
+            position: relative;
+            width: 46px;
+            height: 26px;
+            border-radius: 999px;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            transition: var(--transition-base);
+            flex-shrink: 0;
+        }
+
+        .interruptor-moderno .pista-interruptor::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: var(--text-secondary);
+            transition: var(--transition-base);
+        }
+
+        .interruptor-moderno > input[type="checkbox"]:checked + .pista-interruptor {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .interruptor-moderno > input[type="checkbox"]:checked + .pista-interruptor::after {
+            transform: translateX(20px);
+            background-color: var(--text-sobre-accent);
+        }
+
+        .interruptor-moderno > input[type="checkbox"]:focus-visible + .pista-interruptor {
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        .interruptor-moderno > input[type="checkbox"]:disabled + .pista-interruptor {
+            opacity: 0.5;
+        }
+
+        .interruptor-moderno .texto-interruptor {
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        /* ---------- 8) Botón de guardar con estados ---------- */
+
+        .btn-guardar-moderno {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            overflow: hidden;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 0.6rem 1.35rem;
+            font-weight: 600;
+            color: var(--text-sobre-accent);
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            transition: var(--transition-base);
+        }
+
+        /* Brillo diagonal que cruza el botón al pasar el puntero. */
+        .btn-guardar-moderno::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -60%;
+            width: 40%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+            transform: skewX(-20deg);
+            transition: left 0.55s ease;
+            pointer-events: none;
+        }
+
+        .btn-guardar-moderno:hover:not(:disabled)::after {
+            left: 120%;
+        }
+
+        .btn-guardar-moderno:disabled {
+            cursor: not-allowed;
+        }
+
+        /* Estado "guardando": el spinner lo aporta esta clase, el formulario solo
+           agrega/quita .ocupado. */
+        .btn-guardar-moderno.ocupado {
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
+        .btn-guardar-moderno.ocupado .icono-guardar,
+        .btn-guardar-moderno.exito .icono-guardar {
+            display: none;
+        }
+
+        .btn-guardar-moderno.ocupado::before {
+            content: '';
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 2px solid var(--text-sobre-accent);
+            border-top-color: transparent;
+            animation: giroBotonGuardar 0.7s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes giroBotonGuardar {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Estado "guardado": marca de verificación. */
+        .btn-guardar-moderno.exito {
+            background: linear-gradient(135deg, var(--success), var(--success));
+            pointer-events: none;
+        }
+
+        /* \F633 es el glifo de "bi-check-lg" en Bootstrap Icons 1.11.3, el mismo
+           que ya se carga por CDN. Se dibuja desde CSS y no como <i> para que el
+           formulario solo tenga que alternar la clase .exito. */
+        .btn-guardar-moderno.exito::before {
+            content: '\F633';
+            font-family: 'bootstrap-icons';
+            font-size: 1.05rem;
+            line-height: 1;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .btn-guardar-moderno::after,
+            .btn-guardar-moderno.ocupado::before {
+                animation: none;
+                transition: none;
+            }
         }
     </style>
 
@@ -3206,8 +3801,102 @@
             });
         });
 
+        /* ================= CONTADOR (+/-) DE LOS FORMULARIOS MODERNOS =================
+         *
+         * Única pieza de los formularios modernos que necesita JavaScript. Se
+         * engancha por delegación sobre todo el documento, así que cada módulo
+         * solo tiene que escribir el marcado (.stepper-campo con sus .btn-stepper
+         * y su .valor-stepper); no hay que inicializar nada por pantalla, y
+         * funciona igual si el campo aparece dentro de un modal abierto después.
+         *
+         * Los límites salen de los atributos min/max del propio input, que es
+         * donde cada formulario ya declara su validación. No se inventa ninguno.
+         */
+
+        function limitesStepper(campo) {
+            var min = campo.attr('min');
+            var max = campo.attr('max');
+
+            return {
+                min: (min === undefined || min === '') ? null : parseFloat(min),
+                max: (max === undefined || max === '') ? null : parseFloat(max)
+            };
+        }
+
+        /** Apaga el botón que ya no puede avanzar, para que el tope se vea. */
+        function sincronizarStepper(contenedor) {
+            var campo = contenedor.find('.valor-stepper');
+            var limites = limitesStepper(campo);
+            var valor = parseFloat(campo.val());
+
+            if (isNaN(valor)) {
+                return;
+            }
+
+            contenedor.find('.btn-stepper').each(function () {
+                var boton = jQuery(this);
+                var paso = parseFloat(boton.data('paso')) || 1;
+                var destino = valor + paso;
+                var fuera = (limites.min !== null && destino < limites.min) ||
+                            (limites.max !== null && destino > limites.max);
+
+                boton.prop('disabled', fuera);
+            });
+        }
+
+        jQuery(document).on('click', '.btn-stepper', function () {
+            var contenedor = jQuery(this).closest('.stepper-campo');
+            var campo = contenedor.find('.valor-stepper');
+
+            if (campo.length === 0) {
+                return;
+            }
+
+            var paso = parseFloat(jQuery(this).data('paso')) || 1;
+            var limites = limitesStepper(campo);
+            var valor = parseFloat(campo.val());
+
+            // Un campo vacío arranca desde el mínimo declarado, o desde cero.
+            if (isNaN(valor)) {
+                valor = limites.min !== null ? limites.min : 0;
+            }
+
+            var nuevo = valor + paso;
+
+            if (limites.min !== null && nuevo < limites.min) {
+                nuevo = limites.min;
+            }
+
+            if (limites.max !== null && nuevo > limites.max) {
+                nuevo = limites.max;
+            }
+
+            campo.val(nuevo);
+            sincronizarStepper(contenedor);
+
+            // Se avisa como si lo hubiera tecleado el usuario, para que cualquier
+            // validación o cálculo ya enganchado al campo reaccione igual.
+            campo.trigger('change');
+        });
+
+        // Si escriben el número a mano, los topes se recalculan igual.
+        jQuery(document).on('input', '.valor-stepper', function () {
+            sincronizarStepper(jQuery(this).closest('.stepper-campo'));
+        });
+
         jQuery(document).ready(function () {
             cargarProgresoOnboarding();
+
+            jQuery('.stepper-campo').each(function () {
+                sincronizarStepper(jQuery(this));
+            });
+        });
+
+        // Un modal puede traer contadores que aún no existían al cargar la página.
+        jQuery(document).on('shown.bs.modal', function (evento) {
+            jQuery(evento.target).find('.stepper-campo').each(function () {
+                sincronizarStepper(jQuery(this));
+            });
         });
     </script>
 
@@ -3233,11 +3922,26 @@
 
                 badge.text(productos.length > 99 ? '99+' : productos.length).prop('hidden', false);
 
+                // Lo más urgente arriba: primero lo agotado, que ya frena el
+                // trabajo, y después lo que solo tocó el mínimo. Se ordena sobre
+                // una copia para no alterar el arreglo que llegó del servidor.
+                var ordenados = productos.slice().sort(function (uno, otro) {
+                    var pesoUno = uno.urgencia === 'agotado' ? 0 : 1;
+                    var pesoOtro = otro.urgencia === 'agotado' ? 0 : 1;
+
+                    return pesoUno - pesoOtro;
+                });
+
                 var html = '';
-                productos.forEach(function (producto) {
-                    html += '<div class="item-stock-bajo">' +
+                ordenados.forEach(function (producto) {
+                    var agotado = producto.urgencia === 'agotado';
+                    var etiqueta = agotado
+                        ? '<span class="etiqueta-urgencia"><i class="bi bi-x-octagon-fill"></i> Agotado</span>'
+                        : '';
+
+                    html += '<div class="item-stock-bajo ' + (agotado ? 'urgencia-agotado' : 'urgencia-bajo') + '">' +
                         '<div class="info-producto-bajo">' +
-                        '<div class="nombre-producto-bajo">' + jQuery('<div>').text(producto.nombre).html() + '</div>' +
+                        '<div class="nombre-producto-bajo">' + jQuery('<div>').text(producto.nombre).html() + etiqueta + '</div>' +
                         '<div class="detalle-producto-bajo">' + producto.cantidad_actual + ' de ' + producto.cantidad_minima + ' unidades</div>' +
                         '</div>' +
                         '<a class="btn-ingresar-stock-campana" href="' + UrlGlobal + 'backoffice/productos?producto=' + producto.id_producto + '">Ingresar stock</a>' +
@@ -3247,16 +3951,38 @@
                 lista.html(html);
             }
 
+            /**
+             * Refresca el conteo de la campana. Va siempre sin loader y sin avisar
+             * si falla: el usuario no pidió esta consulta, así que un modal de error
+             * (y más aún repetido cada minuto por el sondeo) estorbaría en vez de
+             * ayudar. Si la sesión expiró, el siguiente intento se encarga.
+             */
             function cargarStockBajoCampana() {
                 axiosSipleInterno('GET', 'request/producto/stock-bajo', {}, {}, false, function (respuesta) {
-                    if (respuesta.error == 0) {
+                    if (respuesta && respuesta.error == 0) {
                         pintarPanelCampana(respuesta.data.productos_bajos);
                     }
-                });
+                }, { silenciarError: true });
             }
+
+            /** Cada cuánto se vuelve a consultar el stock bajo, en milisegundos. */
+            var INTERVALO_SONDEO_CAMPANA = 60000;
 
             jQuery(document).ready(function () {
                 cargarStockBajoCampana();
+
+                // Mantiene el badge al día sin recargar la página. Este bloque solo
+                // se imprime para el admin de un negocio, así que para empleado y
+                // super admin el intervalo no llega siquiera a registrarse.
+                setInterval(function () {
+                    // Con la pestaña en segundo plano nadie está viendo el badge:
+                    // se deja pasar el turno y se retoma al volver.
+                    if (document.hidden) {
+                        return;
+                    }
+
+                    cargarStockBajoCampana();
+                }, INTERVALO_SONDEO_CAMPANA);
             });
         </script>
     @endif
