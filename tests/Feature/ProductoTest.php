@@ -377,6 +377,7 @@ class ProductoTest extends TestCase
                 'sku' => 'AAA-1',
                 'cantidad_actual' => 9,
                 'cantidad_minima' => 2,
+                'estado' => 1,
             ]);
 
         $conSuPropio->assertJsonPath('error', 0);
@@ -834,5 +835,157 @@ class ProductoTest extends TestCase
 
         $comoSuperAdmin->assertJsonPath('error', 1);
         $this->assertStringContainsString('cuenta de cada negocio', $comoSuperAdmin->json('mensaje'));
+    }
+
+    /* ================= 14) REACTIVAR UN PRODUCTO DESDE EL MODAL ================= */
+
+    public function test_editar_puede_desactivar_y_luego_reactivar_un_producto(): void
+    {
+        $idProducto = $this->crearProducto($this->negocioA, ['nombre' => 'Shampoo', 'sku' => 'SHAM-001']);
+
+        $desactivar = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/producto/editar', [
+                'id_producto' => $idProducto,
+                'nombre' => 'Shampoo',
+                'sku' => 'SHAM-001',
+                'cantidad_actual' => 10,
+                'cantidad_minima' => 5,
+                'estado' => 0,
+            ]);
+
+        $desactivar->assertJsonPath('error', 0);
+        $this->assertSame(0, DB::table('productos')->where('id_producto', $idProducto)->value('estado'));
+
+        $reactivar = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/producto/editar', [
+                'id_producto' => $idProducto,
+                'nombre' => 'Shampoo',
+                'sku' => 'SHAM-001',
+                'cantidad_actual' => 10,
+                'cantidad_minima' => 5,
+                'estado' => 1,
+            ]);
+
+        $reactivar->assertJsonPath('error', 0);
+        $this->assertSame(1, DB::table('productos')->where('id_producto', $idProducto)->value('estado'));
+    }
+
+    public function test_editar_sin_estado_es_rechazado(): void
+    {
+        $idProducto = $this->crearProducto($this->negocioA, ['nombre' => 'Shampoo', 'sku' => 'SHAM-001']);
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/producto/editar', [
+                'id_producto' => $idProducto,
+                'nombre' => 'Shampoo',
+                'sku' => 'SHAM-001',
+                'cantidad_actual' => 10,
+                'cantidad_minima' => 5,
+            ]);
+
+        $respuesta->assertJsonPath('error', 1);
+    }
+
+    /* ================= 15) FILTRO DE INACTIVOS EN listar() ================= */
+
+    public function test_listar_no_muestra_inactivos_por_defecto(): void
+    {
+        $this->crearProducto($this->negocioA, ['nombre' => 'Activo', 'sku' => 'ACT-001', 'estado' => 1]);
+        $this->crearProducto($this->negocioA, ['nombre' => 'Inactivo', 'sku' => 'INA-001', 'estado' => 0]);
+
+        $listado = $this->svcProducto->listar($this->negocioA);
+
+        $nombres = array_column($listado, 'nombre');
+
+        $this->assertContains('Activo', $nombres);
+        $this->assertNotContains('Inactivo', $nombres);
+        $this->assertCount(1, $listado);
+    }
+
+    public function test_listar_incluye_inactivos_cuando_se_pide_explicitamente(): void
+    {
+        $this->crearProducto($this->negocioA, ['nombre' => 'Activo', 'sku' => 'ACT-001', 'estado' => 1]);
+        $this->crearProducto($this->negocioA, ['nombre' => 'Inactivo', 'sku' => 'INA-001', 'estado' => 0]);
+
+        $listado = $this->svcProducto->listar($this->negocioA, true);
+
+        $nombres = array_column($listado, 'nombre');
+
+        $this->assertContains('Activo', $nombres);
+        $this->assertContains('Inactivo', $nombres);
+        $this->assertCount(2, $listado);
+    }
+
+    public function test_el_endpoint_de_listar_respeta_incluir_inactivos(): void
+    {
+        $this->crearProducto($this->negocioA, ['nombre' => 'Activo', 'sku' => 'ACT-001', 'estado' => 1]);
+        $this->crearProducto($this->negocioA, ['nombre' => 'Inactivo', 'sku' => 'INA-001', 'estado' => 0]);
+
+        $normal = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->getJson('request/producto/listar');
+
+        $normal->assertJsonPath('error', 0);
+        $this->assertCount(1, $normal->json('data.productos'));
+
+        $conInactivos = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->getJson('request/producto/listar?incluir_inactivos=1');
+
+        $conInactivos->assertJsonPath('error', 0);
+        $this->assertCount(2, $conInactivos->json('data.productos'));
+    }
+
+    /* ================= 16) AISLAMIENTO DE TENANT AL CAMBIAR ESTADO ================= */
+
+    public function test_no_se_puede_reactivar_un_producto_de_otro_negocio(): void
+    {
+        $idDelB = $this->crearProducto($this->negocioB, ['nombre' => 'Del B', 'sku' => 'DELB-001', 'estado' => 0]);
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/producto/editar', [
+                'id_producto' => $idDelB,
+                'nombre' => 'Secuestrado',
+                'sku' => 'DELB-001',
+                'cantidad_actual' => 1,
+                'cantidad_minima' => 1,
+                'estado' => 1,
+            ]);
+
+        $respuesta->assertJsonPath('error', 1);
+        // Sigue inactivo y con su nombre original: el negocio A no lo tocó.
+        $this->assertSame(0, DB::table('productos')->where('id_producto', $idDelB)->value('estado'));
+        $this->assertSame('Del B', DB::table('productos')->where('id_producto', $idDelB)->value('nombre'));
+    }
+
+    public function test_no_se_puede_desactivar_un_producto_de_otro_negocio(): void
+    {
+        $idDelB = $this->crearProducto($this->negocioB, ['nombre' => 'Del B', 'sku' => 'DELB-001', 'estado' => 1]);
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/producto/editar', [
+                'id_producto' => $idDelB,
+                'nombre' => 'Secuestrado',
+                'sku' => 'DELB-001',
+                'cantidad_actual' => 1,
+                'cantidad_minima' => 1,
+                'estado' => 0,
+            ]);
+
+        $respuesta->assertJsonPath('error', 1);
+        $this->assertSame(1, DB::table('productos')->where('id_producto', $idDelB)->value('estado'));
+    }
+
+    /**
+     * El aislamiento de listar() con el nuevo parámetro: el negocio B no debe
+     * asomarse en el conteo del A ni siquiera pidiendo los inactivos.
+     */
+    public function test_listar_con_inactivos_no_mezcla_negocios(): void
+    {
+        $this->crearProducto($this->negocioA, ['nombre' => 'Inactivo A', 'sku' => 'A-001', 'estado' => 0]);
+        $this->crearProducto($this->negocioB, ['nombre' => 'Inactivo B', 'sku' => 'B-001', 'estado' => 0]);
+
+        $listadoA = $this->svcProducto->listar($this->negocioA, true);
+
+        $this->assertCount(1, $listadoA);
+        $this->assertSame('Inactivo A', $listadoA[0]['nombre']);
     }
 }

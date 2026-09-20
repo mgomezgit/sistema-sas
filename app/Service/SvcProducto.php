@@ -71,10 +71,16 @@ class SvcProducto
         }
     }
 
-    public function listar($tenantId)
+    /**
+     * Por defecto solo trae los productos activos: un producto dado de baja no
+     * debe seguir apareciendo en el listado normal. $incluirInactivos es la
+     * puerta para verlos igual, por ejemplo desde un filtro "Mostrar inactivos"
+     * en la tabla, o para poder abrir uno en modo edición y reactivarlo.
+     */
+    public function listar($tenantId, $incluirInactivos = false)
     {
         try {
-            return Producto::select(
+            $query = Producto::select(
                 'id_producto',
                 'nombre',
                 'sku',
@@ -83,7 +89,13 @@ class SvcProducto
                 'cantidad_minima',
                 'estado'
             )
-                ->where('tenant_id', $tenantId)
+                ->where('tenant_id', $tenantId);
+
+            if (! $incluirInactivos) {
+                $query->where('estado', 1);
+            }
+
+            return $query
                 ->get()
                 ->toArray() ?? [];
         } catch (\Exception $e) {

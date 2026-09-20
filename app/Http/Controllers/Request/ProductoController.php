@@ -131,6 +131,7 @@ class ProductoController extends Controller
             'sku' => 'required',
             'cantidad_actual' => 'required|numeric|min:0',
             'cantidad_minima' => 'required|numeric|min:0',
+            'estado' => 'required|in:0,1',
         ]);
 
         if (! $this->validateRequestRules()) {
@@ -153,6 +154,7 @@ class ProductoController extends Controller
             'descripcion' => $datos['descripcion'] ?? null,
             'cantidad_actual' => $datos['cantidad_actual'],
             'cantidad_minima' => $datos['cantidad_minima'],
+            'estado' => (int) $datos['estado'],
         ];
 
         $resultado = $this->svcProducto->editar($datos['id_producto'], $info, $tenantId);
@@ -211,8 +213,15 @@ class ProductoController extends Controller
             return $this->sendResponse();
         }
 
+        $datos = $this->getRequestData();
+
+        // "incluir_inactivos=1" es lo que activa el filtro "Mostrar inactivos"
+        // de la tabla. Sin él, un producto dado de baja no aparece: es la única
+        // forma de que desactivar se sienta reversible y no como un borrado.
+        $incluirInactivos = (bool) ($datos['incluir_inactivos'] ?? false);
+
         $this->respSinError();
-        $this->setDataResponse($this->svcProducto->listar($tenantId), 'productos');
+        $this->setDataResponse($this->svcProducto->listar($tenantId, $incluirInactivos), 'productos');
 
         return $this->sendResponse();
     }
