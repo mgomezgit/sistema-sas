@@ -87,6 +87,7 @@ class EmpleadoController extends Controller
             'id_empleado' => 'required',
             'nombre' => 'required',
             'telefono' => 'required',
+            'estado' => 'required|in:0,1',
         ]);
 
         if (! $this->validateRequestRules()) {
@@ -101,8 +102,13 @@ class EmpleadoController extends Controller
             'email' => $datos['email'] ?? null,
             'cargo' => $datos['cargo'] ?? null,
             'porcentaje_comision' => $datos['porcentaje_comision'] ?? null,
+            'estado' => (int) $datos['estado'],
         ];
 
+        // Dar de baja al empleado le revoca también el acceso al sistema: el
+        // Service desactiva en cascada su usuario vinculado, dentro de una sola
+        // transacción. Reactivarlo NO le devuelve el acceso. El detalle y el
+        // porqué de la asimetría están en SvcEmpleado::editar().
         $resultado = $this->svcEmpleado->editar($datos['id_empleado'], $info, $tenantId);
 
         if (! $resultado) {
@@ -159,8 +165,15 @@ class EmpleadoController extends Controller
             return $this->sendResponse();
         }
 
+        $datos = $this->getRequestData();
+
+        // "incluir_inactivos=1" es lo que activa el filtro "Mostrar inactivos"
+        // de la tabla. Sin él, un empleado dado de baja no aparece: es la única
+        // forma de que desactivar se sienta reversible y no como un borrado.
+        $incluirInactivos = (bool) ($datos['incluir_inactivos'] ?? false);
+
         $this->respSinError();
-        $this->setDataResponse($this->svcEmpleado->listar($tenantId), 'empleados');
+        $this->setDataResponse($this->svcEmpleado->listar($tenantId, $incluirInactivos), 'empleados');
 
         return $this->sendResponse();
     }

@@ -192,7 +192,14 @@ class SvcComision
         }
     }
 
-    public function listarTarifasEspecificas($tenantId, $idEmpleado = null)
+    /**
+     * Por defecto solo trae las tarifas activas: una dada de baja ya no manda
+     * sobre el porcentaje general del empleado, así que tampoco debe seguir
+     * ocupando el listado. $incluirInactivas es la puerta para verlas igual,
+     * desde el filtro "Mostrar inactivas" de la pestaña, que es lo único que
+     * permite abrir una en modo edición y volver a activarla.
+     */
+    public function listarTarifasEspecificas($tenantId, $idEmpleado = null, $incluirInactivas = false)
     {
         try {
             $query = ComisionTarifa::from('comisiones_tarifas as ct')
@@ -207,8 +214,11 @@ class SvcComision
                     'ct.porcentaje_comision',
                     'ct.estado'
                 )
-                ->where('ct.tenant_id', $tenantId)
-                ->where('ct.estado', 1);
+                ->where('ct.tenant_id', $tenantId);
+
+            if (! $incluirInactivas) {
+                $query->where('ct.estado', 1);
+            }
 
             if (! empty($idEmpleado)) {
                 $query->where('ct.id_empleado', $idEmpleado);
@@ -230,6 +240,13 @@ class SvcComision
      *
      * Se apoya en el índice único (tenant_id, id_empleado, id_recurso) para
      * que no puedan convivir dos tarifas de la misma combinación.
+     *
+     * Esta es también la vía de reactivación: $info['estado'] llega desde el
+     * interruptor del modal, así que poner en 1 una tarifa dada de baja la
+     * devuelve al listado con el porcentaje que se esté guardando. Si no viene
+     * el dato se asume 1, que es el caso de un alta y también el de volver a
+     * guardar la misma combinación empleado+servicio desde "Nueva tarifa":
+     * ahí no hay interruptor, y guardar sobre una baja siempre la reactiva.
      */
     public function guardarTarifaEspecifica($tenantId, $info): bool
     {
@@ -244,8 +261,7 @@ class SvcComision
                     'porcentaje_comision' => $info['porcentaje_comision'],
                     'usuario_registra' => $info['usuario_registra'] ?? null,
                     'fecha_registro' => date('Y-m-d H:i:s'),
-                    // Guardar sobre una tarifa dada de baja la reactiva.
-                    'estado' => 1,
+                    'estado' => array_key_exists('estado', $info) ? (int) $info['estado'] : 1,
                 ]
             );
 

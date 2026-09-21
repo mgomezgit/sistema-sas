@@ -117,9 +117,18 @@ class ComisionController extends Controller
             return $this->sendResponse();
         }
 
+        // "incluir_inactivas=1" es lo que activa el filtro "Mostrar inactivas"
+        // de la pestaña. Sin él, una tarifa dada de baja no aparece: es la
+        // única forma de que darla de baja se sienta reversible.
+        $incluirInactivas = (bool) $this->request->query('incluir_inactivas');
+
         $this->respSinError();
         $this->setDataResponse(
-            $this->svcComision->listarTarifasEspecificas($tenantId, $this->request->query('id_empleado') ?: null),
+            $this->svcComision->listarTarifasEspecificas(
+                $tenantId,
+                $this->request->query('id_empleado') ?: null,
+                $incluirInactivas
+            ),
             'tarifas'
         );
 
@@ -140,6 +149,9 @@ class ComisionController extends Controller
             'id_empleado' => 'required',
             'id_recurso' => 'required',
             'porcentaje_comision' => 'required|numeric|min:0|max:100',
+            // Solo lo manda el modal en modo edición, que es donde existe el
+            // interruptor. Un alta no lo trae y nace activa.
+            'estado' => 'sometimes|in:0,1',
         ]);
 
         if (! $this->validateRequestRules()) {
@@ -148,12 +160,18 @@ class ComisionController extends Controller
 
         $datos = $this->getRequestData();
 
-        $resultado = $this->svcComision->guardarTarifaEspecifica($tenantId, [
+        $info = [
             'id_empleado' => $datos['id_empleado'],
             'id_recurso' => $datos['id_recurso'],
             'porcentaje_comision' => $datos['porcentaje_comision'],
             'usuario_registra' => session('nombre_usuario'),
-        ]);
+        ];
+
+        if (array_key_exists('estado', $datos)) {
+            $info['estado'] = (int) $datos['estado'];
+        }
+
+        $resultado = $this->svcComision->guardarTarifaEspecifica($tenantId, $info);
 
         if (! $resultado) {
             $this->agregarErrorSistema('COM-TARIFA-GUARDAR');

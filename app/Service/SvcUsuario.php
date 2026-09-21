@@ -99,7 +99,13 @@ class SvcUsuario
         }
     }
 
-    public function listar($tenantId = null)
+    /**
+     * Por defecto solo trae las cuentas activas: una dada de baja no debe seguir
+     * apareciendo en el listado normal. $incluirInactivos es la puerta para
+     * verlas igual, por ejemplo desde un filtro "Mostrar inactivos" en la tabla,
+     * o para poder abrir una en modo edición y reactivarla.
+     */
+    public function listar($tenantId = null, $incluirInactivos = false)
     {
         try {
             $query = Usuario::from('usuarios as u')
@@ -119,6 +125,10 @@ class SvcUsuario
 
             if ($tenantId !== null) {
                 $query->where('u.tenant_id', $tenantId);
+            }
+
+            if (! $incluirInactivos) {
+                $query->where('u.estado', 1);
             }
 
             return $query->get()->toArray() ?? [];

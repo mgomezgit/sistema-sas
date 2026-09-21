@@ -79,6 +79,7 @@ class ClienteController extends Controller
             'id_cliente' => 'required',
             'nombre' => 'required',
             'telefono' => 'required',
+            'estado' => 'required|in:0,1',
         ]);
 
         if (! $this->validateRequestRules()) {
@@ -94,6 +95,7 @@ class ClienteController extends Controller
             'documento_identidad' => $datos['documento_identidad'] ?? null,
             'fecha_nacimiento' => $datos['fecha_nacimiento'] ?? null,
             'notas' => $datos['notas'] ?? null,
+            'estado' => (int) $datos['estado'],
         ];
 
         $resultado = $this->svcCliente->editar($datos['id_cliente'], $info, $tenantId);
@@ -152,8 +154,15 @@ class ClienteController extends Controller
             return $this->sendResponse();
         }
 
+        $datos = $this->getRequestData();
+
+        // "incluir_inactivos=1" es lo que activa el filtro "Mostrar inactivos"
+        // de la tabla. Sin él, un cliente dado de baja no aparece: es la única
+        // forma de que desactivar se sienta reversible y no como un borrado.
+        $incluirInactivos = (bool) ($datos['incluir_inactivos'] ?? false);
+
         $this->respSinError();
-        $this->setDataResponse($this->svcCliente->listar($tenantId), 'clientes');
+        $this->setDataResponse($this->svcCliente->listar($tenantId, $incluirInactivos), 'clientes');
 
         return $this->sendResponse();
     }

@@ -2543,6 +2543,24 @@
             color: var(--accent);
         }
 
+        /* Un <select> siempre muestra una opción, así que su etiqueta tiene que
+           vivir arriba desde el principio: si esperara al foco, como hacen los
+           campos de texto, se encimaría sobre el valor ya elegido. Solo baja
+           cuando el select está en la opción vacía de "Seleccione...", que es
+           el único caso en que se comporta como un campo sin contenido. */
+        .campo-flotante > select ~ label {
+            top: 0.35rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .campo-flotante > select:not(:focus):has(option[value=""]:checked) ~ label {
+            top: 0.95rem;
+            font-size: 0.92rem;
+            font-weight: 400;
+            color: var(--text-muted);
+        }
+
         .campo-flotante > input:focus,
         .campo-flotante > textarea:focus,
         .campo-flotante > select:focus {

@@ -31,7 +31,6 @@
             padding: 1.25rem 1.5rem;
         }
 
-        #modal-empleado .modal-title i,
         #modal-acceso .modal-title i {
             color: var(--accent);
         }
@@ -44,6 +43,51 @@
             color: var(--text-primary);
             font-weight: 600;
         }
+
+        /* El contador no lleva label flotante, así que el nombre del campo va
+           encima, con el mismo peso que las etiquetas de sección. */
+        .rotulo-stepper {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            text-align: center;
+        }
+
+        .ayuda-campo {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin-top: 0.3rem;
+        }
+
+        /* Avisos sobre el acceso al sistema: el de revocar pesa más (--danger)
+           que el meramente informativo de la reactivación. */
+        .aviso-acceso {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            border-radius: var(--radius-sm);
+            padding: 0.65rem 0.8rem;
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            line-height: 1.45;
+        }
+
+        .aviso-acceso i {
+            flex-shrink: 0;
+            font-size: 0.95rem;
+            margin-top: 0.05rem;
+        }
+
+        .aviso-revocar {
+            background-color: var(--danger-soft);
+            color: var(--danger);
+        }
+
+        .aviso-reactivar {
+            background-color: var(--bg-input);
+            color: var(--text-secondary);
+        }
     </style>
 @endsection
 
@@ -53,9 +97,16 @@
             <h2 class="titulo-pagina">Empleados</h2>
             <p class="subtitulo-pagina">Gestiona el personal de tu negocio y sus accesos al sistema.</p>
         </div>
-        <button type="button" id="btn-nuevo-empleado" class="btn-primario-accento" data-bs-toggle="modal" data-bs-target="#modal-empleado">
-            <i class="bi bi-person-plus"></i> Nuevo empleado
-        </button>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <label class="interruptor-moderno" id="filtro-mostrar-inactivos">
+                <input type="checkbox" id="chk-mostrar-inactivos">
+                <span class="pista-interruptor"></span>
+                <span class="texto-interruptor">Mostrar inactivos</span>
+            </label>
+            <button type="button" id="btn-nuevo-empleado" class="btn-primario-accento" data-bs-toggle="modal" data-bs-target="#modal-empleado">
+                <i class="bi bi-person-plus"></i> Nuevo empleado
+            </button>
+        </div>
     </div>
 
     <div class="card-elevada card-tabla">
@@ -78,50 +129,102 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modal-empleado" tabindex="-1" aria-hidden="true">
+    <div class="modal fade modal-moderno" id="modal-empleado" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title d-flex align-items-center gap-2">
-                        <i class="bi bi-person-badge"></i>
-                        <span id="modal-empleado-titulo-texto">Nuevo empleado</span>
-                    </h5>
+                <div class="modal-header-moderno">
+                    <span class="insignia-encabezado"><i class="bi bi-person-badge"></i></span>
+                    <div>
+                        <h5 class="titulo-modal-moderno" id="modal-empleado-titulo-texto">Nuevo empleado</h5>
+                        <p class="subtitulo-modal-moderno" id="modal-empleado-subtitulo">Suma a alguien de tu equipo</p>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="contenedor-form-empleado">
                         <input type="hidden" id="id_empleado" name="id_empleado">
 
-                        <div class="mb-3">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" id="nombre" name="nombre" maxlength="150" class="form-control system_validador_vacio">
+                        <div class="tarjeta-seccion-form">
+                            <div class="etiqueta-seccion-form">Información personal</div>
+
+                            <div class="campo-flotante">
+                                <i class="bi bi-person"></i>
+                                <input type="text" id="nombre" name="nombre" maxlength="150" placeholder=" " class="system_validador_vacio">
+                                <label for="nombre">Nombre</label>
+                            </div>
+
+                            <div class="campo-flotante mt-3">
+                                <i class="bi bi-telephone"></i>
+                                <input type="text" id="telefono" name="telefono" maxlength="30" placeholder=" " class="system_validador_vacio">
+                                <label for="telefono">Teléfono</label>
+                            </div>
+
+                            <div class="campo-flotante mt-3">
+                                <i class="bi bi-envelope"></i>
+                                <input type="email" id="email" name="email" maxlength="150" placeholder=" ">
+                                <label for="email">Email</label>
+                            </div>
+
+                            <div class="campo-flotante mt-3">
+                                <i class="bi bi-briefcase"></i>
+                                <input type="text" id="cargo" name="cargo" maxlength="100" placeholder=" ">
+                                <label for="cargo">Cargo</label>
+                            </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Teléfono</label>
-                            <input type="text" id="telefono" name="telefono" maxlength="30" class="form-control system_validador_vacio">
+                        <div class="tarjeta-seccion-form">
+                            <div class="etiqueta-seccion-form">Comisión</div>
+
+                            <div class="rotulo-stepper">Porcentaje de comisión</div>
+                            <div class="stepper-campo">
+                                <button type="button" class="btn-stepper" data-paso="-0.5" aria-label="Restar medio punto">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <input type="number" id="porcentaje_comision" name="porcentaje_comision" min="0" max="100" step="0.5" class="valor-stepper">
+                                <button type="button" class="btn-stepper" data-paso="0.5" aria-label="Sumar medio punto">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                            <div class="ayuda-campo mt-2 text-center">
+                                Se ajusta de medio en medio punto porcentual, de 0% a 100%.
+                            </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Email</label>
-                            <input type="email" id="email" name="email" maxlength="150" class="form-control">
-                        </div>
+                        {{-- Solo tiene sentido al editar: un empleado recién creado siempre
+                             nace activo, así que aquí no se le pregunta nada al usuario. --}}
+                        <div class="tarjeta-seccion-form" id="seccion-estado-empleado" hidden>
+                            <div class="etiqueta-seccion-form">Estado</div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Cargo</label>
-                            <input type="text" id="cargo" name="cargo" maxlength="100" class="form-control">
-                        </div>
+                            <label class="interruptor-moderno">
+                                <input type="checkbox" id="estado_empleado">
+                                <span class="pista-interruptor"></span>
+                                <span class="texto-interruptor" id="texto-estado-empleado">Empleado activo</span>
+                            </label>
 
-                        <div class="mb-3">
-                            <label class="form-label">Porcentaje de comisión</label>
-                            <input type="number" id="porcentaje_comision" name="porcentaje_comision" step="0.01" min="0" max="100" class="form-control">
+                            <div class="ayuda-campo mt-2">
+                                Un empleado inactivo deja de aparecer en el listado, pero puede reactivarse en cualquier momento desde aquí.
+                            </div>
+
+                            {{-- Solo para empleados con acceso al sistema: se avisa en el
+                                 momento, antes de guardar, de que la baja también le quita
+                                 la cuenta. --}}
+                            <div class="aviso-acceso aviso-revocar" id="aviso-revocar-acceso" hidden>
+                                <i class="bi bi-shield-exclamation"></i>
+                                <span>Este empleado tiene acceso al sistema. Al desactivarlo también se desactivará su usuario y no podrá volver a iniciar sesión.</span>
+                            </div>
+
+                            <div class="aviso-acceso aviso-reactivar" id="aviso-reactivar-acceso" hidden>
+                                <i class="bi bi-info-circle"></i>
+                                <span>Reactivar al empleado no le devuelve el acceso al sistema. Si necesita volver a entrar, reactiva su usuario desde el módulo de Usuarios.</span>
+                            </div>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" id="btn-guardar-empleado" class="btn-primario-accento">
-                        <i class="bi bi-check2"></i> Guardar
+                    <button type="button" id="btn-guardar-empleado" class="btn-guardar-moderno">
+                        <i class="bi bi-check2 icono-guardar"></i>
+                        <span id="texto-btn-guardar">Guardar</span>
                     </button>
                 </div>
             </div>
@@ -190,7 +293,9 @@
         }
 
         function cargarEmpleados() {
-            axiosSipleInterno('GET', 'request/empleado/listar', {}, {}, true, function (respuesta) {
+            var incluirInactivos = jQuery('#chk-mostrar-inactivos').is(':checked') ? 1 : 0;
+
+            axiosSipleInterno('GET', 'request/empleado/listar', { incluir_inactivos: incluirInactivos }, {}, true, function (respuesta) {
                 if (respuesta.error == 0) {
                     pintarTablaEmpleados(respuesta.data.empleados);
                 } else {
@@ -198,6 +303,11 @@
                 }
             });
         }
+
+        // "Mostrar inactivos": vuelve a pedir el listado con el filtro nuevo.
+        jQuery('#chk-mostrar-inactivos').on('change', function () {
+            cargarEmpleados();
+        });
 
         function pintarTablaEmpleados(empleados) {
             if (tablaEmpleados) {
@@ -268,15 +378,67 @@
             });
         }
 
+        /**
+         * Los tres estados del botón de guardar que define el kit: normal,
+         * "ocupado" (con su spinner) y "exito" (con su check).
+         */
+        function estadoBotonGuardar(estado) {
+            var boton = jQuery('#btn-guardar-empleado');
+
+            boton.removeClass('ocupado exito');
+
+            if (estado === 'ocupado') {
+                boton.addClass('ocupado');
+                jQuery('#texto-btn-guardar').text('Guardando');
+            } else if (estado === 'exito') {
+                boton.addClass('exito');
+                jQuery('#texto-btn-guardar').text('Guardado');
+            } else {
+                jQuery('#texto-btn-guardar').text('Guardar');
+            }
+        }
+
+        /**
+         * Si el empleado que se está editando tiene acceso al sistema, el
+         * interruptor deja de ser inocuo: apagarlo también le quita la cuenta.
+         * Se guarda aquí para decidir qué avisos mostrar y si hay que confirmar.
+         */
+        var empleadoEnEdicionTieneAcceso = false;
+
+        /** Refleja el estado en el interruptor, su texto y los avisos de acceso. */
+        function establecerEstadoEmpleado(activo) {
+            jQuery('#estado_empleado').prop('checked', activo);
+            jQuery('#texto-estado-empleado').text(activo ? 'Empleado activo' : 'Empleado inactivo');
+
+            // Sin acceso vinculado no hay nada que advertir: el interruptor solo
+            // afecta al listado.
+            jQuery('#aviso-revocar-acceso').prop('hidden', !(empleadoEnEdicionTieneAcceso && !activo));
+            jQuery('#aviso-reactivar-acceso').prop('hidden', !(empleadoEnEdicionTieneAcceso && activo));
+        }
+
+        jQuery('#estado_empleado').on('change', function () {
+            establecerEstadoEmpleado(jQuery(this).is(':checked'));
+        });
+
         function limpiarFormularioEmpleado() {
             jQuery('#id_empleado').val('');
             jQuery('#nombre').val('');
             jQuery('#telefono').val('');
             jQuery('#email').val('');
             jQuery('#cargo').val('');
-            jQuery('#porcentaje_comision').val('');
+            // El contador arranca en 0 y no vacío: un stepper sin número se ve
+            // roto. 0% de comisión es además el valor que ya se usa cuando el
+            // campo está en NULL (Comisiones lo trata igual con COALESCE a 0),
+            // así que no cambia ningún cálculo real.
+            jQuery('#porcentaje_comision').val(0);
             jQuery('#contenedor-form-empleado .input_vacio').removeClass('input_vacio');
             jQuery('#contenedor-form-empleado #system_validador').remove();
+            estadoBotonGuardar('normal');
+            // Se limpia antes de pintar el interruptor: si quedara el valor del
+            // empleado anterior, se mostraría un aviso que no corresponde.
+            empleadoEnEdicionTieneAcceso = false;
+            establecerEstadoEmpleado(true);
+            jQuery('#seccion-estado-empleado').prop('hidden', true);
         }
 
         function limpiarFormularioAcceso() {
@@ -292,6 +454,7 @@
         jQuery('#btn-nuevo-empleado').on('click', function () {
             modoFormularioEmpleado = 'crear';
             jQuery('#modal-empleado-titulo-texto').text('Nuevo empleado');
+            jQuery('#modal-empleado-subtitulo').text('Suma a alguien de tu equipo');
             limpiarFormularioEmpleado();
         });
 
@@ -300,6 +463,7 @@
 
             modoFormularioEmpleado = 'editar';
             jQuery('#modal-empleado-titulo-texto').text('Editar empleado');
+            jQuery('#modal-empleado-subtitulo').text('Actualiza los datos de "' + fila.nombre + '"');
             limpiarFormularioEmpleado();
 
             jQuery('#id_empleado').val(fila.id_empleado);
@@ -307,7 +471,15 @@
             jQuery('#telefono').val(fila.telefono);
             jQuery('#email').val(fila.email);
             jQuery('#cargo').val(fila.cargo);
-            jQuery('#porcentaje_comision').val(fila.porcentaje_comision);
+            // NULL y 0 valen lo mismo para Comisiones (COALESCE de por medio), así
+            // que un empleado sin comisión asignada precarga el contador en 0.
+            jQuery('#porcentaje_comision').val(fila.porcentaje_comision !== null ? fila.porcentaje_comision : 0);
+
+            // El interruptor solo aparece al editar: un empleado nuevo siempre
+            // nace activo, así que no hay nada que preguntar en ese momento.
+            jQuery('#seccion-estado-empleado').prop('hidden', false);
+            empleadoEnEdicionTieneAcceso = !!fila.id_usuario;
+            establecerEstadoEmpleado(fila.estado == 1);
 
             var modalEmpleado = new bootstrap.Modal(document.getElementById('modal-empleado'));
             modalEmpleado.show();
@@ -330,11 +502,18 @@
         });
 
         jQuery('#tabla-empleados').on('click', '.btn-eliminar-empleado', function () {
-            var idEmpleado = jQuery(this).data('id_empleado');
+            var fila = tablaEmpleados.row(jQuery(this).closest('tr')).data();
+            var idEmpleado = fila.id_empleado;
+
+            // La papelera también da de baja, así que arrastra la misma cascada
+            // que el interruptor: si hay acceso vinculado, hay que decirlo.
+            var textoEliminar = fila.id_usuario
+                ? 'Este empleado tiene acceso al sistema.<br>Su usuario también quedará inactivo y <b>no podrá volver a iniciar sesión</b>.'
+                : 'El empleado dejará de aparecer en el listado.';
 
             Swal.fire({
                 title: '¿Eliminar empleado?',
-                text: 'Esta acción no se puede deshacer',
+                html: textoEliminar,
                 icon: 'warning',
                 background: colorVariable('--bg-card'),
                 color: colorVariable('--text-primary'),
@@ -356,6 +535,9 @@
             });
         });
 
+        /** Cuánto se deja ver el check de "Guardado" antes de cerrar, en ms. */
+        var ESPERA_CONFIRMACION_GUARDADO = 700;
+
         jQuery('#btn-guardar-empleado').on('click', function () {
             if (!system_validarcampos('contenedor-form-empleado', 1)) {
                 return;
@@ -371,21 +553,77 @@
                 }
             }
 
-            var url = modoFormularioEmpleado === 'crear' ? 'request/empleado/crear' : 'request/empleado/editar';
+            // El checkbox del interruptor no lleva "name" a propósito, para que
+            // serializeObject no lo confunda con un checkbox nativo (que solo se
+            // envía si está marcado). Se agrega aquí siempre como 0/1 explícito;
+            // crear() lo ignora porque un empleado nuevo siempre nace activo.
+            datos.estado = jQuery('#estado_empleado').is(':checked') ? 1 : 0;
 
-            axiosSipleInterno('POST', url, {}, datos, true, function (respuesta) {
-                if (respuesta.error == 0) {
-                    var modalEmpleado = bootstrap.Modal.getInstance(document.getElementById('modal-empleado'));
-                    if (modalEmpleado) {
-                        modalEmpleado.hide();
-                    }
-                    cargarEmpleados();
-                    avisarGuardado(modoFormularioEmpleado === 'crear' ? 'Empleado creado correctamente' : 'Empleado actualizado correctamente');
-                } else {
-                    notificarUsuario(respuesta.mensaje, 'error');
+            // Dar de baja a alguien con acceso le quita la cuenta: se confirma
+            // antes, porque es una consecuencia que no se deshace sola.
+            var revocaAcceso = modoFormularioEmpleado === 'editar'
+                && empleadoEnEdicionTieneAcceso
+                && datos.estado === 0;
+
+            if (! revocaAcceso) {
+                enviarFormularioEmpleado(datos);
+
+                return;
+            }
+
+            Swal.fire({
+                title: '¿Desactivar y quitar el acceso?',
+                html: 'Este empleado tiene acceso al sistema.<br>Al desactivarlo, su usuario también quedará inactivo y <b>no podrá volver a iniciar sesión</b>.<br><br>Para devolverle el acceso más adelante tendrás que reactivar su usuario desde el módulo de Usuarios.',
+                icon: 'warning',
+                background: colorVariable('--bg-card'),
+                color: colorVariable('--text-primary'),
+                confirmButtonColor: colorVariable('--danger'),
+                showCancelButton: true,
+                confirmButtonText: 'Sí, desactivar y quitar el acceso',
+                cancelButtonText: 'Cancelar'
+            }).then(function (resultado) {
+                if (resultado.isConfirmed) {
+                    enviarFormularioEmpleado(datos);
                 }
             });
         });
+
+        /** Envío del formulario ya validado y confirmado. */
+        function enviarFormularioEmpleado(datos) {
+            var url = modoFormularioEmpleado === 'crear' ? 'request/empleado/crear' : 'request/empleado/editar';
+
+            // El propio botón hace de indicador, así que no se levanta el loader
+            // que tapa la pantalla: el formulario sigue a la vista.
+            estadoBotonGuardar('ocupado');
+
+            axiosSipleInterno('POST', url, {}, datos, false, function (respuesta) {
+                if (!respuesta || respuesta.error != 0) {
+                    estadoBotonGuardar('normal');
+
+                    if (respuesta) {
+                        notificarUsuario(respuesta.mensaje, 'error');
+                    }
+
+                    return;
+                }
+
+                estadoBotonGuardar('exito');
+
+                // Un respiro para que se vea el check antes de que el panel se
+                // cierre; sin esto el estado de éxito pasaría inadvertido.
+                setTimeout(function () {
+                    var modalEmpleado = bootstrap.Modal.getInstance(document.getElementById('modal-empleado'));
+
+                    if (modalEmpleado) {
+                        modalEmpleado.hide();
+                    }
+
+                    estadoBotonGuardar('normal');
+                    cargarEmpleados();
+                    avisarGuardado(modoFormularioEmpleado === 'crear' ? 'Empleado creado correctamente' : 'Empleado actualizado correctamente');
+                }, ESPERA_CONFIRMACION_GUARDADO);
+            });
+        }
 
         jQuery('#btn-guardar-acceso').on('click', function () {
             if (!system_validarcampos('contenedor-form-acceso', 1)) {

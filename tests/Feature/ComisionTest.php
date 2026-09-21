@@ -504,6 +504,183 @@ class ComisionTest extends TestCase
         $this->assertSame(1, DB::table('comisiones_tarifas')->where('id_comision_tarifa', $idTarifaB)->value('estado'));
     }
 
+    /**
+     * El listado esconde las tarifas dadas de baja salvo que se pidan.
+     *
+     * Es lo que sostiene el filtro "Mostrar inactivas" de la pestaña: sin él,
+     * dar de baja una tarifa se sentiría como borrarla, porque no habría forma
+     * de volver a encontrarla para reactivarla.
+     */
+    public function test_listar_tarifas_no_muestra_inactivas_por_defecto_pero_si_al_pedirlas(): void
+    {
+        $sesion = $this->sesionAdmin($this->negocioA);
+
+        $idActiva = $this->crearTarifaEspecifica($this->negocioA, $this->idEmpleadoA, $this->idMasajeA, 25);
+        $idInactiva = $this->crearTarifaEspecifica($this->negocioA, $this->idEmpleadoA, $this->idFacialA, 30);
+
+        $this->withSession($sesion)
+            ->postJson('request/comisiones/tarifas/eliminar', ['id_comision_tarifa' => $idInactiva])
+            ->assertJsonPath('error', 0);
+
+        $porDefecto = $this->withSession($sesion)
+            ->getJson('request/comisiones/tarifas')
+            ->json('data.tarifas');
+
+        $this->assertCount(1, $porDefecto);
+        $this->assertSame($idActiva, $porDefecto[0]['id_comision_tarifa']);
+
+        $conInactivas = $this->withSession($sesion)
+            ->getJson('request/comisiones/tarifas?incluir_inactivas=1')
+            ->json('data.tarifas');
+
+        $this->assertCount(2, $conInactivas);
+
+        $estados = collect($conInactivas)->pluck('estado', 'id_comision_tarifa');
+        $this->assertSame(1, (int) $estados[$idActiva]);
+        $this->assertSame(0, (int) $estados[$idInactiva]);
+    }
+
+    /**
+     * Reactivar una tarifa dada de baja es guardar con estado = 1.
+     *
+     * Además de volver al listado, tiene que volver a mandar sobre el
+     * porcentaje general del empleado: si el informe siguiera calculando con
+     * el 10% general, la reactivación sería solo cosmética.
+     */
+    public function test_guardar_con_estado_1_reactiva_una_tarifa_dada_de_baja(): void
+    {
+        $sesion = $this->sesionAdmin($this->negocioA);
+
+        $idTarifa = $this->crearTarifaEspecifica($this->negocioA, $this->idEmpleadoA, $this->idMasajeA, 25);
+        $this->crearReserva($this->negocioA, $this->idClienteA, $this->idMasajeA, $this->idEmpleadoA);
+
+        $this->withSession($sesion)
+            ->postJson('request/comisiones/tarifas/eliminar', ['id_comision_tarifa' => $idTarifa])
+            ->assertJsonPath('error', 0);
+
+        // Dada de baja manda el 10% general: 100.000 * 10% = 10.000.
+        $sinTarifa = $this->informeComo($sesion)->json('data.comisiones');
+        $this->assertEquals(10000, $sinTarifa[0]['total_comision']);
+
+        $this->withSession($sesion)->postJson('request/comisiones/tarifas/guardar', [
+            'id_empleado' => $this->idEmpleadoA,
+            'id_recurso' => $this->idMasajeA,
+            'porcentaje_comision' => 25,
+            'estado' => 1,
+        ])->assertJsonPath('error', 0);
+
+        $this->assertSame(1, (int) DB::table('comisiones_tarifas')->where('id_comision_tarifa', $idTarifa)->value('estado'));
+        // Y no se creó una segunda tarifa para el mismo par empleado+servicio.
+        $this->assertSame(1, DB::table('comisiones_tarifas')->count());
+
+        $reactivada = $this->withSession($sesion)
+            ->getJson('request/comisiones/tarifas')
+            ->json('data.tarifas');
+        $this->assertCount(1, $reactivada);
+
+        // Y vuelve a mandar sobre el general: 100.000 * 25% = 25.000.
+        $conTarifa = $this->informeComo($sesion)->json('data.comisiones');
+        $this->assertEquals(25000, $conTarifa[0]['total_comision']);
+    }
+
+    /**
+     * El interruptor del modal también da de baja, no solo la papelera.
+     */
+    public function test_guardar_con_estado_0_da_de_baja_la_tarifa(): void
+    {
+        $sesion = $this->sesionAdmin($this->negocioA);
+
+        $idTarifa = $this->crearTarifaEspecifica($this->negocioA, $this->idEmpleadoA, $this->idMasajeA, 25);
+
+        $this->withSession($sesion)->postJson('request/comisiones/tarifas/guardar', [
+            'id_empleado' => $this->idEmpleadoA,
+            'id_recurso' => $this->idMasajeA,
+            'porcentaje_comision' => 25,
+            'estado' => 0,
+        ])->assertJsonPath('error', 0);
+
+        $this->assertSame(0, (int) DB::table('comisiones_tarifas')->where('id_comision_tarifa', $idTarifa)->value('estado'));
+
+        $this->assertCount(0, $this->withSession($sesion)
+            ->getJson('request/comisiones/tarifas')
+            ->json('data.tarifas'));
+    }
+
+    /**
+     * Un alta no manda estado y tiene que nacer activa.
+     */
+    public function test_una_tarifa_nueva_nace_activa_sin_mandar_estado(): void
+    {
+        $sesion = $this->sesionAdmin($this->negocioA);
+
+        $this->withSession($sesion)->postJson('request/comisiones/tarifas/guardar', [
+            'id_empleado' => $this->idEmpleadoA,
+            'id_recurso' => $this->idMasajeA,
+            'porcentaje_comision' => 25,
+        ])->assertJsonPath('error', 0);
+
+        $this->assertSame(1, (int) DB::table('comisiones_tarifas')->value('estado'));
+    }
+
+    public function test_guardar_tarifa_con_un_estado_invalido_es_rechazado(): void
+    {
+        $sesion = $this->sesionAdmin($this->negocioA);
+
+        $idTarifa = $this->crearTarifaEspecifica($this->negocioA, $this->idEmpleadoA, $this->idMasajeA, 25);
+
+        $this->withSession($sesion)->postJson('request/comisiones/tarifas/guardar', [
+            'id_empleado' => $this->idEmpleadoA,
+            'id_recurso' => $this->idMasajeA,
+            'porcentaje_comision' => 25,
+            'estado' => 7,
+        ])->assertJsonPath('error', 1);
+
+        $this->assertSame(1, (int) DB::table('comisiones_tarifas')->where('id_comision_tarifa', $idTarifa)->value('estado'));
+    }
+
+    /**
+     * El filtro de inactivas no puede convertirse en una rendija para ver las
+     * tarifas de otro negocio: sigue acotado al tenant de la sesión.
+     */
+    public function test_listar_con_inactivas_no_mezcla_negocios(): void
+    {
+        $idInactivaB = $this->crearTarifaEspecifica($this->negocioB, $this->idEmpleadoB, $this->idServicioB, 40);
+        DB::table('comisiones_tarifas')->where('id_comision_tarifa', $idInactivaB)->update(['estado' => 0]);
+
+        $idInactivaA = $this->crearTarifaEspecifica($this->negocioA, $this->idEmpleadoA, $this->idMasajeA, 25);
+        DB::table('comisiones_tarifas')->where('id_comision_tarifa', $idInactivaA)->update(['estado' => 0]);
+
+        $tarifasA = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->getJson('request/comisiones/tarifas?incluir_inactivas=1')
+            ->json('data.tarifas');
+
+        $this->assertCount(1, $tarifasA);
+        $this->assertSame($idInactivaA, $tarifasA[0]['id_comision_tarifa']);
+    }
+
+    /**
+     * Reactivar no puede servir para resucitar la tarifa de otro negocio.
+     *
+     * El tenant sale de la sesión, así que guardar "la tarifa de B" desde A
+     * crearía una tarifa propia de A, nunca tocaría la de B.
+     */
+    public function test_no_se_puede_reactivar_la_tarifa_de_otro_negocio(): void
+    {
+        $idTarifaB = $this->crearTarifaEspecifica($this->negocioB, $this->idEmpleadoB, $this->idServicioB, 40);
+        DB::table('comisiones_tarifas')->where('id_comision_tarifa', $idTarifaB)->update(['estado' => 0]);
+
+        $this->withSession($this->sesionAdmin($this->negocioA))->postJson('request/comisiones/tarifas/guardar', [
+            'id_empleado' => $this->idEmpleadoB,
+            'id_recurso' => $this->idServicioB,
+            'porcentaje_comision' => 40,
+            'estado' => 1,
+            // Aunque se intente forzar el negocio por el cuerpo.
+            'tenant_id' => $this->negocioB,
+        ]);
+
+        $this->assertSame(0, (int) DB::table('comisiones_tarifas')->where('id_comision_tarifa', $idTarifaB)->value('estado'));
+    }
+
     public function test_guardar_tarifa_actualiza_la_existente_en_vez_de_duplicarla(): void
     {
         $sesion = $this->sesionAdmin($this->negocioA);

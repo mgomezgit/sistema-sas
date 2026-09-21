@@ -60,10 +60,16 @@ class SvcRecursoReservable
         }
     }
 
-    public function listar($tenantId)
+    /**
+     * Por defecto solo trae los recursos activos: uno dado de baja no debe
+     * seguir apareciendo en el listado normal. $incluirInactivos es la puerta
+     * para verlos igual, por ejemplo desde un filtro "Mostrar inactivos" en la
+     * tabla, o para poder abrir uno en modo edición y reactivarlo.
+     */
+    public function listar($tenantId, $incluirInactivos = false)
     {
         try {
-            return RecursoReservable::select(
+            $query = RecursoReservable::select(
                 'id_recurso',
                 'categoria',
                 'nombre',
@@ -73,7 +79,13 @@ class SvcRecursoReservable
                 'capacidad',
                 'estado'
             )
-                ->where('tenant_id', $tenantId)
+                ->where('tenant_id', $tenantId);
+
+            if (! $incluirInactivos) {
+                $query->where('estado', 1);
+            }
+
+            return $query
                 ->get()
                 ->toArray() ?? [];
         } catch (\Exception $e) {

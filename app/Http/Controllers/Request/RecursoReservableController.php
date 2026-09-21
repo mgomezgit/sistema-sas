@@ -81,6 +81,7 @@ class RecursoReservableController extends Controller
             'nombre' => 'required',
             'duracion_minutos' => 'required',
             'precio' => 'required',
+            'estado' => 'required|in:0,1',
         ]);
 
         if (! $this->validateRequestRules()) {
@@ -96,6 +97,7 @@ class RecursoReservableController extends Controller
             'duracion_minutos' => $datos['duracion_minutos'],
             'precio' => $datos['precio'],
             'capacidad' => $datos['capacidad'] ?? null,
+            'estado' => (int) $datos['estado'],
         ];
 
         $resultado = $this->svcRecursoReservable->editar($datos['id_recurso'], $info, $tenantId);
@@ -154,8 +156,15 @@ class RecursoReservableController extends Controller
             return $this->sendResponse();
         }
 
+        $datos = $this->getRequestData();
+
+        // "incluir_inactivos=1" es lo que activa el filtro "Mostrar inactivos"
+        // de la tabla. Sin él, un recurso dado de baja no aparece: es la única
+        // forma de que desactivar se sienta reversible y no como un borrado.
+        $incluirInactivos = (bool) ($datos['incluir_inactivos'] ?? false);
+
         $this->respSinError();
-        $this->setDataResponse($this->svcRecursoReservable->listar($tenantId), 'recursos');
+        $this->setDataResponse($this->svcRecursoReservable->listar($tenantId, $incluirInactivos), 'recursos');
 
         return $this->sendResponse();
     }

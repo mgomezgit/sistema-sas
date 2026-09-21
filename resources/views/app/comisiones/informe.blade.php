@@ -172,8 +172,20 @@
             font-weight: 600;
         }
 
-        #modal-tarifa .modal-title i {
-            color: var(--accent);
+        /* El contador no lleva label flotante, así que el nombre del campo va
+           encima, con el mismo peso que las etiquetas de sección. */
+        .rotulo-stepper {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            text-align: center;
+        }
+
+        .ayuda-campo {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin-top: 0.3rem;
         }
     </style>
 @endsection
@@ -288,9 +300,16 @@
                 <p class="subtitulo-pagina">
                     Una tarifa específica manda sobre el porcentaje general del empleado, pero solo para ese servicio.
                 </p>
-                <button type="button" id="btn-nueva-tarifa" class="btn-primario-accento">
-                    <i class="bi bi-plus-lg"></i> Nueva tarifa
-                </button>
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <label class="interruptor-moderno" id="filtro-mostrar-inactivas">
+                        <input type="checkbox" id="chk-mostrar-inactivas">
+                        <span class="pista-interruptor"></span>
+                        <span class="texto-interruptor">Mostrar inactivas</span>
+                    </label>
+                    <button type="button" id="btn-nueva-tarifa" class="btn-primario-accento">
+                        <i class="bi bi-plus-lg"></i> Nueva tarifa
+                    </button>
+                </div>
             </div>
 
             <div class="card-elevada card-tabla">
@@ -302,6 +321,7 @@
                                 <th>Empleado</th>
                                 <th>Servicio</th>
                                 <th>Porcentaje</th>
+                                <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -337,51 +357,89 @@
     </div>
 
     {{-- ================= MODAL: TARIFA ESPECÍFICA ================= --}}
-    <div class="modal fade" id="modal-tarifa" tabindex="-1" aria-hidden="true">
+    <div class="modal fade modal-moderno" id="modal-tarifa" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title d-flex align-items-center gap-2">
-                        <i class="bi bi-percent"></i>
-                        <span id="modal-tarifa-titulo-texto">Nueva tarifa</span>
-                    </h5>
+                <div class="modal-header-moderno">
+                    <span class="insignia-encabezado"><i class="bi bi-percent"></i></span>
+                    <div>
+                        <h5 class="titulo-modal-moderno" id="modal-tarifa-titulo-texto">Nueva tarifa</h5>
+                        <p class="subtitulo-modal-moderno" id="modal-tarifa-subtitulo">Define qué porcentaje gana un empleado en un servicio concreto</p>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="contenedor-form-tarifa">
-                        <div class="mb-3">
-                            <label class="form-label">Empleado</label>
-                            <select id="id_empleado" name="id_empleado" class="form-select system_validador_vacio">
-                                <option value="">Selecciona un empleado</option>
-                                @foreach ($empleados as $empleado)
-                                    <option value="{{ $empleado['id_empleado'] }}">{{ $empleado['nombre'] }}</option>
-                                @endforeach
-                            </select>
+                        <div class="tarjeta-seccion-form">
+                            <div class="etiqueta-seccion-form">Tarifa por servicio</div>
+
+                            <div class="campo-flotante">
+                                <i class="bi bi-person-badge"></i>
+                                <select id="id_empleado" name="id_empleado" class="system_validador_vacio">
+                                    <option value="">Selecciona un empleado</option>
+                                    @foreach ($empleados as $empleado)
+                                        <option value="{{ $empleado['id_empleado'] }}">{{ $empleado['nombre'] }}</option>
+                                    @endforeach
+                                </select>
+                                <label for="id_empleado">Empleado</label>
+                            </div>
+
+                            <div class="campo-flotante mt-3">
+                                <i class="bi bi-calendar-check"></i>
+                                <select id="id_recurso" name="id_recurso" class="system_validador_vacio">
+                                    <option value="">Selecciona un servicio</option>
+                                    @foreach ($servicios as $servicio)
+                                        @if ($servicio['estado'] == 1)
+                                            <option value="{{ $servicio['id_recurso'] }}">{{ $servicio['nombre'] }}</option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                                <label for="id_recurso">Servicio</label>
+                            </div>
+
+                            <div class="ayuda-campo mt-2" id="ayuda-combinacion" hidden>
+                                El empleado y el servicio no se cambian al editar: sería una tarifa distinta.
+                            </div>
+
+                            {{-- Mismo criterio que el porcentaje general del empleado: se
+                                 ajusta de medio en medio punto, sobre el mismo decimal(5,2). --}}
+                            <div class="rotulo-stepper mt-3">Porcentaje de comisión</div>
+                            <div class="stepper-campo">
+                                <button type="button" class="btn-stepper" data-paso="-0.5" aria-label="Restar medio punto">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <input type="number" id="porcentaje_comision" name="porcentaje_comision" min="0" max="100" step="0.5" class="valor-stepper system_validador_vacio">
+                                <button type="button" class="btn-stepper" data-paso="0.5" aria-label="Sumar medio punto">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                            <div class="ayuda-campo mt-2 text-center">
+                                Manda sobre el porcentaje general del empleado, pero solo en este servicio.
+                            </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Servicio</label>
-                            <select id="id_recurso" name="id_recurso" class="form-select system_validador_vacio">
-                                <option value="">Selecciona un servicio</option>
-                                @foreach ($servicios as $servicio)
-                                    @if ($servicio['estado'] == 1)
-                                        <option value="{{ $servicio['id_recurso'] }}">{{ $servicio['nombre'] }}</option>
-                                    @endif
-                                @endforeach
-                            </select>
-                        </div>
+                        {{-- Solo tiene sentido al editar: una tarifa recién creada
+                             siempre nace activa. --}}
+                        <div class="tarjeta-seccion-form" id="seccion-estado-tarifa" hidden>
+                            <div class="etiqueta-seccion-form">Estado</div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Porcentaje de comisión</label>
-                            <input type="number" id="porcentaje_comision" name="porcentaje_comision" min="0" max="100"
-                                step="0.01" class="form-control system_validador_vacio">
+                            <label class="interruptor-moderno">
+                                <input type="checkbox" id="estado_tarifa">
+                                <span class="pista-interruptor"></span>
+                                <span class="texto-interruptor" id="texto-estado-tarifa">Tarifa activa</span>
+                            </label>
+
+                            <div class="ayuda-campo mt-2">
+                                Una tarifa inactiva deja de aplicarse: el empleado vuelve a comisionar ese servicio con su porcentaje general. Puede reactivarse en cualquier momento desde aquí.
+                            </div>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" id="btn-guardar-tarifa" class="btn-primario-accento">
-                        <i class="bi bi-check2"></i> Guardar
+                    <button type="button" id="btn-guardar-tarifa" class="btn-guardar-moderno">
+                        <i class="bi bi-check2 icono-guardar"></i>
+                        <span id="texto-btn-guardar-tarifa">Guardar</span>
                     </button>
                 </div>
             </div>
@@ -399,6 +457,12 @@
         // Las pestañas 2 y 3 se cargan la primera vez que se abren, no al entrar.
         var tarifasCargadas = false;
         var historialCargado = false;
+
+        var modoFormularioTarifa = 'crear';
+
+        // Milisegundos que el botón de guardar se queda en "Guardado" antes de
+        // cerrar el modal, para que el check no pase inadvertido.
+        var ESPERA_CONFIRMACION_GUARDADO = 700;
 
         // Rango con el que se generó el informe que está en pantalla. Se guarda
         // aparte de los inputs porque el usuario puede cambiarlos después de
@@ -752,7 +816,9 @@
         /* ================= PESTAÑA 2: TARIFAS ESPECÍFICAS ================= */
 
         function cargarTarifas() {
-            axiosSipleInterno('GET', 'request/comisiones/tarifas', {}, {}, true, function (respuesta) {
+            var incluirInactivas = jQuery('#chk-mostrar-inactivas').is(':checked') ? 1 : 0;
+
+            axiosSipleInterno('GET', 'request/comisiones/tarifas', { incluir_inactivas: incluirInactivas }, {}, true, function (respuesta) {
                 if (respuesta.error != 0) {
                     notificarUsuario(respuesta.mensaje, 'error');
                     return;
@@ -762,6 +828,11 @@
                 pintarTablaTarifas(respuesta.data.tarifas);
             });
         }
+
+        // "Mostrar inactivas": vuelve a pedir el listado con el filtro nuevo.
+        jQuery('#chk-mostrar-inactivas').on('change', function () {
+            cargarTarifas();
+        });
 
         function pintarTablaTarifas(tarifas) {
             if (tablaTarifas) {
@@ -790,15 +861,31 @@
                         }
                     },
                     {
+                        data: 'estado',
+                        render: function (data) {
+                            return data == 1
+                                ? '<span class="badge-estado-activo"><i class="bi bi-check-circle-fill"></i> Activa</span>'
+                                : '<span class="badge-estado-inactivo"><i class="bi bi-dash-circle-fill"></i> Inactiva</span>';
+                        }
+                    },
+                    {
                         data: null,
                         orderable: false,
                         render: function (fila) {
-                            return '<button type="button" class="btn-accion-icono btn-editar-tarifa" data-bs-toggle="tooltip" title="Editar"' +
+                            // La papelera solo tiene sentido sobre una tarifa activa:
+                            // una ya dada de baja se reactiva desde el modal.
+                            var botones = '<button type="button" class="btn-accion-icono btn-editar-tarifa" data-bs-toggle="tooltip" title="Editar"' +
                                    ' data-id_empleado="' + fila.id_empleado + '"' +
                                    ' data-id_recurso="' + fila.id_recurso + '"' +
-                                   ' data-porcentaje="' + fila.porcentaje_comision + '"><i class="bi bi-pencil-square"></i></button>' +
-                                   '<button type="button" class="btn-accion-icono btn-accion-eliminar btn-eliminar-tarifa" data-bs-toggle="tooltip" title="Eliminar"' +
+                                   ' data-porcentaje="' + fila.porcentaje_comision + '"' +
+                                   ' data-estado="' + fila.estado + '"><i class="bi bi-pencil-square"></i></button>';
+
+                            if (fila.estado == 1) {
+                                botones += '<button type="button" class="btn-accion-icono btn-accion-eliminar btn-eliminar-tarifa" data-bs-toggle="tooltip" title="Eliminar"' +
                                    ' data-id_comision_tarifa="' + fila.id_comision_tarifa + '"><i class="bi bi-trash3"></i></button>';
+                            }
+
+                            return botones;
                         }
                     }
                 ]
@@ -811,19 +898,56 @@
             inicializarTooltips();
         }
 
+        /**
+         * Los tres estados del botón de guardar que define el kit: normal,
+         * "ocupado" (con su spinner) y "exito" (con su check).
+         */
+        function estadoBotonGuardarTarifa(estado) {
+            var boton = jQuery('#btn-guardar-tarifa');
+
+            boton.removeClass('ocupado exito');
+
+            if (estado === 'ocupado') {
+                boton.addClass('ocupado');
+                jQuery('#texto-btn-guardar-tarifa').text('Guardando');
+            } else if (estado === 'exito') {
+                boton.addClass('exito');
+                jQuery('#texto-btn-guardar-tarifa').text('Guardado');
+            } else {
+                jQuery('#texto-btn-guardar-tarifa').text('Guardar');
+            }
+        }
+
+        /** Refleja el estado en el interruptor y en su propio texto. */
+        function establecerEstadoTarifa(activa) {
+            jQuery('#estado_tarifa').prop('checked', activa);
+            jQuery('#texto-estado-tarifa').text(activa ? 'Tarifa activa' : 'Tarifa inactiva');
+        }
+
+        jQuery('#estado_tarifa').on('change', function () {
+            establecerEstadoTarifa(jQuery(this).is(':checked'));
+        });
+
         function limpiarFormularioTarifa() {
             jQuery('#id_empleado').val('');
             jQuery('#id_recurso').val('');
-            jQuery('#porcentaje_comision').val('');
+            jQuery('#porcentaje_comision').val('0');
             jQuery('#contenedor-form-tarifa .input_vacio').removeClass('input_vacio');
             jQuery('#contenedor-form-tarifa #system_validador').remove();
+            jQuery('#contenedor-form-tarifa .campo-flotante').removeClass('con-error');
             // Al crear, la combinación empleado+servicio vuelve a ser elegible.
             jQuery('#id_empleado, #id_recurso').prop('disabled', false);
+            jQuery('#ayuda-combinacion').prop('hidden', true);
+            jQuery('#seccion-estado-tarifa').prop('hidden', true);
+            establecerEstadoTarifa(true);
+            estadoBotonGuardarTarifa('normal');
         }
 
         jQuery('#btn-nueva-tarifa').on('click', function () {
+            modoFormularioTarifa = 'crear';
             limpiarFormularioTarifa();
             jQuery('#modal-tarifa-titulo-texto').text('Nueva tarifa');
+            jQuery('#modal-tarifa-subtitulo').text('Define qué porcentaje gana un empleado en un servicio concreto');
 
             var modalTarifa = new bootstrap.Modal(document.getElementById('modal-tarifa'));
             modalTarifa.show();
@@ -831,9 +955,12 @@
 
         jQuery('#tabla-tarifas').on('click', '.btn-editar-tarifa', function () {
             var boton = jQuery(this);
+            var fila = tablaTarifas.row(boton.closest('tr')).data();
 
+            modoFormularioTarifa = 'editar';
             limpiarFormularioTarifa();
             jQuery('#modal-tarifa-titulo-texto').text('Editar tarifa');
+            jQuery('#modal-tarifa-subtitulo').text('Ajusta el porcentaje de "' + fila.nombre_empleado + '" en "' + fila.nombre_servicio + '"');
 
             jQuery('#id_empleado').val(boton.data('id_empleado'));
             jQuery('#id_recurso').val(boton.data('id_recurso'));
@@ -842,6 +969,12 @@
             // Editando solo se cambia el porcentaje: mover la tarifa a otro
             // empleado o servicio crearía una tarifa distinta, no editaría esta.
             jQuery('#id_empleado, #id_recurso').prop('disabled', true);
+            jQuery('#ayuda-combinacion').prop('hidden', false);
+
+            // El interruptor solo existe al editar: es la única vía para dar de
+            // baja una tarifa y también para devolverla al listado.
+            jQuery('#seccion-estado-tarifa').prop('hidden', false);
+            establecerEstadoTarifa(boton.data('estado') == 1);
 
             var modalTarifa = new bootstrap.Modal(document.getElementById('modal-tarifa'));
             modalTarifa.show();
@@ -863,19 +996,44 @@
                 porcentaje_comision: jQuery('#porcentaje_comision').val()
             };
 
-            axiosSipleInterno('POST', 'request/comisiones/tarifas/guardar', {}, cuerpo, true, function (respuesta) {
-                if (respuesta.error != 0) {
-                    notificarUsuario(respuesta.mensaje, 'error');
+            // El checkbox del interruptor no lleva "name" a propósito, para que
+            // la serialización no lo confunda con un checkbox nativo (que solo
+            // viaja si está marcado). Se agrega aquí como 0/1 explícito, y solo
+            // al editar: un alta siempre nace activa.
+            if (modoFormularioTarifa === 'editar') {
+                cuerpo.estado = jQuery('#estado_tarifa').is(':checked') ? 1 : 0;
+            }
+
+            // El propio botón hace de indicador, así que no se levanta el loader
+            // que tapa la pantalla: el formulario sigue a la vista.
+            estadoBotonGuardarTarifa('ocupado');
+
+            axiosSipleInterno('POST', 'request/comisiones/tarifas/guardar', {}, cuerpo, false, function (respuesta) {
+                if (!respuesta || respuesta.error != 0) {
+                    estadoBotonGuardarTarifa('normal');
+
+                    if (respuesta) {
+                        notificarUsuario(respuesta.mensaje, 'error');
+                    }
+
                     return;
                 }
 
-                var modalTarifa = bootstrap.Modal.getInstance(document.getElementById('modal-tarifa'));
-                if (modalTarifa) {
-                    modalTarifa.hide();
-                }
+                estadoBotonGuardarTarifa('exito');
 
-                cargarTarifas();
-                avisarGuardado('Tarifa guardada correctamente');
+                // Un respiro para que se vea el check antes de que el panel se
+                // cierre; sin esto el estado de éxito pasaría inadvertido.
+                setTimeout(function () {
+                    var modalTarifa = bootstrap.Modal.getInstance(document.getElementById('modal-tarifa'));
+
+                    if (modalTarifa) {
+                        modalTarifa.hide();
+                    }
+
+                    estadoBotonGuardarTarifa('normal');
+                    cargarTarifas();
+                    avisarGuardado('Tarifa guardada correctamente');
+                }, ESPERA_CONFIRMACION_GUARDADO);
             });
         });
 
@@ -884,7 +1042,7 @@
 
             Swal.fire(opcionesSwal({
                 title: '¿Eliminar tarifa?',
-                text: 'El empleado volverá a comisionar ese servicio con su porcentaje general',
+                text: 'El empleado volverá a comisionar ese servicio con su porcentaje general. Podrás reactivarla desde "Mostrar inactivas".',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonText: 'Sí, eliminar',

@@ -116,6 +116,7 @@ class UsuarioTest extends TestCase
                 'nombre' => 'Usuario Del A',
                 'email' => 'a@test.local',
                 'id_rol' => 1,
+                'estado' => 1,
                 // El intento: mandar el negocio ajeno en el cuerpo de la petición.
                 'tenant_id' => $this->negocioB,
             ]);
@@ -144,6 +145,7 @@ class UsuarioTest extends TestCase
                 'nombre' => 'Secuestrado',
                 'email' => 'secuestrado@test.local',
                 'id_rol' => 1,
+                'estado' => 1,
                 'tenant_id' => $this->negocioB,
             ]);
 
@@ -165,6 +167,7 @@ class UsuarioTest extends TestCase
                 'email' => 'uno@test.local',
                 'nombre' => 'Nombre Cambiado',
                 'id_rol' => 1,
+                'estado' => 1,
                 'tenant_id' => $this->negocioA,
             ]);
 
@@ -184,6 +187,7 @@ class UsuarioTest extends TestCase
                 'email' => 'dos@test.local',
                 'nombre' => 'Usuario Uno',
                 'id_rol' => 1,
+                'estado' => 1,
                 'tenant_id' => $this->negocioA,
             ]);
 
@@ -204,6 +208,7 @@ class UsuarioTest extends TestCase
                 'email' => 'uno@test.local',
                 'nombre' => 'Usuario Uno',
                 'id_rol' => 1,
+                'estado' => 1,
                 'tenant_id' => $this->negocioA,
             ]);
 
@@ -229,6 +234,7 @@ class UsuarioTest extends TestCase
                 'email' => 'b@test.local',
                 'nombre' => 'Usuario Del A',
                 'id_rol' => 1,
+                'estado' => 1,
                 'tenant_id' => $this->negocioA,
             ]);
 
@@ -256,6 +262,7 @@ class UsuarioTest extends TestCase
                 'email' => 'liberado@test.local',
                 'clave' => 'Clave2026',
                 'id_rol' => 1,
+                'estado' => 1,
                 'tenant_id' => $this->negocioA,
             ]);
 
@@ -278,6 +285,7 @@ class UsuarioTest extends TestCase
                 'email' => 'liberado@test.local',
                 'clave' => 'Clave2026',
                 'id_rol' => 1,
+                'estado' => 1,
                 'tenant_id' => $this->negocioB,
             ]);
 
@@ -299,6 +307,7 @@ class UsuarioTest extends TestCase
                 'email' => 'nuevo@test.local',
                 'clave' => 'Clave2026',
                 'id_rol' => 1,
+                'estado' => 1,
                 'tenant_id' => $this->negocioA,
             ]);
 
@@ -318,6 +327,7 @@ class UsuarioTest extends TestCase
                 'email' => 'ocupado@test.local',
                 'clave' => 'Clave2026',
                 'id_rol' => 1,
+                'estado' => 1,
                 'tenant_id' => $this->negocioB,
             ]);
 
@@ -481,5 +491,151 @@ class UsuarioTest extends TestCase
         $respuesta->assertJsonPath('error', 0);
         $this->assertSame($this->negocioA, session('tenant_id'));
         $this->assertSame(VerificarSesion::CLAVE_SESION, session('app_sesion'));
+    }
+
+    /* ================= 6) REACTIVACIÓN Y FILTRO DE INACTIVOS ================= */
+
+    private function editarPorHttp(int $idUsuario, int $tenantId, int $estado)
+    {
+        return $this->withSession($this->sesionAdmin($tenantId))
+            ->postJson('request/usuario/editar', [
+                'id_usuario' => $idUsuario,
+                'usuario' => 'usuario.uno',
+                'nombre' => 'Usuario Uno',
+                'email' => 'uno@test.local',
+                'id_rol' => 1,
+                'tenant_id' => $tenantId,
+                'estado' => $estado,
+            ]);
+    }
+
+    public function test_editar_puede_desactivar_y_luego_reactivar_una_cuenta(): void
+    {
+        $idUsuario = $this->crearUsuario($this->negocioA, 'usuario.uno', 'uno@test.local');
+
+        $this->editarPorHttp($idUsuario, $this->negocioA, 0)->assertJsonPath('error', 0);
+        $this->assertSame(0, DB::table('usuarios')->where('id_usuario', $idUsuario)->value('estado'));
+
+        $this->editarPorHttp($idUsuario, $this->negocioA, 1)->assertJsonPath('error', 0);
+        $this->assertSame(1, DB::table('usuarios')->where('id_usuario', $idUsuario)->value('estado'));
+    }
+
+    public function test_editar_sin_estado_es_rechazado(): void
+    {
+        $idUsuario = $this->crearUsuario($this->negocioA, 'usuario.uno', 'uno@test.local');
+
+        $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/usuario/editar', [
+                'id_usuario' => $idUsuario,
+                'usuario' => 'usuario.uno',
+                'nombre' => 'Usuario Uno',
+                'email' => 'uno@test.local',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioA,
+            ])
+            ->assertJsonPath('error', 1);
+    }
+
+    public function test_listar_no_muestra_inactivos_por_defecto_pero_si_al_pedirlos(): void
+    {
+        $this->crearUsuario($this->negocioA, 'activo', 'activo@test.local', 1, 1);
+        $this->crearUsuario($this->negocioA, 'inactivo', 'inactivo@test.local', 1, 0);
+
+        $svcUsuario = new \App\Service\SvcUsuario;
+
+        $normal = $svcUsuario->listar($this->negocioA);
+        $this->assertCount(1, $normal);
+        $this->assertSame('activo', $normal[0]['usuario']);
+
+        $conInactivos = $svcUsuario->listar($this->negocioA, true);
+        $this->assertCount(2, $conInactivos);
+    }
+
+    public function test_el_endpoint_de_listar_respeta_incluir_inactivos(): void
+    {
+        $this->crearUsuario($this->negocioA, 'activo', 'activo@test.local', 1, 1);
+        $this->crearUsuario($this->negocioA, 'inactivo', 'inactivo@test.local', 1, 0);
+
+        $this->withSession($this->sesionAdmin($this->negocioA))
+            ->getJson('request/usuario/listar')
+            ->assertJsonPath('error', 0)
+            ->assertJsonCount(1, 'data.usuarios');
+
+        $this->withSession($this->sesionAdmin($this->negocioA))
+            ->getJson('request/usuario/listar?incluir_inactivos=1')
+            ->assertJsonPath('error', 0)
+            ->assertJsonCount(2, 'data.usuarios');
+    }
+
+    /** El aislamiento tiene que seguir en pie con el parámetro nuevo. */
+    public function test_listar_con_inactivos_no_mezcla_negocios(): void
+    {
+        $this->crearUsuario($this->negocioA, 'inactivo.a', 'ia@test.local', 1, 0);
+        $this->crearUsuario($this->negocioB, 'inactivo.b', 'ib@test.local', 1, 0);
+
+        $listadoA = (new \App\Service\SvcUsuario)->listar($this->negocioA, true);
+
+        $this->assertCount(1, $listadoA);
+        $this->assertSame('inactivo.a', $listadoA[0]['usuario']);
+    }
+
+    public function test_no_se_puede_cambiar_el_estado_de_un_usuario_de_otro_negocio(): void
+    {
+        $idDelB = $this->crearUsuario($this->negocioB, 'usuario.del.b', 'b@test.local', 1, 1);
+
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/usuario/editar', [
+                'id_usuario' => $idDelB,
+                'usuario' => 'secuestrado',
+                'nombre' => 'Secuestrado',
+                'email' => 'secuestrado@test.local',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocioA,
+                'estado' => 0,
+            ]);
+
+        $respuesta->assertJsonPath('error', 1);
+        $this->assertSame(1, DB::table('usuarios')->where('id_usuario', $idDelB)->value('estado'));
+        $this->assertSame('usuario.del.b', DB::table('usuarios')->where('id_usuario', $idDelB)->value('usuario'));
+    }
+
+    /* ================= 7) RELACIÓN USUARIO -> EMPLEADO: COMPORTAMIENTO ACTUAL =================
+     *
+     * Documenta (no cambia) lo investigado: desactivar una CUENTA no desactiva
+     * al empleado que la tiene vinculada. Es la dirección inversa de la cascada
+     * empleado -> usuario, y queda como pregunta abierta de producto.
+     */
+
+    public function test_desactivar_una_cuenta_no_desactiva_al_empleado_vinculado(): void
+    {
+        $idUsuario = $this->crearUsuario($this->negocioA, 'usuario.uno', 'uno@test.local', 2, 1);
+
+        $idEmpleado = DB::table('empleados')->insertGetId([
+            'tenant_id' => $this->negocioA,
+            'nombre' => 'Empleado Vinculado',
+            'telefono' => '3000000000',
+            'id_usuario' => $idUsuario,
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 1,
+        ]);
+
+        $this->editarPorHttp($idUsuario, $this->negocioA, 0)->assertJsonPath('error', 0);
+
+        $this->assertSame(0, DB::table('usuarios')->where('id_usuario', $idUsuario)->value('estado'));
+
+        // El empleado NO se toca: sigue activo y sigue siendo asignable.
+        $this->assertSame(
+            1,
+            DB::table('empleados')->where('id_empleado', $idEmpleado)->value('estado'),
+            'Hoy no hay cascada en esta dirección: el empleado se queda activo'
+        );
+
+        $asignables = array_column((new \App\Service\SvcEmpleado)->listarActivos($this->negocioA), 'id_empleado');
+        $this->assertContains(
+            $idEmpleado,
+            $asignables,
+            'Sigue apareciendo como asignable a reservas aunque su cuenta ya no pueda entrar'
+        );
     }
 }

@@ -115,6 +115,7 @@ class UsuarioController extends Controller
             'email' => 'required|email',
             'tenant_id' => 'required',
             'id_rol' => 'required',
+            'estado' => 'required|in:0,1',
         ]);
 
         if (! $this->validateRequestRules()) {
@@ -129,6 +130,7 @@ class UsuarioController extends Controller
             'email' => $datos['email'],
             'tenant_id' => $datos['tenant_id'],
             'id_rol' => $datos['id_rol'],
+            'estado' => (int) $datos['estado'],
         ];
 
         if (array_key_exists('clave', $datos)) {
@@ -198,8 +200,15 @@ class UsuarioController extends Controller
     {
         $tenantId = session('tenant_id');
 
+        $datos = $this->getRequestData();
+
+        // "incluir_inactivos=1" es lo que activa el filtro "Mostrar inactivos"
+        // de la tabla. Sin él, una cuenta dada de baja no aparece: es la única
+        // forma de que desactivar se sienta reversible y no como un borrado.
+        $incluirInactivos = (bool) ($datos['incluir_inactivos'] ?? false);
+
         $this->respSinError();
-        $this->setDataResponse($this->svcUsuario->listar($tenantId), 'usuarios');
+        $this->setDataResponse($this->svcUsuario->listar($tenantId, $incluirInactivos), 'usuarios');
 
         return $this->sendResponse();
     }
