@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Rol;
 use App\Service\SvcNegocio;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 
 class NegocioController extends Controller
 {
@@ -94,7 +95,17 @@ class NegocioController extends Controller
             'dias_atencion' => $diasAtencion,
             'hora_apertura' => $horaApertura ?: null,
             'hora_cierre' => $horaCierre ?: null,
+            'slug' => $datos['slug'] ?? null,
         ];
+
+        // El slug vive en una URL pública global, así que su choque no es un
+        // fallo del sistema sino un dato que el admin tiene que corregir: se le
+        // dice cuál es el problema en vez de devolver un error genérico.
+        if (! empty($info['slug']) && $this->svcNegocio->slugOcupado(Str::slug($info['slug']), session('tenant_id'))) {
+            $this->agregarError('La dirección "'.Str::slug($info['slug']).'" ya la está usando otro negocio. Elige otra para tu página pública.');
+
+            return $this->sendResponse();
+        }
 
         $resultado = $this->svcNegocio->actualizarConfiguracion(session('tenant_id'), $info);
 

@@ -36,6 +36,37 @@
             font-size: 0.78rem;
             margin-top: 0.3rem;
         }
+
+        /* Avisos sobre el empleado vinculado: el de la baja pesa más (--danger)
+           que el meramente informativo de la reactivación. Mismos nombres y
+           mismo peso visual que los del módulo de Empleados, porque son las dos
+           caras de la misma cascada. */
+        .aviso-vinculo {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            border-radius: var(--radius-sm);
+            padding: 0.65rem 0.8rem;
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            line-height: 1.45;
+        }
+
+        .aviso-vinculo i {
+            flex-shrink: 0;
+            font-size: 0.95rem;
+            margin-top: 0.05rem;
+        }
+
+        .aviso-baja-empleado {
+            background-color: var(--danger-soft);
+            color: var(--danger);
+        }
+
+        .aviso-alta-empleado {
+            background-color: var(--bg-input);
+            color: var(--text-secondary);
+        }
     </style>
 @endsection
 
@@ -167,6 +198,18 @@
                             <div class="ayuda-campo mt-2">
                                 Una cuenta inactiva no puede iniciar sesión y deja de aparecer en el listado, pero puede reactivarse en cualquier momento desde aquí.
                             </div>
+
+                            {{-- Solo para cuentas de un empleado: se avisa en el momento,
+                                 antes de guardar, de que la baja se lo lleva a él también. --}}
+                            <div class="aviso-vinculo aviso-baja-empleado" id="aviso-baja-empleado" hidden>
+                                <i class="bi bi-person-dash"></i>
+                                <span>Esta cuenta es del empleado <b id="nombre-empleado-baja"></b>. Al desactivarla, ese empleado también quedará inactivo: además de perder el acceso, <b>dejará de poder asignarse a nuevas reservas</b>.</span>
+                            </div>
+
+                            <div class="aviso-vinculo aviso-alta-empleado" id="aviso-alta-empleado" hidden>
+                                <i class="bi bi-info-circle"></i>
+                                <span>Reactivar la cuenta no reactiva al empleado <b id="nombre-empleado-alta"></b>. Si tiene que volver a atender reservas, dalo de alta aparte desde el módulo de Empleados.</span>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -186,6 +229,10 @@
     <script>
         var modoFormularioUsuario = 'crear';
         var tablaUsuarios;
+
+        // Empleado de la cuenta que se está editando, si lo tiene. Es lo que
+        // decide si dar de baja esta cuenta arrastra a alguien más.
+        var empleadoVinculadoEnEdicion = null;
 
         function inicializarTooltips() {
             jQuery('[data-bs-toggle="tooltip"]').each(function () {
@@ -294,6 +341,14 @@
         function establecerEstadoUsuario(activa) {
             jQuery('#estado_usuario').prop('checked', activa);
             jQuery('#texto-estado-usuario').text(activa ? 'Cuenta activa' : 'Cuenta inactiva');
+
+            // Los avisos solo tienen sentido si hay alguien al otro lado del
+            // vínculo: el de la baja mientras el interruptor está apagado, el
+            // informativo mientras está encendido.
+            var tieneEmpleado = empleadoVinculadoEnEdicion !== null;
+
+            jQuery('#aviso-baja-empleado').prop('hidden', !(tieneEmpleado && !activa));
+            jQuery('#aviso-alta-empleado').prop('hidden', !(tieneEmpleado && activa));
         }
 
         jQuery('#estado_usuario').on('change', function () {
@@ -311,6 +366,7 @@
             jQuery('#contenedor-form-usuario .input_vacio').removeClass('input_vacio');
             jQuery('#contenedor-form-usuario #system_validador').remove();
             estadoBotonGuardar('normal');
+            empleadoVinculadoEnEdicion = null;
             establecerEstadoUsuario(true);
             jQuery('#seccion-estado-usuario').prop('hidden', true);
         }
@@ -340,6 +396,16 @@
             jQuery('#tenant_id option[value="' + fila.tenant_id + '"]').prop('selected', true);
             jQuery('#id_rol option[value="' + fila.id_rol + '"]').prop('selected', true);
 
+            // El vínculo se fija ANTES de pintar el interruptor: de él dependen
+            // los avisos que establecerEstadoUsuario muestra o esconde.
+            empleadoVinculadoEnEdicion = fila.id_empleado_vinculado
+                ? { id: fila.id_empleado_vinculado, nombre: fila.nombre_empleado_vinculado || fila.nombre }
+                : null;
+
+            if (empleadoVinculadoEnEdicion) {
+                jQuery('#nombre-empleado-baja, #nombre-empleado-alta').text(empleadoVinculadoEnEdicion.nombre);
+            }
+
             // El interruptor solo aparece al editar: una cuenta nueva siempre
             // nace activa, así que no hay nada que preguntar en ese momento.
             jQuery('#seccion-estado-usuario').prop('hidden', false);
@@ -350,11 +416,20 @@
         });
 
         jQuery('#tabla-usuarios').on('click', '.btn-eliminar-usuario', function () {
+            var fila = tablaUsuarios.row(jQuery(this).closest('tr')).data();
             var idUsuario = jQuery(this).data('id_usuario');
+
+            // La papelera arrastra al empleado igual que el interruptor, así que
+            // tiene que avisarlo igual: de lo contrario sería el mismo efecto
+            // sin la misma advertencia.
+            var textoEliminar = fila.id_empleado_vinculado
+                ? 'Esta cuenta es del empleado <b>' + (fila.nombre_empleado_vinculado || fila.nombre) + '</b>.<br>'
+                  + 'Al eliminarla, ese empleado también quedará inactivo y <b>dejará de poder asignarse a nuevas reservas</b>.'
+                : 'Esta acción no se puede deshacer';
 
             Swal.fire({
                 title: '¿Eliminar usuario?',
-                text: 'Esta acción no se puede deshacer',
+                html: textoEliminar,
                 icon: 'warning',
                 background: 'var(--bg-card)',
                 color: 'var(--text-primary)',
@@ -397,6 +472,40 @@
             // crear() lo ignora porque una cuenta nueva siempre nace activa.
             datos.estado = jQuery('#estado_usuario').is(':checked') ? 1 : 0;
 
+            // Dar de baja la cuenta de un empleado se lo lleva a él también: se
+            // confirma antes, porque no se deshace sola y le quita la
+            // asignabilidad a reservas, no solo el acceso.
+            var arrastraEmpleado = modoFormularioUsuario === 'editar'
+                && empleadoVinculadoEnEdicion !== null
+                && datos.estado === 0;
+
+            if (! arrastraEmpleado) {
+                enviarFormularioUsuario(datos);
+
+                return;
+            }
+
+            Swal.fire({
+                title: '¿Desactivar también al empleado?',
+                html: 'Esta cuenta es del empleado <b>' + empleadoVinculadoEnEdicion.nombre + '</b>.<br>'
+                    + 'Al desactivarla, ese empleado quedará inactivo: perderá el acceso y <b>dejará de poder asignarse a nuevas reservas</b>.<br><br>'
+                    + 'Para que vuelva a atender tendrás que darlo de alta aparte desde el módulo de Empleados.',
+                icon: 'warning',
+                background: colorVariable('--bg-card'),
+                color: colorVariable('--text-primary'),
+                confirmButtonColor: colorVariable('--danger'),
+                showCancelButton: true,
+                confirmButtonText: 'Sí, desactivar cuenta y empleado',
+                cancelButtonText: 'Cancelar'
+            }).then(function (resultado) {
+                if (resultado.isConfirmed) {
+                    enviarFormularioUsuario(datos);
+                }
+            });
+        });
+
+        /** Envío del formulario ya validado y confirmado. */
+        function enviarFormularioUsuario(datos) {
             var url = modoFormularioUsuario === 'crear' ? 'request/usuario/crear' : 'request/usuario/editar';
 
             // El propio botón hace de indicador, así que no se levanta el loader
@@ -430,7 +539,7 @@
                     cargarUsuarios();
                 }, ESPERA_CONFIRMACION_GUARDADO);
             });
-        });
+        }
 
         jQuery(document).ready(function () {
             cargarUsuarios();

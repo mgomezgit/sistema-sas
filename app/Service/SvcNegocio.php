@@ -10,9 +10,61 @@ use App\Models\RecursoReservable;
 use App\Models\Reserva;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class SvcNegocio
 {
+    /**
+     * Arma el slug con el que un negocio se identifica en su página pública.
+     *
+     * La unicidad se comprueba contra TODA la tabla, sin acotar por tenant: el
+     * slug vive en una URL pública global (/reservar/spa-fashion), así que dos
+     * negocios distintos no pueden compartirlo aunque no se conozcan entre sí.
+     * Si el nombre ya está tomado se le añade un sufijo numérico incremental.
+     *
+     * Str::slug() ya hace el trabajo de normalizar: pasa a minúsculas,
+     * transcribe las tildes y la eñe, y convierte los espacios y los signos en
+     * guiones. Si de un nombre no queda nada utilizable (un nombre hecho solo
+     * de símbolos, por ejemplo) se cae a "negocio", porque un slug vacío daría
+     * una URL rota.
+     *
+     * @param  int|null  $idNegocioExcluir  El propio negocio, al editarlo: su
+     *                                      slug actual no cuenta como choque.
+     */
+    public function generarSlug($nombreNegocio, $idNegocioExcluir = null): string
+    {
+        $base = Str::slug((string) $nombreNegocio);
+
+        if ($base === '') {
+            $base = 'negocio';
+        }
+
+        $base = Str::limit($base, 90, '');
+        $candidato = $base;
+        $sufijo = 1;
+
+        while ($this->slugOcupado($candidato, $idNegocioExcluir)) {
+            $sufijo++;
+            $candidato = $base.'-'.$sufijo;
+        }
+
+        return $candidato;
+    }
+
+    /**
+     * ¿Ese slug ya lo tiene OTRO negocio? La consulta es global a propósito.
+     */
+    public function slugOcupado($slug, $idNegocioExcluir = null): bool
+    {
+        $query = Negocio::where('slug', $slug);
+
+        if ($idNegocioExcluir !== null) {
+            $query->where('id_negocio', '!=', $idNegocioExcluir);
+        }
+
+        return $query->exists();
+    }
+
     public function crear($info)
     {
         try {
@@ -45,6 +97,7 @@ class SvcNegocio
             $negocio = Negocio::select(
                 'id_negocio',
                 'nombre_negocio',
+                'slug',
                 'telefono_contacto',
                 'dias_atencion',
                 'hora_apertura',
@@ -61,6 +114,18 @@ class SvcNegocio
         }
     }
 
+    /**
+     * Guarda la configuración del negocio.
+     *
+     * EL SLUG NUNCA SE REGENERA SOLO. Una vez que existe —lo haya puesto el
+     * alta del negocio o el propio admin— es una dirección pública que ya se
+     * repartió en enlaces, códigos QR y redes. Renombrar el negocio no puede
+     * romper eso por la espalda: cambiar el nombre mil veces deja el slug
+     * exactamente igual.
+     *
+     * La única forma de cambiarlo es que el admin lo escriba él mismo en
+     * Configuración, que es cuando llega en $info['slug'].
+     */
     public function actualizarConfiguracion($tenantId, $info): bool
     {
         try {
@@ -74,13 +139,27 @@ class SvcNegocio
                 return false;
             }
 
-            $query->update([
+            $campos = [
                 'nombre_negocio' => $info['nombre_negocio'],
                 'telefono_contacto' => $info['telefono_contacto'] ?? null,
                 'dias_atencion' => $info['dias_atencion'] ?? null,
                 'hora_apertura' => $info['hora_apertura'] ?? null,
                 'hora_cierre' => $info['hora_cierre'] ?? null,
-            ]);
+            ];
+
+            // Solo si el admin escribió una dirección nueva. Si no viene, el
+            // slug guardado ni se menciona en el update: se queda como está.
+            $slugPedido = isset($info['slug']) ? Str::slug((string) $info['slug']) : '';
+
+            if ($slugPedido !== '') {
+                if ($this->slugOcupado($slugPedido, $tenantId)) {
+                    return false;
+                }
+
+                $campos['slug'] = $slugPedido;
+            }
+
+            $query->update($campos);
 
             return true;
         } catch (\Exception $e) {

@@ -76,6 +76,9 @@ class RegistroPublicoController extends Controller
             DB::transaction(function () use ($datos) {
                 $idNegocio = $this->svcNegocio->crear([
                     'nombre_negocio' => $datos['nombre_negocio'],
+                    // Su dirección pública queda lista desde el alta, para que
+                    // el negocio pueda compartirla sin configurar nada antes.
+                    'slug' => $this->svcNegocio->generarSlug($datos['nombre_negocio']),
                     'rubro' => 'spa',
                     'telefono_contacto' => $datos['telefono_contacto'],
                     'usuario_registra' => 'Registro Publico',

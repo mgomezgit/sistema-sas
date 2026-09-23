@@ -9,6 +9,28 @@ Route::get('registro', [App\Http\Controllers\RegistroPublicoViewController::clas
 // Alta autoservicio: pública, sin middleware de sesión ni restricción de rol.
 Route::post('request/registro-publico/crear', [App\Http\Controllers\Request\RegistroPublicoController::class, 'crear']);
 
+/*
+ * ================= ZONA PÚBLICA DE AUTOGESTIÓN =================
+ *
+ * Páginas y datos que ve el cliente final de cada negocio, identificado por su
+ * slug en la URL. No pasa por 'sesion.activa' ni por 'restringir.empleado': es
+ * una zona anónima, separada a propósito de backoffice/* y request/*.
+ *
+ * El throttle va puesto desde ahora, con el grupo todavía de solo lectura: la
+ * puerta se abre ya, y es mejor que el límite exista antes de que por aquí se
+ * pueda escribir nada.
+ */
+Route::prefix('reservar/{slug}')->middleware('throttle:60,1')->group(function () {
+    Route::get('/', [App\Http\Controllers\Publico\PaginaPublicaViewController::class, 'mostrar']);
+});
+
+Route::prefix('publico/{slug}')->middleware('throttle:60,1')->group(function () {
+    Route::get('informacion', [App\Http\Controllers\Publico\PublicoController::class, 'informacionNegocio']);
+    Route::get('servicios', [App\Http\Controllers\Publico\PublicoController::class, 'servicios']);
+    Route::get('equipo', [App\Http\Controllers\Publico\PublicoController::class, 'equipo']);
+    Route::get('banners', [App\Http\Controllers\Publico\PublicoController::class, 'bannersPublicos']);
+});
+
 Route::prefix('request')->group(function () {
     Route::post('autenticacion/login', [App\Http\Controllers\AutenticacionController::class, 'validarLogin']);
 
@@ -75,6 +97,11 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     Route::post('comisiones/tarifas/guardar', [App\Http\Controllers\Request\ComisionController::class, 'guardarTarifa']);
     Route::post('comisiones/tarifas/eliminar', [App\Http\Controllers\Request\ComisionController::class, 'eliminarTarifa']);
     Route::get('comisiones/historial-pagos', [App\Http\Controllers\Request\ComisionController::class, 'historialPagos']);
+
+    Route::post('banner/crear', [App\Http\Controllers\Request\BannerPromocionalController::class, 'crear']);
+    Route::post('banner/editar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'editar']);
+    Route::post('banner/eliminar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'eliminar']);
+    Route::get('banner/listar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'listar']);
 
     // Inventario de productos.
     Route::post('producto/crear', [App\Http\Controllers\Request\ProductoController::class, 'crear']);

@@ -24,10 +24,6 @@
             max-width: 520px;
         }
 
-        #modal-reserva .modal-title i {
-            color: var(--accent);
-        }
-
         /* ---------- Calendario (FullCalendar) ---------- */
         #calendario-reservas {
             --fc-page-bg-color: transparent;
@@ -126,17 +122,27 @@
         }
 
         /* ---------- Aviso inline de fecha inválida en el formulario ---------- */
+        /* El aviso sigue apareciendo y desapareciendo con la clase .visible que
+           pone el JS; aquí solo se le da el mismo peso visual que a los mensajes
+           de error del kit de formularios. */
         .aviso-fecha-invalida {
             display: none;
             color: var(--danger);
-            font-size: 0.8rem;
-            margin-top: 0.35rem;
+            font-size: 0.78rem;
+            font-weight: 500;
+            margin-top: 0.4rem;
         }
 
         .aviso-fecha-invalida.visible {
             display: flex;
             align-items: center;
             gap: 0.35rem;
+        }
+
+        .ayuda-campo {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin-top: 0.4rem;
         }
 
         #btn-guardar-reserva:disabled {
@@ -243,6 +249,12 @@
             flex-direction: column;
             gap: 0.55rem;
             margin-bottom: 1rem;
+            /* Mismo tratamiento de superficie que .tarjeta-seccion-form, sin la
+               clase completa: aqui no hay formulario que seccionar. */
+            background-color: color-mix(in srgb, var(--bg-body) 55%, var(--bg-card));
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.8rem 0.85rem;
         }
 
         .detalle-fila {
@@ -259,10 +271,13 @@
             text-align: center;
         }
 
+        /* Mismo rotulo que .etiqueta-seccion-form del kit: el panel no es un modal
+           (aparece en el punto del clic, no centrado), asi que no toma su marco ni
+           su animacion, pero si su tipografia para que se lean como una familia. */
         .detalle-etiqueta-estados {
-            color: var(--text-muted);
-            font-size: 0.75rem;
-            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.04em;
             margin-bottom: 0.5rem;
@@ -492,10 +507,6 @@
             margin-bottom: 0.75rem;
         }
 
-        .texto-ayuda-campo {
-            color: var(--text-muted);
-            font-size: 0.8rem;
-        }
     </style>
 @endsection
 
@@ -579,76 +590,107 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modal-reserva" tabindex="-1" aria-hidden="true">
+    <div class="modal fade modal-moderno" id="modal-reserva" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title d-flex align-items-center gap-2">
-                        <i class="bi bi-calendar-check"></i>
-                        <span id="modal-reserva-titulo-texto">Nueva reserva</span>
-                    </h5>
+                <div class="modal-header-moderno">
+                    <span class="insignia-encabezado"><i class="bi bi-calendar-check"></i></span>
+                    <div>
+                        <h5 class="titulo-modal-moderno" id="modal-reserva-titulo-texto">Nueva reserva</h5>
+                        <p class="subtitulo-modal-moderno" id="modal-reserva-subtitulo">Agenda una cita para un cliente</p>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="contenedor-form-reserva">
                         <input type="hidden" id="id_reserva" name="id_reserva">
 
-                        <div class="mb-3">
-                            <label class="form-label">Cliente</label>
-                            <select id="id_cliente" name="id_cliente" class="form-select system_validador_vacio">
-                                <option value="">Seleccione...</option>
-                            </select>
+                        <div class="tarjeta-seccion-form">
+                            <div class="etiqueta-seccion-form">Detalles de la cita</div>
+
+                            <div class="campo-flotante">
+                                <i class="bi bi-person"></i>
+                                <select id="id_cliente" name="id_cliente" class="system_validador_vacio">
+                                    <option value="">Seleccione...</option>
+                                </select>
+                                <label for="id_cliente">Cliente</label>
+                            </div>
+
+                            <div class="campo-flotante mt-3">
+                                <i class="bi bi-calendar-check"></i>
+                                <select id="id_recurso" name="id_recurso" class="system_validador_vacio">
+                                    <option value="">Seleccione...</option>
+                                </select>
+                                <label for="id_recurso">Servicio / Recurso</label>
+                            </div>
+
+                            <div class="campo-flotante mt-3">
+                                <i class="bi bi-person-badge"></i>
+                                <select id="id_empleado" name="id_empleado">
+                                    <option value="">Sin asignar</option>
+                                </select>
+                                <label for="id_empleado">Empleado</label>
+                            </div>
+
+                            <div class="campo-flotante mt-3">
+                                <i class="bi bi-sticky"></i>
+                                <textarea id="notas" name="notas" rows="3" placeholder=" "></textarea>
+                                <label for="notas">Notas</label>
+                            </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Servicio / Recurso</label>
-                            <select id="id_recurso" name="id_recurso" class="form-select system_validador_vacio">
-                                <option value="">Seleccione...</option>
-                            </select>
-                        </div>
+                        <div class="tarjeta-seccion-form">
+                            <div class="etiqueta-seccion-form">Fecha y horario</div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Empleado</label>
-                            <select id="id_empleado" name="id_empleado" class="form-select">
-                                <option value="">Sin asignar</option>
-                            </select>
-                        </div>
+                            <div class="campo-flotante">
+                                <i class="bi bi-calendar-date"></i>
+                                <input type="date" id="fecha_reserva" name="fecha_reserva" placeholder=" " class="system_validador_vacio">
+                                <label for="fecha_reserva">Fecha</label>
+                            </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Fecha</label>
-                            <input type="date" id="fecha_reserva" name="fecha_reserva" class="form-control system_validador_vacio">
+                            {{-- El aviso conserva su id y su mecanismo de mostrar/ocultar
+                                 (la clase .visible que pone el JS): aquí solo se alinea
+                                 visualmente con el resto del kit. --}}
                             <small id="aviso-fecha-invalida" class="aviso-fecha-invalida">
                                 <i class="bi bi-exclamation-circle"></i>
                                 <span id="texto-aviso-fecha"></span>
                             </small>
+
+                            <div class="campo-flotante mt-3">
+                                <i class="bi bi-clock"></i>
+                                <input type="time" id="hora_inicio" name="hora_inicio" placeholder=" " class="system_validador_vacio">
+                                <label for="hora_inicio">Hora de inicio</label>
+                            </div>
+                            <div class="ayuda-campo">La hora de fin se calcula según la duración del servicio seleccionado.</div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Hora de inicio</label>
-                            <input type="time" id="hora_inicio" name="hora_inicio" class="form-control system_validador_vacio">
-                            <small class="texto-ayuda-campo">La hora de fin se calcula según la duración del servicio seleccionado.</small>
-                        </div>
+                        {{-- Solo al editar: una reserva nueva siempre nace pendiente.
+                             El JS lo muestra y lo esconde con show()/hide(), igual que antes. --}}
+                        <div class="tarjeta-seccion-form" id="contenedor-estado-reserva" style="display: none;">
+                            <div class="etiqueta-seccion-form">Estado actual</div>
 
-                        <div class="mb-3" id="contenedor-estado-reserva" style="display: none;">
-                            <label class="form-label">Estado de la reserva</label>
-                            <select id="estado_reserva" name="estado_reserva" class="form-select">
-                                <option value="pendiente">Pendiente</option>
-                                <option value="confirmada">Confirmada</option>
-                                <option value="completada">Completada</option>
-                                <option value="cancelada">Cancelada</option>
-                            </select>
-                        </div>
+                            <div class="campo-flotante">
+                                <i class="bi bi-flag"></i>
+                                <select id="estado_reserva" name="estado_reserva">
+                                    <option value="pendiente">Pendiente</option>
+                                    <option value="confirmada">Confirmada</option>
+                                    <option value="completada">Completada</option>
+                                    <option value="cancelada">Cancelada</option>
+                                </select>
+                                <label for="estado_reserva">Estado de la reserva</label>
+                            </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Notas</label>
-                            <textarea id="notas" name="notas" rows="3" class="form-control"></textarea>
+                            <div class="ayuda-campo mt-2">
+                                También puedes cambiarlo desde los círculos de color del panel de detalle, sin abrir este formulario.
+                            </div>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" id="btn-guardar-reserva" class="btn-primario-accento">
-                        <i class="bi bi-check2"></i> Guardar
+                    <button type="button" id="btn-guardar-reserva" class="btn-guardar-moderno">
+                        <i class="bi bi-check2 icono-guardar"></i>
+                        <span id="texto-btn-guardar-reserva">Guardar</span>
                     </button>
                 </div>
             </div>
@@ -675,6 +717,35 @@
         // (reading 'publicId')"). Con una copia propia de los datos el panel
         // sobrevive a cualquier cantidad de refrescos del calendario.
         var reservaEnPanel = null;
+
+        // Milisegundos que el boton se queda en "Guardado" antes de cerrar el
+        // modal, para que el check no pase inadvertido.
+        var ESPERA_CONFIRMACION_GUARDADO = 700;
+
+        /**
+         * Los tres estados del boton de guardar que define el kit: normal,
+         * "ocupado" (con su spinner) y "exito" (con su check).
+         *
+         * NO toca la propiedad "disabled": de eso se encargan en exclusiva
+         * mostrarAvisoFecha() y ocultarAvisoFecha(), que son las que saben si la
+         * fecha elegida es valida. Si este helper la tocara, guardar reactivaria
+         * un boton que la validacion de fecha habia bloqueado.
+         */
+        function estadoBotonGuardarReserva(estado) {
+            var boton = jQuery('#btn-guardar-reserva');
+
+            boton.removeClass('ocupado exito');
+
+            if (estado === 'ocupado') {
+                boton.addClass('ocupado');
+                jQuery('#texto-btn-guardar-reserva').text('Guardando');
+            } else if (estado === 'exito') {
+                boton.addClass('exito');
+                jQuery('#texto-btn-guardar-reserva').text('Guardado');
+            } else {
+                jQuery('#texto-btn-guardar-reserva').text('Guardar');
+            }
+        }
 
         function inicializarTooltips() {
             jQuery('[data-bs-toggle="tooltip"]').each(function () {
@@ -894,6 +965,7 @@
             jQuery('#notas').val('');
             jQuery('#contenedor-form-reserva .input_vacio').removeClass('input_vacio');
             jQuery('#contenedor-form-reserva #system_validador').remove();
+            estadoBotonGuardarReserva('normal');
             ocultarAvisoFecha();
         }
 
@@ -945,6 +1017,7 @@
                 // Al crear no hay fecha previa: cualquier día pasado es inválido.
                 fechaOriginalReserva = null;
                 jQuery('#modal-reserva-titulo-texto').text('Nueva reserva');
+                jQuery('#modal-reserva-subtitulo').text('Agenda una cita para un cliente');
                 limpiarFormularioReserva();
                 jQuery('#contenedor-estado-reserva').hide();
                 jQuery('#fecha_reserva').val(fechaTexto || jQuery('#filtro-fecha').val());
@@ -967,6 +1040,7 @@
             cargarCatalogos(function () {
                 modoFormularioReserva = 'editar';
                 jQuery('#modal-reserva-titulo-texto').text('Editar reserva');
+                jQuery('#modal-reserva-subtitulo').text('Actualiza los datos de esta cita');
                 limpiarFormularioReserva();
                 jQuery('#contenedor-estado-reserva').show();
 
@@ -1055,12 +1129,23 @@
 
             var url = modoFormularioReserva === 'crear' ? 'request/reserva/crear' : 'request/reserva/editar';
 
-            axiosSipleInterno('POST', url, {}, datos, true, function (respuesta) {
-                if (respuesta.error != 0) {
-                    // Se muestra el mensaje tal como llega del backend (por ejemplo, el choque de horario).
-                    notificarUsuario(respuesta.mensaje, 'error');
+            // El propio botón hace de indicador, así que no se levanta el loader
+            // que tapa la pantalla: el formulario sigue a la vista.
+            estadoBotonGuardarReserva('ocupado');
+
+            axiosSipleInterno('POST', url, {}, datos, false, function (respuesta) {
+                if (!respuesta || respuesta.error != 0) {
+                    estadoBotonGuardarReserva('normal');
+
+                    if (respuesta) {
+                        // Se muestra el mensaje tal como llega del backend (por ejemplo, el choque de horario).
+                        notificarUsuario(respuesta.mensaje, 'error');
+                    }
+
                     return;
                 }
+
+                estadoBotonGuardarReserva('exito');
 
                 // En edición, si además cambió el estado de la reserva, se envía en una
                 // segunda llamada al endpoint dedicado de cambio de estado.
@@ -1069,23 +1154,31 @@
                         id_reserva: datos.id_reserva,
                         estado_reserva: datos.estado_reserva
                     }, false, function (respuestaEstado) {
-                        cerrarModalReserva();
+                        // Un respiro para que se vea el check antes de que el panel se
+                        // cierre; sin esto el estado de éxito pasaría inadvertido.
+                        setTimeout(function () {
+                            cerrarModalReserva();
+                            estadoBotonGuardarReserva('normal');
 
-                        if (respuestaEstado.error == 0) {
-                            notificarUsuario('Reserva actualizada correctamente', 'success');
-                        } else {
-                            notificarUsuario(respuestaEstado.mensaje, 'error');
-                        }
+                            if (respuestaEstado.error == 0) {
+                                notificarUsuario('Reserva actualizada correctamente', 'success');
+                            } else {
+                                notificarUsuario(respuestaEstado.mensaje, 'error');
+                            }
 
-                        refrescarVista();
+                            refrescarVista();
+                        }, ESPERA_CONFIRMACION_GUARDADO);
                     });
 
                     return;
                 }
 
-                cerrarModalReserva();
-                refrescarVista();
-                avisarGuardado(modoFormularioReserva === 'crear' ? 'Reserva creada correctamente' : 'Reserva actualizada correctamente');
+                setTimeout(function () {
+                    cerrarModalReserva();
+                    estadoBotonGuardarReserva('normal');
+                    refrescarVista();
+                    avisarGuardado(modoFormularioReserva === 'crear' ? 'Reserva creada correctamente' : 'Reserva actualizada correctamente');
+                }, ESPERA_CONFIRMACION_GUARDADO);
             });
         });
 
