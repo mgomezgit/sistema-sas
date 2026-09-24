@@ -2,6 +2,8 @@
 
 namespace App\Service;
 
+use App\Models\Cliente;
+use App\Models\RecursoReservable;
 use App\Models\Reserva;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -263,6 +265,147 @@ class SvcReserva
 
             return 0;
         }
+    }
+
+    /**
+     * Crea una SOLICITUD de cita pedida desde la página pública.
+     *
+     * Una solicitud no es una reserva confirmada: nace 'pendiente', sin
+     * empleado asignado, y marcada con origen 'publico' para que el negocio
+     * la reconozca como algo que todavía tiene que revisar.
+     *
+     * ⚠️ POR QUÉ AQUÍ NO SE ENVÍA NINGÚN CORREO AL CLIENTE
+     *
+     * El correo de "reserva confirmada" (App\Mail\ReservaConfirmada) NO vive
+     * en este Service ni en ningún observer del modelo: se dispara en un único
+     * sitio, ReservaController::crear(), justo después de llamar a crear().
+     * Por eso crear la fila desde aquí no arrastra ese efecto, y por eso este
+     * método puede apoyarse en el Model sin rodeos.
+     *
+     * Eso NO es casualidad que convenga mantener sin querer: si algún día ese
+     * envío se mueve a un observer de Reserva o a un evento del modelo, esta
+     * ruta empezaría a prometerle al cliente que su cita está confirmada
+     * cuando el negocio ni siquiera la ha visto. Si eso llega a plantearse,
+     * este método necesita quedar explícitamente fuera.
+     *
+     * Al cliente se le avisa cuando el negocio acepta o rechaza la solicitud,
+     * que es cuando ReservaEstadoActualizado entra en juego (y que además
+     * ignora a propósito el estado 'pendiente').
+     *
+     * @return int|false El id de la reserva creada, o false si no se pudo.
+     */
+    public function crearSolicitudPublica($tenantId, $info)
+    {
+        try {
+            return DB::transaction(function () use ($tenantId, $info) {
+                // El recurso tiene que ser de ESTE negocio y estar activo. Es
+                // la comprobación que impide pedir en el negocio A un servicio
+                // del negocio B mandando su id a mano.
+                $recurso = RecursoReservable::select('id_recurso', 'nombre', 'duracion_minutos')
+                    ->where('id_recurso', $info['id_recurso'])
+                    ->where('tenant_id', $tenantId)
+                    ->where('estado', 1)
+                    ->first();
+
+                if ($recurso === null) {
+                    throw new \RuntimeException('SOL-RECURSO-INVALIDO');
+                }
+
+                if (Carbon::parse($info['fecha_reserva'])->lt(Carbon::today())) {
+                    throw new \RuntimeException('SOL-FECHA-PASADA');
+                }
+
+                // Mismo formato que el flujo del admin: "HH:mm" del formulario
+                // se normaliza a "HH:mm:ss" para guardar y comparar igual.
+                $horaInicio = Carbon::parse($info['hora_inicio'])->format('H:i:s');
+                $horaFin = Carbon::parse($horaInicio)->addMinutes($recurso->duracion_minutos)->format('H:i:s');
+
+                // Se reutiliza la misma regla de horario que valida el admin:
+                // el público no puede pedir cita en un día u hora en que el
+                // negocio no atiende.
+                if (! (new SvcNegocio)->estaDentroDelHorario($tenantId, $info['fecha_reserva'], $horaInicio, $horaFin)) {
+                    throw new \RuntimeException('SOL-FUERA-DE-HORARIO');
+                }
+
+                $idCliente = $this->resolverClienteDeSolicitud($tenantId, $info);
+
+                if ($idCliente === false) {
+                    throw new \RuntimeException('SOL-CLIENTE');
+                }
+
+                $reserva = Reserva::create([
+                    // El negocio SIEMPRE sale del parámetro, nunca de $info:
+                    // lo resolvió el slug de la URL, y nada que mande el
+                    // visitante puede cambiarlo.
+                    'tenant_id' => $tenantId,
+                    'id_cliente' => $idCliente,
+                    'id_recurso' => $recurso->id_recurso,
+                    // Sin empleado: repartir la cita es decisión del negocio.
+                    'id_empleado' => null,
+                    'fecha_reserva' => $info['fecha_reserva'],
+                    'hora_inicio' => $horaInicio,
+                    'hora_fin' => $horaFin,
+                    'estado_reserva' => 'pendiente',
+                    'origen' => 'publico',
+                    'notas' => $info['notas'] ?? null,
+                    'usuario_registra' => 'Pagina publica',
+                    'fecha_registro' => date('Y-m-d H:i:s'),
+                    'estado' => 1,
+                ]);
+
+                return $reserva->id_reserva;
+            });
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
+        }
+    }
+
+    /**
+     * Encuentra al cliente por su teléfono, o lo da de alta.
+     *
+     * Si ya existe se le refrescan nombre y correo cuando llegan distintos:
+     * quien pide cita hoy manda datos más frescos que los de hace un año. No
+     * se pisa un dato guardado con uno vacío.
+     *
+     * @return int|false
+     */
+    private function resolverClienteDeSolicitud($tenantId, $info)
+    {
+        $svcCliente = new SvcCliente;
+
+        $existente = $svcCliente->buscarPorTelefono($info['telefono'], $tenantId);
+
+        if ($existente !== null) {
+            $cambios = [];
+
+            if (! empty($info['nombre']) && $info['nombre'] !== $existente['nombre']) {
+                $cambios['nombre'] = $info['nombre'];
+            }
+
+            if (! empty($info['email']) && $info['email'] !== $existente['email']) {
+                $cambios['email'] = $info['email'];
+            }
+
+            if (! empty($cambios)) {
+                Cliente::where('id_cliente', $existente['id_cliente'])
+                    ->where('tenant_id', $tenantId)
+                    ->update($cambios);
+            }
+
+            return $existente['id_cliente'];
+        }
+
+        return $svcCliente->crear([
+            'tenant_id' => $tenantId,
+            'nombre' => $info['nombre'],
+            'telefono' => $info['telefono'],
+            'email' => $info['email'] ?? null,
+            'usuario_registra' => 'Pagina publica',
+            'fecha_registro' => date('Y-m-d H:i:s'),
+            'estado' => 1,
+        ]);
     }
 
     public function crear($info)

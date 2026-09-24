@@ -27,6 +27,7 @@ class Reserva extends Model
         'hora_inicio',
         'hora_fin',
         'estado_reserva',
+        'origen',
         'notas',
         'id_pago_comision',
         'usuario_registra',

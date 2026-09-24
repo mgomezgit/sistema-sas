@@ -153,6 +153,35 @@ class SvcCliente
         }
     }
 
+    /**
+     * Busca un cliente por su teléfono dentro del negocio.
+     *
+     * Es lo que permite que alguien que ya vino antes no se duplique al pedir
+     * cita desde la página pública: el teléfono es el dato que un cliente sí
+     * da siempre, a diferencia del correo.
+     *
+     * La búsqueda NO filtra por estado a propósito: si el negocio dio de baja
+     * a un cliente y esa misma persona vuelve a pedir cita, hay que reconocerla
+     * y reutilizar su ficha, no crear una segunda con el mismo teléfono.
+     *
+     * @return array|null El cliente, o null si ese teléfono no está registrado.
+     */
+    public function buscarPorTelefono($telefono, $tenantId)
+    {
+        try {
+            $cliente = Cliente::select('id_cliente', 'nombre', 'telefono', 'email', 'estado')
+                ->where('tenant_id', $tenantId)
+                ->where('telefono', $telefono)
+                ->first();
+
+            return $cliente ? $cliente->toArray() : null;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return null;
+        }
+    }
+
     public function buscarPorTelefonoOEmail($valor, $tenantId)
     {
         try {

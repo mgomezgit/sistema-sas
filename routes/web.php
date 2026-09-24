@@ -29,6 +29,9 @@ Route::prefix('publico/{slug}')->middleware('throttle:60,1')->group(function () 
     Route::get('servicios', [App\Http\Controllers\Publico\PublicoController::class, 'servicios']);
     Route::get('equipo', [App\Http\Controllers\Publico\PublicoController::class, 'equipo']);
     Route::get('banners', [App\Http\Controllers\Publico\PublicoController::class, 'bannersPublicos']);
+
+    // Única escritura de la zona pública: deja una solicitud pendiente.
+    Route::post('agendar', [App\Http\Controllers\Publico\PublicoController::class, 'agendar']);
 });
 
 Route::prefix('request')->group(function () {

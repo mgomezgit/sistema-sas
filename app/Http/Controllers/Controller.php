@@ -16,6 +16,9 @@ abstract class Controller
 
     protected array $validationRules = [];
 
+    /** Mensajes a medida para las reglas, cuando el genérico no basta. */
+    protected array $validationMessages = [];
+
     public function __construct()
     {
         $this->request = request();
@@ -38,6 +41,7 @@ abstract class Controller
         $this->requestData = $this->request->all();
         $this->respuesta = ['error' => 1, 'mensaje' => '', 'data' => []];
         $this->validationRules = [];
+        $this->validationMessages = [];
 
         return $this->{$method}(...array_values($parameters));
     }
@@ -47,16 +51,23 @@ abstract class Controller
         return $this->requestData;
     }
 
-    protected function setRequestValidationRules(array $rules): static
+    /**
+     * @param  array  $messages  Mensajes propios por regla. Es opcional: sin
+     *                           ellos se usan los de Laravel, como siempre.
+     *                           Sirve donde el mensaje lo lee alguien que no
+     *                           es del negocio, como la página pública.
+     */
+    protected function setRequestValidationRules(array $rules, array $messages = []): static
     {
         $this->validationRules = $rules;
+        $this->validationMessages = $messages;
 
         return $this;
     }
 
     protected function validateRequestRules(): bool
     {
-        $validator = Validator::make($this->requestData, $this->validationRules);
+        $validator = Validator::make($this->requestData, $this->validationRules, $this->validationMessages);
 
         if ($validator->fails()) {
             $this->agregarError($validator->errors()->all());
