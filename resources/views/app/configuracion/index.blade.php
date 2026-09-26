@@ -360,6 +360,21 @@
                             Tus clientes te encontrarán en <b id="vista-previa-slug">{{ url('reservar') }}/…</b>.
                             Si la cambias, los enlaces que ya compartiste dejarán de funcionar.
                         </div>
+                        {{-- Estas dos acciones trabajan sobre el slug YA GUARDADO, no
+                             sobre lo que se esté escribiendo: mientras el admin edita sin
+                             guardar, la página que existe de verdad sigue siendo la
+                             anterior, y copiar/abrir el texto a medio escribir daría un
+                             enlace roto. Quedan ocultas mientras el negocio no tenga slug. --}}
+                        <div class="d-flex gap-2 flex-wrap mt-2" id="acciones-enlace-publico" style="display: none;">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-copiar-enlace-publico">
+                                <i class="bi bi-clipboard"></i>
+                                <span id="texto-btn-copiar-enlace">Copiar enlace</span>
+                            </button>
+                            <a href="#" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary" id="btn-ver-pagina-publica">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                                Ver mi página
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -601,8 +616,71 @@
 
         jQuery('#slug').on('input', refrescarVistaPreviaSlug);
 
-        function cargarConfiguracion() {
-            axiosSipleInterno('GET', 'request/negocio/configuracion', {}, {}, true, function (respuesta) {
+        /* ---------- Acciones sobre el enlace público ---------- */
+
+        // Slug tal como quedó guardado en el backend. No se toca al escribir:
+        // solo se refresca al cargar la pantalla y después de guardar, porque
+        // el backend normaliza el texto con Str::slug() y el valor bueno únicamente
+        // se conoce releyéndolo (escribir "Mi Spa" guarda "mi-spa").
+        var slugGuardado = '';
+
+        var TEXTO_BOTON_COPIAR = 'Copiar enlace';
+        var ESPERA_CONFIRMACION_COPIADO = 2000;
+
+        function urlPaginaPublica() {
+            return slugGuardado !== '' ? BASE_PAGINA_PUBLICA + slugGuardado : '';
+        }
+
+        function refrescarAccionesEnlacePublico() {
+            var url = urlPaginaPublica();
+
+            if (url === '') {
+                jQuery('#acciones-enlace-publico').hide();
+
+                return;
+            }
+
+            jQuery('#btn-ver-pagina-publica').attr('href', url);
+            jQuery('#acciones-enlace-publico').css('display', 'flex');
+        }
+
+        function establecerSlugGuardado(slug) {
+            slugGuardado = jQuery.trim(slug || '');
+            refrescarAccionesEnlacePublico();
+        }
+
+        jQuery('#btn-copiar-enlace-publico').on('click', function () {
+            var url = urlPaginaPublica();
+
+            if (url === '') {
+                return;
+            }
+
+            // navigator.clipboard no existe fuera de contexto seguro y puede ser
+            // denegado por permisos del navegador. En cualquiera de los dos casos
+            // se le enseña la URL al admin para que la copie a mano, en vez de
+            // dejarlo sin saber qué pasó.
+            if (!navigator.clipboard || !navigator.clipboard.writeText) {
+                notificarUsuario('Copia el enlace manualmente: ' + url, 'info');
+
+                return;
+            }
+
+            navigator.clipboard.writeText(url).then(function () {
+                var texto = jQuery('#texto-btn-copiar-enlace');
+
+                texto.text('¡Copiado!');
+
+                setTimeout(function () {
+                    texto.text(TEXTO_BOTON_COPIAR);
+                }, ESPERA_CONFIRMACION_COPIADO);
+            }).catch(function () {
+                notificarUsuario('Copia el enlace manualmente: ' + url, 'info');
+            });
+        });
+
+        function cargarConfiguracion(mostrarLoader) {
+            axiosSipleInterno('GET', 'request/negocio/configuracion', {}, {}, mostrarLoader !== false, function (respuesta) {
                 if (respuesta.error != 0) {
                     notificarUsuario(respuesta.mensaje, 'error');
                     return;
@@ -618,6 +696,7 @@
                 jQuery('#telefono_contacto').val(negocio.telefono_contacto);
                 jQuery('#slug').val(negocio.slug);
                 refrescarVistaPreviaSlug();
+                establecerSlugGuardado(negocio.slug);
                 jQuery('#hora_apertura').val(negocio.hora_apertura);
                 jQuery('#hora_cierre').val(negocio.hora_cierre);
 
@@ -673,6 +752,12 @@
                 // usuario sin recargar la pantalla completa.
                 jQuery('#nombre-negocio-lateral').text(datos.nombre_negocio).attr('title', datos.nombre_negocio);
                 jQuery('#nombre-negocio-sesion').text(datos.nombre_negocio);
+
+                // Se relee la configuración en vez de dar por bueno lo escrito: el
+                // backend normaliza el slug con Str::slug(), así que esta es la única
+                // forma de que el enlace a copiar/abrir sea el real. Sin loader, para
+                // no tapar el formulario que sigue a la vista.
+                cargarConfiguracion(false);
 
                 // Aquí no hay modal que cerrar: el botón vuelve solo a su
                 // estado normal después de enseñar el check.
