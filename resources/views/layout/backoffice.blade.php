@@ -3007,10 +3007,21 @@
                     // del contenedor de abajo. Nada más hay que tocar.
                     $rutasModulosPago = ['backoffice/comisiones*'];
                     $enModulosPago = request()->is($rutasModulosPago);
+
+                    // Un módulo de pago que el negocio no tiene activo no se pinta.
+                    // Igual que el resto del menú, esto es solo experiencia de
+                    // usuario: quien escriba la URL a mano rebota en el middleware
+                    // verificar.modulo, que es la seguridad de verdad.
+                    $comisionesActivo = app(\App\Service\SvcModulo::class)->estaActivo(session('tenant_id'), 'comisiones');
+
+                    // Si no hay ni un módulo activo, el grupo entero sobra: dejarlo
+                    // mostraría un desplegable que no abre nada.
+                    $tieneModulosPago = $comisionesActivo;
                 @endphp
                 {{-- Sin rótulo de sección propio: el encabezado del grupo ya se
                      llama "Módulos de pago" y repetirlo encima sobra. En su lugar
                      lleva una línea fina que lo separa del bloque anterior. --}}
+                @if ($tieneModulosPago)
                 <button
                     type="button"
                     class="menu-item menu-padre menu-padre-separado @if ($enModulosPago) padre-activo @endif"
@@ -3023,14 +3034,18 @@
                 </button>
                 <div id="submenu-modulos-pago" class="submenu-lateral @if ($enModulosPago) abierto @endif">
                     <div class="submenu-lateral-contenido">
+                        @if ($comisionesActivo)
                         <a href="{{ url('backoffice/comisiones') }}" class="menu-item submenu-item @if (request()->is('backoffice/comisiones')) active @endif">
                             <i class="bi bi-percent"></i>
                             <span>Comisiones</span>
                         </a>
+                        @endif
                         {{-- Próximos módulos de pago (Contenido para redes sociales,
-                             Catálogo, Chatbot) van aquí, con este mismo formato. --}}
+                             Catálogo, Chatbot) van aquí, con este mismo formato,
+                             cada uno con su propio chequeo de módulo activo. --}}
                     </div>
                 </div>
+                @endif
             @endif
             @endif
             <!-- Los enlaces de cada módulo se agregan aquí a medida que se construyen -->

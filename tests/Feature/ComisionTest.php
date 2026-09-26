@@ -85,6 +85,14 @@ class ComisionTest extends TestCase
         $this->negocioA = $this->crearNegocio('Negocio A');
         $this->negocioB = $this->crearNegocio('Negocio B');
 
+        // Comisiones es un módulo de pago: un negocio recién creado NO lo tiene
+        // (negocio_modulos.activo nace en false). Este archivo verifica el
+        // comportamiento del negocio que SÍ lo tiene contratado, así que se les
+        // activa a los dos. El bloqueo de quien no lo tiene se prueba aparte, en
+        // ModuloPagoTest.
+        $this->activarModuloPago($this->negocioA);
+        $this->activarModuloPago($this->negocioB);
+
         $this->idClienteA = $this->crearCliente($this->negocioA, 'Cliente A');
         $this->idEmpleadoA = $this->crearEmpleado($this->negocioA, 'Empleado Del A', 10);
         // Precios redondos para que las comisiones se verifiquen a simple vista.
@@ -106,6 +114,21 @@ class ComisionTest extends TestCase
             'usuario_registra' => 'test',
             'fecha_registro' => date('Y-m-d H:i:s'),
             'estado' => 1,
+        ]);
+    }
+
+    /** Le activa al negocio un módulo de pago, como haría el super admin. */
+    private function activarModuloPago(int $tenantId, string $clave = 'comisiones'): void
+    {
+        $idModulo = DB::table('modulos_plataforma')->where('clave', $clave)->value('id_modulo');
+
+        DB::table('negocio_modulos')->insert([
+            'tenant_id' => $tenantId,
+            'id_modulo' => $idModulo,
+            'activo' => true,
+            'fecha_activacion' => date('Y-m-d H:i:s'),
+            'usuario_registra' => 'test',
+            'fecha_registro' => date('Y-m-d H:i:s'),
         ]);
     }
 

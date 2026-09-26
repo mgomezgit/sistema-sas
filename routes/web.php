@@ -93,13 +93,17 @@ Route::prefix('request')->middleware('restringir.empleado')->group(function () {
     Route::get('carga-masiva/plantilla/{tipo}', [App\Http\Controllers\Request\CargaMasivaController::class, 'descargarPlantilla']);
     Route::post('carga-masiva/importar/{tipo}', [App\Http\Controllers\Request\CargaMasivaController::class, 'importar']);
 
-    // Comisiones: módulo solo del administrador del negocio.
-    Route::get('comisiones/informe', [App\Http\Controllers\Request\ComisionController::class, 'informe']);
-    Route::post('comisiones/marcar-pagado', [App\Http\Controllers\Request\ComisionController::class, 'marcarPagado']);
-    Route::get('comisiones/tarifas', [App\Http\Controllers\Request\ComisionController::class, 'listarTarifas']);
-    Route::post('comisiones/tarifas/guardar', [App\Http\Controllers\Request\ComisionController::class, 'guardarTarifa']);
-    Route::post('comisiones/tarifas/eliminar', [App\Http\Controllers\Request\ComisionController::class, 'eliminarTarifa']);
-    Route::get('comisiones/historial-pagos', [App\Http\Controllers\Request\ComisionController::class, 'historialPagos']);
+    // Comisiones: módulo solo del administrador del negocio, y además módulo de
+    // pago. Bloquear solo la pantalla no bastaría: sin esto, un negocio sin el
+    // módulo activo podría seguir llamando estos endpoints a mano.
+    Route::middleware('verificar.modulo:comisiones')->group(function () {
+        Route::get('comisiones/informe', [App\Http\Controllers\Request\ComisionController::class, 'informe']);
+        Route::post('comisiones/marcar-pagado', [App\Http\Controllers\Request\ComisionController::class, 'marcarPagado']);
+        Route::get('comisiones/tarifas', [App\Http\Controllers\Request\ComisionController::class, 'listarTarifas']);
+        Route::post('comisiones/tarifas/guardar', [App\Http\Controllers\Request\ComisionController::class, 'guardarTarifa']);
+        Route::post('comisiones/tarifas/eliminar', [App\Http\Controllers\Request\ComisionController::class, 'eliminarTarifa']);
+        Route::get('comisiones/historial-pagos', [App\Http\Controllers\Request\ComisionController::class, 'historialPagos']);
+    });
 
     Route::post('banner/crear', [App\Http\Controllers\Request\BannerPromocionalController::class, 'crear']);
     Route::post('banner/editar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'editar']);
@@ -135,5 +139,5 @@ Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('reportes/servicios', [App\Http\Controllers\ReporteViewController::class, 'servicios'])->middleware('restringir.empleado');
     Route::get('carga-masiva', [App\Http\Controllers\CargaMasivaViewController::class, 'index'])->middleware('restringir.empleado');
     Route::get('productos', [App\Http\Controllers\ProductoViewController::class, 'listar'])->middleware('restringir.empleado');
-    Route::get('comisiones', [App\Http\Controllers\ComisionViewController::class, 'informe'])->middleware('restringir.empleado');
+    Route::get('comisiones', [App\Http\Controllers\ComisionViewController::class, 'informe'])->middleware(['restringir.empleado', 'verificar.modulo:comisiones']);
 });

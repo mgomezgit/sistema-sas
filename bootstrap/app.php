@@ -15,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'sesion.activa' => \App\Http\Middleware\VerificarSesion::class,
             'restringir.empleado' => \App\Http\Middleware\RestringirEmpleado::class,
+            // Recibe la clave del módulo de pago: 'verificar.modulo:comisiones'.
+            'verificar.modulo' => \App\Http\Middleware\VerificarModuloActivo::class,
         ]);
 
         /*
