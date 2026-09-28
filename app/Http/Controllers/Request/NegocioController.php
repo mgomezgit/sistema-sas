@@ -89,6 +89,54 @@ class NegocioController extends Controller
             return $this->sendResponse();
         }
 
+        // WhatsApp: se acepta lo que el admin escriba (con +, espacios o guiones)
+        // y se normaliza a SOLO dígitos. Un valor vacío significa "quitar", así
+        // que se guarda null y no se valida largo. Se distingue "no se envió el
+        // campo" (no tocar) de "se envió vacío" (borrar) con array_key_exists.
+        $whatsappRecibido = null;
+        $tocaWhatsapp = array_key_exists('whatsapp_numero', $datos);
+
+        if ($tocaWhatsapp) {
+            $whatsappRaw = trim((string) ($datos['whatsapp_numero'] ?? ''));
+            $whatsappSoloDigitos = preg_replace('/\D+/', '', $whatsappRaw);
+
+            if ($whatsappSoloDigitos === '') {
+                $whatsappRecibido = null;
+            } else {
+                $largo = strlen($whatsappSoloDigitos);
+
+                if ($largo < 8 || $largo > 15) {
+                    $this->agregarError('El número de WhatsApp debe tener entre 8 y 15 dígitos. Incluye el código de país.');
+
+                    return $this->sendResponse();
+                }
+
+                $whatsappRecibido = $whatsappSoloDigitos;
+            }
+        }
+
+        // Política de cancelación: texto opcional, hasta 1000 caracteres. Vacío
+        // borra (null). Al mostrarse en la página pública debe escaparse con
+        // Blade {{ }}, no imprimirse como HTML crudo.
+        $politicaRecibida = null;
+        $tocaPolitica = array_key_exists('politica_cancelacion', $datos);
+
+        if ($tocaPolitica) {
+            $politicaRaw = trim((string) ($datos['politica_cancelacion'] ?? ''));
+
+            if ($politicaRaw === '') {
+                $politicaRecibida = null;
+            } else {
+                if (mb_strlen($politicaRaw) > 1000) {
+                    $this->agregarError('La política de cancelación no puede superar los 1000 caracteres.');
+
+                    return $this->sendResponse();
+                }
+
+                $politicaRecibida = $politicaRaw;
+            }
+        }
+
         $info = [
             'nombre_negocio' => $datos['nombre_negocio'],
             'telefono_contacto' => $datos['telefono_contacto'] ?? null,
@@ -97,6 +145,14 @@ class NegocioController extends Controller
             'hora_cierre' => $horaCierre ?: null,
             'slug' => $datos['slug'] ?? null,
         ];
+
+        if ($tocaWhatsapp) {
+            $info['whatsapp_numero'] = $whatsappRecibido;
+        }
+
+        if ($tocaPolitica) {
+            $info['politica_cancelacion'] = $politicaRecibida;
+        }
 
         // El slug vive en una URL pública global, así que su choque no es un
         // fallo del sistema sino un dato que el admin tiene que corregir: se le

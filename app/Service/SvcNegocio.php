@@ -99,9 +99,11 @@ class SvcNegocio
                 'nombre_negocio',
                 'slug',
                 'telefono_contacto',
+                'whatsapp_numero',
                 'dias_atencion',
                 'hora_apertura',
-                'hora_cierre'
+                'hora_cierre',
+                'politica_cancelacion'
             )
                 ->where('id_negocio', $tenantId)
                 ->first();
@@ -146,6 +148,23 @@ class SvcNegocio
                 'hora_apertura' => $info['hora_apertura'] ?? null,
                 'hora_cierre' => $info['hora_cierre'] ?? null,
             ];
+
+            // WhatsApp y política de cancelación son opcionales y aquí el
+            // comportamiento es distinto al del slug: si el admin dejó el campo
+            // vacío es porque quiere BORRARLO, no que se conserve lo que había.
+            // El Controller ya normalizó y validó antes; el Service solo escribe.
+            //
+            // NOTA de seguridad: politica_cancelacion se muestra en la página
+            // pública y llega escrito por el admin. Al renderizarlo, la vista
+            // pública debe escaparlo con Blade {{ }}, nunca {!! !!}. Aquí se
+            // guarda tal cual: no es cifra ni saludo, es texto libre del negocio.
+            if (array_key_exists('whatsapp_numero', $info)) {
+                $campos['whatsapp_numero'] = $info['whatsapp_numero'];
+            }
+
+            if (array_key_exists('politica_cancelacion', $info)) {
+                $campos['politica_cancelacion'] = $info['politica_cancelacion'];
+            }
 
             // Solo si el admin escribió una dirección nueva. Si no viene, el
             // slug guardado ni se menciona en el update: se queda como está.

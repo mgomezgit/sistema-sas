@@ -350,6 +350,16 @@
                             <label for="telefono_contacto">Teléfono de contacto</label>
                         </div>
                     </div>
+                    <div class="col-md-6">
+                        <div class="campo-flotante">
+                            <i class="bi bi-whatsapp"></i>
+                            <input type="text" id="whatsapp_numero" name="whatsapp_numero" maxlength="20" placeholder=" ">
+                            <label for="whatsapp_numero">WhatsApp</label>
+                        </div>
+                        <div class="ayuda-campo">
+                            Con código de país, sin espacios ni signos. Ejemplo: 573001234567
+                        </div>
+                    </div>
                     <div class="col-12">
                         <div class="campo-flotante">
                             <i class="bi bi-link-45deg"></i>
@@ -426,6 +436,20 @@
                 <div class="ayuda-campo mt-3">
                     <i class="bi bi-info-circle"></i>
                     Este horario se usará para mostrar las franjas disponibles en el calendario de reservas.
+                </div>
+            </div>
+
+            <div class="tarjeta-seccion-form">
+                <div class="etiqueta-seccion-form">Política de cancelación</div>
+                <div class="ayuda-bloque">Este texto aparece en tu página pública para que tus clientes lo lean antes de reservar.</div>
+
+                <div class="campo-flotante">
+                    <i class="bi bi-file-text"></i>
+                    <textarea id="politica_cancelacion" name="politica_cancelacion" rows="4" maxlength="1000" placeholder=" "></textarea>
+                    <label for="politica_cancelacion">Política de cancelación</label>
+                </div>
+                <div class="ayuda-campo">
+                    Máximo 1000 caracteres. Déjalo vacío si no quieres mostrar ninguna política.
                 </div>
             </div>
         </form>
@@ -694,11 +718,18 @@
 
                 jQuery('#nombre_negocio').val(negocio.nombre_negocio);
                 jQuery('#telefono_contacto').val(negocio.telefono_contacto);
+                jQuery('#whatsapp_numero').val(negocio.whatsapp_numero || '');
                 jQuery('#slug').val(negocio.slug);
                 refrescarVistaPreviaSlug();
                 establecerSlugGuardado(negocio.slug);
                 jQuery('#hora_apertura').val(negocio.hora_apertura);
                 jQuery('#hora_cierre').val(negocio.hora_cierre);
+
+                // La política se carga con .val(): un textarea solo acepta texto
+                // plano, y aunque el backend ya escapa al mostrarla en la página
+                // pública, aquí también la tratamos como texto para dejar clara
+                // la regla: NUNCA .html() con contenido escrito por el usuario.
+                jQuery('#politica_cancelacion').val(negocio.politica_cancelacion || '');
 
                 // dias_atencion viene como "1,2,3,4,5"
                 jQuery('.check-dia').prop('checked', false);
@@ -725,10 +756,12 @@
             var datos = {
                 nombre_negocio: jQuery('#nombre_negocio').val(),
                 telefono_contacto: jQuery('#telefono_contacto').val(),
+                whatsapp_numero: jQuery('#whatsapp_numero').val(),
                 slug: jQuery('#slug').val(),
                 dias_atencion: diasSeleccionados,
                 hora_apertura: jQuery('#hora_apertura').val(),
-                hora_cierre: jQuery('#hora_cierre').val()
+                hora_cierre: jQuery('#hora_cierre').val(),
+                politica_cancelacion: jQuery('#politica_cancelacion').val()
             };
 
             // El propio botón hace de indicador, así que no se levanta el loader
