@@ -217,6 +217,60 @@
             --accent-soft: rgba(22, 163, 74, 0.12);
         }
 
+        /* ---------- Tema fijo de plataforma (SOLO super_admin) ---------- */
+        /* El super admin no elige tema: ve siempre negro y rojo, coherente con
+           la identidad de la landing pública (negro #0a0a0a, acento #e11d2e),
+           sin importar qué modo_tema o color_acento haya guardado en su
+           sesión (ni siquiera tiene sesión de negocio de la que leerlos). No
+           compone con las clases modo- ni acento-: en el body va SOLO esta
+           clase, así que redefine aquí el set completo de variables que usa
+           todo el layout (las mismas que ya definían modo-oscuro y
+           acento-rojo combinados, la pareja más cercana a la landing). Igual
+           que cualquier otro bloque de tema: los hexadecimales del
+           super_admin viven únicamente aquí dentro.
+           OJO al editar este comentario: un asterisco seguido de barra
+           (sin espacio entre los dos) cierra el comentario CSS antes de
+           tiempo y corrompe la regla de abajo — ya pasó una vez, escrito
+           sin querer al nombrar aquí mismo las clases modo- y acento-. */
+        body.tema-plataforma {
+            --bg-body: #0a0a0d;
+            --bg-sidebar: #000000;
+            --bg-card: #17171c;
+            --bg-card-hover: #1e1e24;
+            --bg-input: #101014;
+            --border-color: #2a2a32;
+            --border-color-strong: #3a3a44;
+            --text-primary: #f4f4f5;
+            --text-secondary: #9a9aa5;
+            --text-muted: #5c5c66;
+            --text-sidebar: #cbd5e1;
+            --success: #22c55e;
+            --success-soft: rgba(34, 197, 94, 0.12);
+            --warning: #eab308;
+            --warning-soft: rgba(234, 179, 8, 0.12);
+            --danger: #e11d2e;
+            --danger-soft: rgba(225, 29, 46, 0.12);
+            --warning-evento: #f4dc9e;
+            --accent-evento: color-mix(in srgb, var(--accent) 42%, #ffffff);
+            --success-evento: #a9e3bd;
+            --danger-evento: #f3adb5;
+            --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);
+            --stripe-fila: rgba(255, 255, 255, 0.02);
+            --overlay-loader: rgba(10, 10, 13, 0.75);
+            --avatar-1: #e8c67a;
+            --avatar-2: #9fc0e8;
+            --avatar-3: #a4cfae;
+            --avatar-4: #e6a6ad;
+            --avatar-5: #bcaadd;
+            --avatar-6: #eab98d;
+            --avatar-7: #93c9c6;
+            --avatar-8: #d6bb98;
+            /* La capa de acento: el rojo de la landing, idéntico. */
+            --accent: #e11d2e;
+            --accent-hover: #ff2e42;
+            --accent-soft: rgba(225, 29, 46, 0.12);
+        }
+
         /* En modo claro el sidebar es claro: los textos deben invertirse a oscuro
            y la X de los modales no necesita el filtro de inversión. */
         body.modo-claro #sidebar .sidebar-header span,
@@ -2905,7 +2959,13 @@
 
     @yield('estilos')
 </head>
-<body class="modo-{{ session('modo_tema') ?? 'oscuro' }} acento-{{ str_replace('_', '-', session('color_acento') ?? 'rojo') }}">
+@php
+    // Por rol, NUNCA por tenant_id null: una sesión anómala (o, en teoría,
+    // una petición sin autenticar que llegara hasta aquí) también tiene
+    // tenant_id null. Mismo helper que ya usa el middleware solo.superadmin.
+    $esSuperAdminSesion = \App\Models\Rol::esRolSuperAdmin(session('id_rol'));
+@endphp
+<body class="{{ $esSuperAdminSesion ? 'tema-plataforma' : 'modo-'.session('modo_tema', 'oscuro').' acento-'.str_replace('_', '-', session('color_acento') ?? 'rojo') }}">
     <script>
         // Va aquí arriba, y no en el bloque de scripts del final, para que el
         // sidebar ya nazca colapsado si esa era la preferencia guardada: puesto
@@ -2944,7 +3004,7 @@
         // El rol se deduce igual que en el resto del proyecto (el helper
         // del middleware + la ausencia de negocio), no leyendo un
         // nombre_rol suelto que podría variar entre instalaciones.
-        $nombreRolSesion = session('tenant_id') === null
+        $nombreRolSesion = $esSuperAdminSesion
             ? 'Super Admin'
             : ($esEmpleadoSesion ? 'Empleado' : 'Administrador');
     @endphp
@@ -2983,12 +3043,25 @@
             {{-- Rótulos de sección: solo separan visualmente. No cambian el orden
                  de los ítems ni a qué grupo colapsable pertenece cada uno. --}}
             <div class="etiqueta-seccion">Principal</div>
-            <a href="{{ url('backoffice/dashboard') }}" class="menu-item @if (request()->is('backoffice/dashboard')) active @endif">
+            {{-- backoffice/dashboard redirige al super admin a su propio
+                 dashboard de plataforma (ver DashboardController), así que el
+                 enlace se queda apuntando ahí y solo se amplía cuándo se
+                 marca "activo". --}}
+            <a href="{{ url('backoffice/dashboard') }}" class="menu-item @if (request()->is('backoffice/dashboard') || request()->is('backoffice/superadmin/dashboard')) active @endif">
                 <i class="bi bi-speedometer2"></i>
                 <span>Dashboard</span>
             </a>
 
             <div class="etiqueta-seccion">Gestión</div>
+            @if ($esSuperAdminSesion)
+                {{-- El super admin no gestiona un negocio: gestiona LA
+                     plataforma. Nada operativo de spa le aplica, por eso este
+                     ítem entra aquí y no dentro de $tieneNegocioMenu. --}}
+                <a href="{{ url('backoffice/superadmin/negocios') }}" class="menu-item @if (request()->is('backoffice/superadmin/negocios')) active @endif">
+                    <i class="bi bi-buildings"></i>
+                    <span>Negocios</span>
+                </a>
+            @endif
             <a href="{{ url('backoffice/usuarios') }}" class="menu-item @if (request()->is('backoffice/usuarios')) active @endif">
                 <i class="bi bi-people"></i>
                 <span>Usuarios</span>

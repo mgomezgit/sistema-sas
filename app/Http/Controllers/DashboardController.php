@@ -13,21 +13,15 @@ class DashboardController extends Controller
         $templateView = [];
         $templateView['fechaHoy'] = Carbon::now()->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY');
 
-        $tenantId = session('tenant_id');
-
-        // El super admin no pertenece a ningún negocio, así que no hay métricas
-        // que calcularle: la vista deja esas tarjetas en "Próximamente".
-        if ($tenantId === null) {
-            $templateView['reservasHoy'] = null;
-            $templateView['clientesActivos'] = null;
-            $templateView['ingresosMes'] = null;
-            $templateView['ocupacionHoy'] = null;
-            $templateView['proximasCitas'] = [];
-            $templateView['variacionClientes'] = null;
-            $templateView['distribucionHoy'] = [];
-
-            return view('app.dashboard', $templateView);
+        // El super admin no opera un negocio: su dashboard es el de la
+        // plataforma (backoffice/superadmin/dashboard), no una versión vacía
+        // de este. Se identifica por rol, nunca por tenant_id null a secas
+        // (ver App\Models\Rol::esRolSuperAdmin).
+        if (\App\Models\Rol::esRolSuperAdmin(session('id_rol'))) {
+            return redirect(url('backoffice/superadmin/dashboard'));
         }
+
+        $tenantId = session('tenant_id');
 
         $svcReserva = new SvcReserva;
         $svcCliente = new SvcCliente;

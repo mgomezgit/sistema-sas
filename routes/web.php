@@ -145,6 +145,11 @@ Route::prefix('request/superadmin')->middleware(['sesion.activa', 'solo.superadm
     Route::post('desactivar-modulo', [App\Http\Controllers\Request\SuperAdminController::class, 'desactivarModulo']);
 });
 
+Route::prefix('backoffice/superadmin')->middleware(['sesion.activa', 'solo.superadmin'])->group(function () {
+    Route::get('dashboard', [App\Http\Controllers\SuperAdminViewController::class, 'dashboard']);
+    Route::get('negocios', [App\Http\Controllers\SuperAdminViewController::class, 'negocios']);
+});
+
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('dashboard', [App\Http\Controllers\DashboardController::class, 'index']);
     Route::get('mis-citas', [App\Http\Controllers\MisCitasViewController::class, 'index']);
