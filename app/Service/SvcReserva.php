@@ -666,6 +666,10 @@ class SvcReserva
                 ->where('r.fecha_reserva', $fecha)
                 ->whereIn('r.estado_reserva', ['pendiente', 'confirmada'])
                 ->where('r.estado', 1)
+                // Un negocio suspendido por el super admin no manda correos a
+                // sus clientes: quedó fuera de la plataforma aunque sus datos
+                // se conserven.
+                ->where('n.estado', 1)
                 ->orderBy('r.hora_inicio')
                 ->get()
                 ->toArray() ?? [];

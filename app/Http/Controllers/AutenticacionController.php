@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\VerificarSesion;
 use App\Models\Empleado;
 use App\Models\Negocio;
 use App\Service\SvcUsuario;
@@ -42,6 +43,17 @@ class AutenticacionController extends Controller
         $usuario = $this->svcUsuario->getUsuarioByEmail($datos['email']);
 
         if (! empty($usuario) && Hash::check($datos['clave'], $usuario['clave'])) {
+            // Negocio suspendido por el super admin: no se entra. Se revisa
+            // DESPUÉS de validar la clave, para que este aviso no le confirme a
+            // quien no la conoce que el correo existe. El super admin no tiene
+            // negocio (tenant_id null) y nunca se ve afectado.
+            if ($usuario['tenant_id'] !== null
+                && ! Negocio::where('id_negocio', $usuario['tenant_id'])->where('estado', 1)->exists()) {
+                $this->agregarError(VerificarSesion::MENSAJE_NEGOCIO_INACTIVO);
+
+                return $this->sendResponse();
+            }
+
             // Si la cuenta corresponde a un empleado, se guarda su id en la sesión
             // para poder filtrar "sus" citas. Un admin o super admin queda en null.
             $idEmpleado = Empleado::where('id_usuario', $usuario['id_usuario'])

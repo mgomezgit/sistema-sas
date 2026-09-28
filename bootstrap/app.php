@@ -17,6 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'restringir.empleado' => \App\Http\Middleware\RestringirEmpleado::class,
             // Recibe la clave del módulo de pago: 'verificar.modulo:comisiones'.
             'verificar.modulo' => \App\Http\Middleware\VerificarModuloActivo::class,
+            // Panel del super admin: sesión válida Y rol super_admin, nunca
+            // solo tenant_id null.
+            'solo.superadmin' => \App\Http\Middleware\SoloSuperAdmin::class,
         ]);
 
         /*

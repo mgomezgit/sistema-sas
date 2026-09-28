@@ -309,6 +309,8 @@ class SvcProducto
                         ->where('usuarios.id_rol', $idRolAdmin);
                 })
                 ->where('productos.estado', 1)
+                // Un negocio suspendido por el super admin no recibe resúmenes.
+                ->where('negocios.estado', 1)
                 ->whereColumn('productos.cantidad_actual', '<=', 'productos.cantidad_minima')
                 ->get()
                 ->toArray() ?? [];

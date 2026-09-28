@@ -324,6 +324,14 @@
             });
         @endif
 
+        // Motivo por el que se cerró la sesión (por ejemplo, negocio suspendido).
+        // La directiva json de Blade lo entrega escapado como cadena de JS. (No
+        // escribir aquí su nombre con arroba: Blade la compila también dentro
+        // de un comentario de JS y rompe la vista.)
+        @if (session('aviso_login'))
+            notificarUsuario(@json(session('aviso_login')), 'warning');
+        @endif
+
         jQuery("#btn-ingresar").on("click", function () {
             var $boton = jQuery(this);
             var textoOriginal = $boton.html();

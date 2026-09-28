@@ -128,6 +128,23 @@ Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->
     Route::get('producto/generar-sku', [App\Http\Controllers\Request\ProductoController::class, 'generarSku']);
 });
 
+/*
+ * ================= PANEL DEL SUPER ADMIN =================
+ *
+ * La única zona que trabaja legítimamente ENTRE negocios. TODA ruta bajo
+ * request/superadmin/* o backoffice/superadmin/* lleva solo.superadmin (sesión
+ * válida Y rol super_admin). SuperAdminTest tiene una prueba guardián que
+ * rompe la suite si alguna queda sin él.
+ */
+Route::prefix('request/superadmin')->middleware(['sesion.activa', 'solo.superadmin'])->group(function () {
+    Route::get('resumen', [App\Http\Controllers\Request\SuperAdminController::class, 'resumen']);
+    Route::get('negocios', [App\Http\Controllers\Request\SuperAdminController::class, 'negocios']);
+    Route::post('cambiar-estado-negocio', [App\Http\Controllers\Request\SuperAdminController::class, 'cambiarEstadoNegocio']);
+    Route::get('modulos-de-negocio', [App\Http\Controllers\Request\SuperAdminController::class, 'modulosDeNegocio']);
+    Route::post('activar-modulo', [App\Http\Controllers\Request\SuperAdminController::class, 'activarModulo']);
+    Route::post('desactivar-modulo', [App\Http\Controllers\Request\SuperAdminController::class, 'desactivarModulo']);
+});
+
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('dashboard', [App\Http\Controllers\DashboardController::class, 'index']);
     Route::get('mis-citas', [App\Http\Controllers\MisCitasViewController::class, 'index']);
