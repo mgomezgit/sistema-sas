@@ -647,7 +647,11 @@ class UsuarioTest extends TestCase
      */
     private function lineasDeLog(): array
     {
-        $ruta = storage_path('logs/database-'.date('Y-m-d').'.log');
+        // Ruta leída de la configuración del canal, nunca escrita a mano: en
+        // testing el canal "database" apunta a storage/logs/testing/, aparte
+        // del registro de auditoría real (ver config/logging.php).
+        $base = pathinfo(config('logging.channels.database.path'));
+        $ruta = $base['dirname'].'/'.$base['filename'].'-'.date('Y-m-d').'.'.$base['extension'];
 
         return file_exists($ruta) ? file($ruta) : [];
     }

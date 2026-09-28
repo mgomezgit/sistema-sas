@@ -75,7 +75,23 @@ return [
 
         'database' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/database.log'),
+            // En testing escribe aparte de la auditoría real: las pruebas
+            // registran suspensiones, activaciones de módulos y cascadas de
+            // baja de verdad (Log::channel('database')), y ese archivo es
+            // también el registro de auditoría que lee el panel del super
+            // admin. Sin esta separación, correr la suite ensucia el mismo
+            // log que "quién activó qué módulo y cuándo".
+            // env() y no app()->environment(): un config cacheado con
+            // "php artisan config:cache" evalúa este archivo una sola vez, y
+            // app()->environment() en ese momento no refleja el entorno real
+            // de cada petición. env() sí es seguro aquí, como el resto de
+            // este archivo.
+            // env() y no app()->environment(): un config cacheado con
+            // "php artisan config:cache" evalúa este archivo una sola vez, y
+            // app()->environment() en ese momento no refleja el entorno real
+            // de cada petición. env() sí es seguro aquí, como el resto de
+            // este archivo.
+            'path' => storage_path(env('APP_ENV') === 'testing' ? 'logs/testing/database.log' : 'logs/database.log'),
             'level' => 'debug',
             'days' => 30,
             'replace_placeholders' => true,
