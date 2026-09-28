@@ -34,9 +34,14 @@ Route::prefix('publico/{slug}')->middleware('throttle:60,1')->group(function () 
     Route::post('agendar', [App\Http\Controllers\Publico\PublicoController::class, 'agendar']);
 });
 
-Route::prefix('request')->group(function () {
-    Route::post('autenticacion/login', [App\Http\Controllers\AutenticacionController::class, 'validarLogin']);
+// El login es la única ruta de request/* que se llama sin sesión (junto al
+// registro público, declarado más arriba). Va aparte, fuera de sesion.activa.
+Route::post('request/autenticacion/login', [App\Http\Controllers\AutenticacionController::class, 'validarLogin']);
 
+// sesion.activa en TODOS los grupos privados de request/*: sin ella, una
+// petición anónima llega con tenant_id null, y varios controladores leen
+// null como "super admin, no filtres por negocio". Ver AccesoAnonimoTest.
+Route::prefix('request')->middleware('sesion.activa')->group(function () {
     // Agenda propia del empleado: son las únicas rutas de datos que puede usar.
     Route::get('reserva/mis-citas', [App\Http\Controllers\Request\ReservaController::class, 'misCitas']);
     Route::post('reserva/cambiar-estado-mi-cita', [App\Http\Controllers\Request\ReservaController::class, 'cambiarEstadoMiCita']);
@@ -52,7 +57,7 @@ Route::prefix('request')->group(function () {
 
 // Endpoints administrativos: cerrados para el rol "empleado", que de otro modo
 // podría consultarlos directamente aunque no vea las pantallas.
-Route::prefix('request')->middleware('restringir.empleado')->group(function () {
+Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->group(function () {
     Route::post('usuario/crear', [App\Http\Controllers\Request\UsuarioController::class, 'crear']);
     Route::post('usuario/editar', [App\Http\Controllers\Request\UsuarioController::class, 'editar']);
     Route::post('usuario/eliminar', [App\Http\Controllers\Request\UsuarioController::class, 'eliminar']);

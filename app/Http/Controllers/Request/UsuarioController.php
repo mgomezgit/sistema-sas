@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
+use App\Models\Rol;
 use App\Models\Usuario;
 use App\Service\SvcUsuario;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +17,20 @@ class UsuarioController extends Controller
         parent::__construct();
 
         $this->svcUsuario = new SvcUsuario;
+    }
+
+    /**
+     * Una cuenta sin negocio (tenant_id null) SOLO puede gestionar usuarios de
+     * toda la plataforma si su rol es super_admin.
+     *
+     * Este módulo es el único que interpreta tenant_id null como "no filtres
+     * por negocio" (SvcUsuario) y que acepta el tenant_id del cuerpo al crear.
+     * Sin esta comprobación, un usuario mal cargado con rol admin y sin negocio
+     * heredaría poderes de plataforma. Manda el rol, no la ausencia de negocio.
+     */
+    private function sinNegocioNiRolDePlataforma(): bool
+    {
+        return session('tenant_id') === null && ! Rol::esRolSuperAdmin(session('id_rol'));
     }
 
     /**
@@ -46,6 +61,12 @@ class UsuarioController extends Controller
 
     public function crear(): JsonResponse
     {
+        if ($this->sinNegocioNiRolDePlataforma()) {
+            $this->agregarError('No tienes permiso para gestionar usuarios. Tu cuenta no está vinculada a ningún negocio.');
+
+            return $this->sendResponse();
+        }
+
         $this->setRequestValidationRules([
             'usuario' => 'required',
             'nombre' => 'required',
@@ -108,6 +129,12 @@ class UsuarioController extends Controller
 
     public function editar(): JsonResponse
     {
+        if ($this->sinNegocioNiRolDePlataforma()) {
+            $this->agregarError('No tienes permiso para gestionar usuarios. Tu cuenta no está vinculada a ningún negocio.');
+
+            return $this->sendResponse();
+        }
+
         $this->setRequestValidationRules([
             'id_usuario' => 'required',
             'usuario' => 'required',
@@ -171,6 +198,12 @@ class UsuarioController extends Controller
 
     public function eliminar(): JsonResponse
     {
+        if ($this->sinNegocioNiRolDePlataforma()) {
+            $this->agregarError('No tienes permiso para gestionar usuarios. Tu cuenta no está vinculada a ningún negocio.');
+
+            return $this->sendResponse();
+        }
+
         $this->setRequestValidationRules([
             'id_usuario' => 'required',
         ]);
@@ -198,6 +231,12 @@ class UsuarioController extends Controller
 
     public function listar(): JsonResponse
     {
+        if ($this->sinNegocioNiRolDePlataforma()) {
+            $this->agregarError('No tienes permiso para gestionar usuarios. Tu cuenta no está vinculada a ningún negocio.');
+
+            return $this->sendResponse();
+        }
+
         $tenantId = session('tenant_id');
 
         $datos = $this->getRequestData();

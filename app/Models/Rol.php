@@ -37,4 +37,19 @@ class Rol extends Model
 
         return self::where('id_rol', $idRol)->value('nombre_rol') === 'empleado';
     }
+
+    /**
+     * Indica si el rol recibido corresponde al rol "super_admin".
+     *
+     * El super admin se identifica SIEMPRE por su rol, nunca por tener
+     * tenant_id null: una petición anónima también tiene tenant_id null.
+     */
+    public static function esRolSuperAdmin($idRol): bool
+    {
+        if (empty($idRol)) {
+            return false;
+        }
+
+        return self::where('id_rol', $idRol)->value('nombre_rol') === 'super_admin';
+    }
 }
