@@ -50,7 +50,7 @@ class ProductoTest extends TestCase
         ]);
     }
 
-    private function crearUsuarioAdmin(int $tenantId, string $usuario, string $email): int
+    private function crearUsuarioAdmin(int $tenantId, string $usuario, string $email, int $estado = 1): int
     {
         return DB::table('usuarios')->insertGetId([
             'tenant_id' => $tenantId,
@@ -61,7 +61,7 @@ class ProductoTest extends TestCase
             'clave' => bcrypt('secreta'),
             'usuario_registra' => 'test',
             'fecha_registro' => date('Y-m-d H:i:s'),
-            'estado' => 1,
+            'estado' => $estado,
         ]);
     }
 
@@ -574,14 +574,78 @@ class ProductoTest extends TestCase
 
         $this->assertSame('Producto A Bajo', $porNegocio[$this->negocioA]['nombre']);
         $this->assertSame('Negocio A', $porNegocio[$this->negocioA]['nombre_negocio']);
-        $this->assertSame('admin.a@test.local', $porNegocio[$this->negocioA]['email_admin']);
 
         $this->assertSame('Producto B Bajo', $porNegocio[$this->negocioB]['nombre']);
         $this->assertSame('Negocio B', $porNegocio[$this->negocioB]['nombre_negocio']);
-        $this->assertSame('admin.b@test.local', $porNegocio[$this->negocioB]['email_admin']);
 
-        // El email de un negocio nunca se cuela en el registro del otro.
-        $this->assertNotSame($porNegocio[$this->negocioA]['email_admin'], $porNegocio[$this->negocioB]['email_admin']);
+        // Ya no trae el email del admin: eso se resuelve aparte, en
+        // listarEmailsAdminsActivosPorNegocio(). Unirlo aquí era lo que
+        // multiplicaba cada producto por cada admin del negocio.
+        $this->assertArrayNotHasKey('email_admin', $porNegocio[$this->negocioA]);
+    }
+
+    /**
+     * Un negocio con dos admins activos no debe duplicar sus productos: antes
+     * de la corrección, unir "usuarios" en la misma consulta que "productos"
+     * multiplicaba cada fila por cada admin encontrado.
+     */
+    public function test_un_negocio_con_dos_admins_activos_no_duplica_sus_productos(): void
+    {
+        $this->crearUsuarioAdmin($this->negocioA, 'admin.uno', 'uno@test.local');
+        $this->crearUsuarioAdmin($this->negocioA, 'admin.dos', 'dos@test.local');
+
+        $this->crearProducto($this->negocioA, ['nombre' => 'Shampoo', 'cantidad_actual' => 1, 'cantidad_minima' => 10]);
+        $this->crearProducto($this->negocioA, ['nombre' => 'Crema', 'cantidad_actual' => 2, 'cantidad_minima' => 10]);
+
+        $productos = $this->svcProducto->listarStockBajoTodosLosNegocios();
+
+        $this->assertCount(2, $productos, 'Cada producto debe aparecer una sola vez, sin importar cuántos admins tenga el negocio');
+    }
+
+    /* ================= 7b) listarEmailsAdminsActivosPorNegocio() PARA EL SCHEDULER ================= */
+
+    public function test_lista_los_emails_de_los_admins_activos_de_cada_negocio(): void
+    {
+        $this->crearUsuarioAdmin($this->negocioA, 'admin.a', 'admin.a@test.local');
+        $this->crearUsuarioAdmin($this->negocioB, 'admin.b', 'admin.b@test.local');
+
+        $emails = $this->svcProducto->listarEmailsAdminsActivosPorNegocio([$this->negocioA, $this->negocioB]);
+
+        $this->assertSame(['admin.a@test.local'], $emails[$this->negocioA]);
+        $this->assertSame(['admin.b@test.local'], $emails[$this->negocioB]);
+
+        // El email de un negocio nunca se cuela en el mapa del otro.
+        $this->assertNotSame($emails[$this->negocioA], $emails[$this->negocioB]);
+    }
+
+    public function test_un_negocio_con_dos_admins_activos_trae_los_dos_emails(): void
+    {
+        $this->crearUsuarioAdmin($this->negocioA, 'admin.uno', 'uno@test.local');
+        $this->crearUsuarioAdmin($this->negocioA, 'admin.dos', 'dos@test.local');
+
+        $emails = $this->svcProducto->listarEmailsAdminsActivosPorNegocio([$this->negocioA]);
+
+        sort($emails[$this->negocioA]);
+        $this->assertSame(['dos@test.local', 'uno@test.local'], $emails[$this->negocioA]);
+    }
+
+    public function test_un_admin_inactivo_no_aparece_en_la_lista_de_emails(): void
+    {
+        $this->crearUsuarioAdmin($this->negocioA, 'admin.activo', 'activo@test.local');
+        $this->crearUsuarioAdmin($this->negocioA, 'admin.inactivo', 'inactivo@test.local', 0);
+
+        $emails = $this->svcProducto->listarEmailsAdminsActivosPorNegocio([$this->negocioA]);
+
+        $this->assertSame(['activo@test.local'], $emails[$this->negocioA]);
+    }
+
+    public function test_un_negocio_sin_ningun_admin_activo_no_aparece_en_el_mapa(): void
+    {
+        $this->crearUsuarioAdmin($this->negocioA, 'admin.inactivo', 'inactivo@test.local', 0);
+
+        $emails = $this->svcProducto->listarEmailsAdminsActivosPorNegocio([$this->negocioA]);
+
+        $this->assertArrayNotHasKey($this->negocioA, $emails);
     }
 
     /* ================= 10) EL SKU ES OBLIGATORIO ================= */

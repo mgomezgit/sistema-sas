@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Models\Producto;
 use App\Models\Rol;
+use App\Models\Usuario;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -284,15 +285,17 @@ class SvcProducto
 
     /**
      * Para el scheduler, que corre a nivel de sistema y no de un tenant
-     * específico: trae el stock bajo de TODOS los negocios, junto con el
-     * nombre del negocio y el email de su admin, para poder enviar el
-     * resumen de cada uno por correo.
+     * específico: trae el stock bajo de TODOS los negocios activos, junto con
+     * el nombre del negocio, para poder armar el resumen de cada uno.
+     *
+     * A propósito NO trae el email del admin aquí: unir usuarios en esta
+     * misma consulta multiplicaba cada producto por cada admin del negocio
+     * (join 1 producto × N admins = N filas idénticas). Quién debe recibir el
+     * correo se resuelve aparte, en listarEmailsAdminsActivosPorNegocio().
      */
     public function listarStockBajoTodosLosNegocios()
     {
         try {
-            $idRolAdmin = Rol::where('nombre_rol', 'admin')->value('id_rol');
-
             $productos = Producto::select(
                 'productos.id_producto',
                 'productos.tenant_id',
@@ -300,14 +303,9 @@ class SvcProducto
                 'productos.sku',
                 'productos.cantidad_actual',
                 'productos.cantidad_minima',
-                'negocios.nombre_negocio',
-                'usuarios.email as email_admin'
+                'negocios.nombre_negocio'
             )
                 ->join('negocios', 'negocios.id_negocio', '=', 'productos.tenant_id')
-                ->leftJoin('usuarios', function ($join) use ($idRolAdmin) {
-                    $join->on('usuarios.tenant_id', '=', 'productos.tenant_id')
-                        ->where('usuarios.id_rol', $idRolAdmin);
-                })
                 ->where('productos.estado', 1)
                 // Un negocio suspendido por el super admin no recibe resúmenes.
                 ->where('negocios.estado', 1)
@@ -316,6 +314,39 @@ class SvcProducto
                 ->toArray() ?? [];
 
             return $this->etiquetarUrgencia($productos);
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
+    /**
+     * Correos de los admins ACTIVOS de cada uno de los negocios indicados, en
+     * una sola consulta (no una por negocio). Cada admin activo recibe su
+     * propio correo: uno con dos admins activos manda dos correos, cada uno
+     * con la lista completa de productos de ese negocio.
+     *
+     * Devuelve un mapa tenant_id => [email, email, ...]. Un negocio sin
+     * ningún admin activo simplemente no aparece en el mapa.
+     */
+    public function listarEmailsAdminsActivosPorNegocio(array $tenantIds): array
+    {
+        try {
+            if (empty($tenantIds)) {
+                return [];
+            }
+
+            $idRolAdmin = Rol::where('nombre_rol', 'admin')->value('id_rol');
+
+            return Usuario::select('tenant_id', 'email')
+                ->whereIn('tenant_id', $tenantIds)
+                ->where('id_rol', $idRolAdmin)
+                ->where('estado', 1)
+                ->get()
+                ->groupBy('tenant_id')
+                ->map(fn ($filas) => $filas->pluck('email')->all())
+                ->toArray();
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 

@@ -19,36 +19,56 @@ class EnviarResumenStockBajo extends Command
         $svcProducto = new SvcProducto;
         $productos = $svcProducto->listarStockBajoTodosLosNegocios();
 
-        $porNegocio = [];
+        // Un producto por fila, sin duplicados: listarStockBajoTodosLosNegocios()
+        // ya no une con usuarios, así que agrupar por tenant_id aquí no repite
+        // nada.
+        $productosPorNegocio = [];
 
         foreach ($productos as $producto) {
-            $porNegocio[$producto['tenant_id']]['nombre_negocio'] = $producto['nombre_negocio'];
-            $porNegocio[$producto['tenant_id']]['email_admin'] = $producto['email_admin'];
-            $porNegocio[$producto['tenant_id']]['productos'][] = $producto;
+            $productosPorNegocio[$producto['tenant_id']]['nombre_negocio'] = $producto['nombre_negocio'];
+            $productosPorNegocio[$producto['tenant_id']]['productos'][] = $producto;
         }
+
+        if (empty($productosPorNegocio)) {
+            $this->info('Negocios con stock bajo: 0');
+            $this->info('Correos encolados: 0');
+
+            return self::SUCCESS;
+        }
+
+        // Una sola consulta para los admins activos de TODOS los negocios que
+        // tienen stock bajo, en vez de una por negocio.
+        $emailsPorNegocio = $svcProducto->listarEmailsAdminsActivosPorNegocio(array_keys($productosPorNegocio));
 
         $encolados = 0;
 
-        foreach ($porNegocio as $datosNegocio) {
-            // Sin email de admin no hay a quién avisar: se omite en silencio.
-            if (empty($datosNegocio['email_admin'])) {
+        foreach ($productosPorNegocio as $tenantId => $datosNegocio) {
+            $emails = $emailsPorNegocio[$tenantId] ?? [];
+
+            // Sin ningún admin activo no hay a quién avisar: se omite en
+            // silencio, igual que antes cuando faltaba el email.
+            if (empty($emails)) {
                 continue;
             }
 
-            // Un fallo puntual no debe detener el resumen de los demás negocios.
-            try {
-                Mail::to($datosNegocio['email_admin'])->queue(
-                    new ResumenStockBajo($datosNegocio['nombre_negocio'], $datosNegocio['productos'])
-                );
+            // Cada admin activo recibe SU PROPIO correo, con la lista
+            // completa (no repetida) de productos de su negocio.
+            foreach ($emails as $email) {
+                // Un fallo puntual no debe detener el resumen de los demás.
+                try {
+                    Mail::to($email)->queue(
+                        new ResumenStockBajo($datosNegocio['nombre_negocio'], $datosNegocio['productos'])
+                    );
 
-                $encolados++;
-            } catch (\Exception $e) {
-                Log::channel('database')->info($e);
-                $this->warn('No se pudo encolar el resumen del negocio '.$datosNegocio['nombre_negocio']);
+                    $encolados++;
+                } catch (\Exception $e) {
+                    Log::channel('database')->info($e);
+                    $this->warn('No se pudo encolar el resumen del negocio '.$datosNegocio['nombre_negocio'].' para '.$email);
+                }
             }
         }
 
-        $this->info('Negocios con stock bajo: '.count($porNegocio));
+        $this->info('Negocios con stock bajo: '.count($productosPorNegocio));
         $this->info('Correos encolados: '.$encolados);
 
         return self::SUCCESS;
