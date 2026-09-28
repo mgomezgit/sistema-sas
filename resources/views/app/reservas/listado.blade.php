@@ -1034,6 +1034,27 @@
             });
         }
 
+        /**
+         * Abre el modal de edición para una reserva de la que solo se tiene el ID.
+         *
+         * Se usa desde la campana de "Solicitudes pendientes" y desde el arranque
+         * de esta pantalla cuando llega con ?reserva=ID. La reserva pasa siempre
+         * por request/reserva/obtener, que filtra por tenant: un ID que no existe
+         * o que pertenece a otro negocio nunca devuelve datos, y aquí se le avisa
+         * al usuario sin exponer nada.
+         */
+        function abrirEdicionReservaPorId(idReserva) {
+            axiosSipleInterno('GET', 'request/reserva/obtener', { id_reserva: idReserva }, {}, false, function (respuesta) {
+                if (!respuesta || respuesta.error != 0 || !respuesta.data || !respuesta.data.reserva) {
+                    notificarUsuario('Esa solicitud ya no está disponible', 'info');
+
+                    return;
+                }
+
+                abrirEdicionReserva(respuesta.data.reserva);
+            });
+        }
+
         // Punto único para abrir el modal en modo "editar", a partir de un objeto plano
         // con los mismos campos sin importar si viene de la agenda o del panel del calendario.
         function abrirEdicionReserva(datos) {
@@ -1195,6 +1216,13 @@
             cargarReservas();
             if (calendar) {
                 calendar.refetchEvents();
+            }
+
+            // Confirmar o cancelar una solicitud puede sacarla de la lista de
+            // pendientes: el badge del navbar tiene que reflejar el nuevo estado
+            // sin esperar el siguiente ciclo de sondeo.
+            if (typeof cargarSolicitudesPendientesCampana === 'function') {
+                cargarSolicitudesPendientesCampana();
             }
         }
 
@@ -1588,6 +1616,11 @@
                     reservaEnPanel.estado_reserva = nuevoEstado;
                     calendar.refetchEvents();
                     cargarReservas();
+
+                    // Confirmar aquí una solicitud pendiente la saca de la campana.
+                    if (typeof cargarSolicitudesPendientesCampana === 'function') {
+                        cargarSolicitudesPendientesCampana();
+                    }
                 } else {
                     notificarUsuario(respuesta.mensaje, 'error');
                 }
@@ -1622,6 +1655,18 @@
             cargarHorarioNegocio(function () {
                 inicializarCalendario();
                 seleccionarDia(fechaDeHoy());
+
+                // "?reserva=ID" llega desde la campana de solicitudes pendientes
+                // cuando el admin no está ya en esta pantalla. Abre el modal de
+                // edición para esa reserva concreta. La consulta pasa por
+                // request/reserva/obtener, que filtra por tenant: un ID ajeno
+                // o inexistente no rompe la pantalla ni muestra datos ajenos.
+                var parametros = new URLSearchParams(window.location.search);
+                var idReservaDestacada = parametros.get('reserva');
+
+                if (idReservaDestacada) {
+                    abrirEdicionReservaPorId(idReservaDestacada);
+                }
             });
 
             iniciarGuiaSiCorresponde('reserva', function () {

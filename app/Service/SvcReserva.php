@@ -526,6 +526,44 @@ class SvcReserva
         }
     }
 
+    /**
+     * Solicitudes pendientes de confirmar, creadas desde la página pública.
+     *
+     * Solo estado='pendiente' Y origen='publico': una reserva pendiente creada
+     * a mano por el admin (origen='admin') no es una solicitud que alguien
+     * tenga que revisar, así que no entra aquí.
+     *
+     * Las más próximas primero, para que el admin atienda lo urgente antes.
+     */
+    public function listarSolicitudesPendientes($tenantId)
+    {
+        try {
+            return Reserva::from('reservas as r')
+                ->join('clientes as c', 'c.id_cliente', '=', 'r.id_cliente')
+                ->join('recursos_reservables as rec', 'rec.id_recurso', '=', 'r.id_recurso')
+                ->select(
+                    'r.id_reserva',
+                    'c.nombre as nombre_cliente',
+                    'c.telefono as telefono_cliente',
+                    'rec.nombre as nombre_servicio',
+                    'r.fecha_reserva',
+                    'r.hora_inicio'
+                )
+                ->where('r.tenant_id', $tenantId)
+                ->where('r.estado', 1)
+                ->where('r.estado_reserva', 'pendiente')
+                ->where('r.origen', 'publico')
+                ->orderBy('r.fecha_reserva')
+                ->orderBy('r.hora_inicio')
+                ->get()
+                ->toArray() ?? [];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
     public function listarById($id, $tenantId)
     {
         try {

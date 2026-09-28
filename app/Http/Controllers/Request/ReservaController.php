@@ -414,6 +414,63 @@ class ReservaController extends Controller
         return $this->sendResponse();
     }
 
+    /**
+     * Una sola reserva, para el modal de edición cuando se abre desde
+     * ?reserva=ID (campana de solicitudes u otro enlace directo) en vez de
+     * desde una fila ya cargada en la tabla o el calendario.
+     *
+     * Pasa siempre por listarById(), que ya filtra por tenant_id: un ID de
+     * otro negocio, o que no existe, devuelve data vacía, nunca un error que
+     * delate que el registro existe en otro lado.
+     */
+    public function obtener(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        if ($tenantId === null) {
+            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
+
+            return $this->sendResponse();
+        }
+
+        $idReserva = $this->request->query('id_reserva');
+
+        if (empty($idReserva)) {
+            $this->agregarError('Falta indicar la reserva');
+
+            return $this->sendResponse();
+        }
+
+        $reserva = $this->svcReserva->listarById($idReserva, $tenantId);
+
+        $this->respSinError();
+        $this->setDataResponse(! empty($reserva) ? $reserva[0] : null, 'reserva');
+
+        return $this->sendResponse();
+    }
+
+    /**
+     * Solicitudes pendientes de la página pública, para la campana del navbar.
+     */
+    public function solicitudesPendientes(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        if ($tenantId === null) {
+            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
+
+            return $this->sendResponse();
+        }
+
+        $solicitudes = $this->svcReserva->listarSolicitudesPendientes($tenantId);
+
+        $this->respSinError();
+        $this->setDataResponse($solicitudes, 'solicitudes');
+        $this->setDataResponse(count($solicitudes), 'total');
+
+        return $this->sendResponse();
+    }
+
     public function listar(): JsonResponse
     {
         $tenantId = session('tenant_id');

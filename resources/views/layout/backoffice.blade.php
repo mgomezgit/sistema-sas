@@ -2090,6 +2090,60 @@
             text-decoration: none;
         }
 
+        /* ---------- Campana de solicitudes pendientes ---------- */
+        /* Reusa el mismo esqueleto de fila que .item-stock-bajo (mismas
+           variables, mismo espaciado); no hace falta duplicar esa regla
+           porque aquí no hay niveles de urgencia que distinguir con color. */
+
+        .item-solicitud-pendiente {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: var(--transition-base);
+            background: none;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .item-solicitud-pendiente:last-child {
+            border-bottom: none;
+        }
+
+        .item-solicitud-pendiente:hover {
+            background-color: var(--accent-soft);
+        }
+
+        .item-solicitud-pendiente .info-solicitud-pendiente {
+            min-width: 0;
+        }
+
+        .item-solicitud-pendiente .nombre-cliente-solicitud {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.88rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .item-solicitud-pendiente .detalle-solicitud-pendiente {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .item-solicitud-pendiente .icono-solicitud-pendiente {
+            color: var(--accent);
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
         .badge-rol-sesion {
             display: inline-flex;
             align-items: center;
@@ -3099,6 +3153,22 @@
             <div class="d-flex align-items-center gap-2">
             @if ($esAdminDeNegocio)
                 <div class="dropdown">
+                    <button type="button" id="btn-campana-solicitudes" class="disparador-campana" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-calendar-plus"></i>
+                        <span id="badge-solicitudes-pendientes" class="badge-campana" hidden>0</span>
+                    </button>
+
+                    <div class="dropdown-menu dropdown-menu-end panel-campana" aria-labelledby="btn-campana-solicitudes">
+                        <div class="encabezado-panel-campana">
+                            <i class="bi bi-calendar-plus"></i> Solicitudes pendientes
+                        </div>
+                        <div id="lista-solicitudes-pendientes" class="lista-panel-campana">
+                            <div class="panel-campana-cargando">Cargando...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dropdown">
                     <button type="button" id="btn-campana-stock" class="disparador-campana" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-bell"></i>
                         <span id="badge-stock-bajo" class="badge-campana" hidden>0</span>
@@ -4016,6 +4086,97 @@
 
                     cargarStockBajoCampana();
                 }, INTERVALO_SONDEO_CAMPANA);
+            });
+        </script>
+    @endif
+
+    {{-- Campana de solicitudes pendientes: mismo esqueleto que la de stock
+         bajo (mismas condiciones de visibilidad, mismo patrón de sondeo
+         silencioso), pero apuntando a las solicitudes de la página pública. --}}
+    @if ($esAdminDeNegocio)
+        <script>
+            function formatearFechaHoraSolicitud(fechaTexto, horaTexto) {
+                var fecha = new Date(fechaTexto + 'T' + horaTexto);
+                var fechaCorta = fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+                var horaCorta = fecha.toLocaleTimeString('es-ES', { hour: 'numeric', minute: '2-digit' });
+
+                return fechaCorta + ', ' + horaCorta;
+            }
+
+            function pintarPanelSolicitudes(solicitudes) {
+                var lista = jQuery('#lista-solicitudes-pendientes');
+                var badge = jQuery('#badge-solicitudes-pendientes');
+
+                if (!solicitudes || solicitudes.length === 0) {
+                    badge.prop('hidden', true);
+                    lista.html(
+                        '<div class="panel-campana-vacio">' +
+                        '<i class="bi bi-check-circle"></i>' +
+                        'No hay solicitudes pendientes' +
+                        '</div>'
+                    );
+
+                    return;
+                }
+
+                badge.text(solicitudes.length > 99 ? '99+' : solicitudes.length).prop('hidden', false);
+
+                var html = '';
+                solicitudes.forEach(function (solicitud) {
+                    var nombreEscapado = jQuery('<div>').text(solicitud.nombre_cliente).html();
+                    var servicioEscapado = jQuery('<div>').text(solicitud.nombre_servicio).html();
+                    var cuando = formatearFechaHoraSolicitud(solicitud.fecha_reserva, solicitud.hora_inicio);
+
+                    html += '<button type="button" class="item-solicitud-pendiente" data-id_reserva="' + solicitud.id_reserva + '">' +
+                        '<div class="info-solicitud-pendiente">' +
+                        '<div class="nombre-cliente-solicitud">' + nombreEscapado + '</div>' +
+                        '<div class="detalle-solicitud-pendiente">' + servicioEscapado + ' · ' + cuando + '</div>' +
+                        '</div>' +
+                        '<i class="bi bi-chevron-right icono-solicitud-pendiente"></i>' +
+                        '</button>';
+                });
+
+                lista.html(html);
+            }
+
+            /**
+             * Refresca el conteo de la campana. Va siempre sin loader y sin avisar
+             * si falla: el usuario no pidió esta consulta, así que un modal de error
+             * (y más aún repetido cada minuto por el sondeo) estorbaría en vez de
+             * ayudar. Si la sesión expiró, el siguiente intento se encarga.
+             */
+            function cargarSolicitudesPendientesCampana() {
+                axiosSipleInterno('GET', 'request/reserva/solicitudes-pendientes', {}, {}, false, function (respuesta) {
+                    if (respuesta && respuesta.error == 0) {
+                        pintarPanelSolicitudes(respuesta.data.solicitudes);
+                    }
+                }, { silenciarError: true });
+            }
+
+            jQuery(document).ready(function () {
+                cargarSolicitudesPendientesCampana();
+
+                setInterval(function () {
+                    if (document.hidden) {
+                        return;
+                    }
+
+                    cargarSolicitudesPendientesCampana();
+                }, INTERVALO_SONDEO_CAMPANA);
+
+                // Si la pantalla de Reservas ya definió abrirEdicionReservaPorId()
+                // (ver reservas/listado.blade.php), estamos ahí mismo: se abre el
+                // modal sin navegar. Si no, hay que llevar al usuario a esa pantalla
+                // con el mismo patrón "?id=ID" que usa la campana de stock bajo.
+                jQuery(document).on('click', '.item-solicitud-pendiente', function () {
+                    var idReserva = jQuery(this).data('id_reserva');
+
+                    if (typeof abrirEdicionReservaPorId === 'function') {
+                        abrirEdicionReservaPorId(idReserva);
+                    } else {
+                        window.location.href = UrlGlobal + 'backoffice/reservas?reserva=' + idReserva;
+                    }
+                });
             });
         </script>
     @endif
