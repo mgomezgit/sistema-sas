@@ -136,6 +136,21 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 - Las pruebas corren sobre SQLite en memoria (phpunit.xml) — la base real nunca se toca.
 - Ante un bug que persiste tras un primer intento de corrección: el siguiente intento DEBE exigir diagnóstico de causa raíz antes de corregir, no otro parche a ciegas.
 
+## Aislamiento entre negocios: regla sin excepciones
+
+- Un SaaS que mezcla datos entre negocios es un problema legal y de confianza. La seguridad de los datos de los clientes de Mateo no es negociable.
+- TODA tarea que toque backend (migración, Model, Service, Controller, middleware, comando, ruta pública o privada) DEBE incluir pruebas de aislamiento entre negocios, aunque el prompt no lo pida. Si el prompt sugiere omitirlas, esta regla prevalece.
+- Como mínimo, por cada método o endpoint que lea o escriba datos de un negocio:
+  1. El negocio A no puede LEER datos del negocio B.
+  2. El negocio A no puede MODIFICAR ni ELIMINAR datos del negocio B adivinando un ID.
+  3. Un tenant_id enviado en el cuerpo, en la query o en un archivo importado se IGNORA: manda siempre el de la sesión.
+  4. Empleado y super_admin son rechazados donde corresponda.
+  5. En endpoints públicos: lista blanca de campos verificada por prueba, sin select('*') ni toArray() del modelo completo.
+- Las pruebas recorren el camino real: peticiones HTTP con withSession(), no mocks de capas intermedias.
+- Prueba de mutación obligatoria: quitar a propósito el filtro de tenant, confirmar que la prueba falla, restaurar y confirmar que vuelve a pasar. Una prueba de seguridad que pasa a la primera se considera sospechosa hasta que se muta.
+- Si al revisar código existente se encuentra un endpoint sin filtro de tenant, reportarlo y corregirlo antes de continuar con la tarea.
+- Todo reporte final termina con una línea explícita: "Aislamiento entre negocios: verificado en [lista de pruebas], sin fugas". Si no se puede afirmar con evidencia, decirlo tal cual en vez de omitirlo.
+
 ## Flujo de Git
 
 - Rama de trabajo: `main`.
