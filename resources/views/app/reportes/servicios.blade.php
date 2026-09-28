@@ -175,8 +175,8 @@
                             return generarAvatar(fila.nombre_recurso, 'bi-stars');
                         }
                     },
-                    { data: 'nombre_recurso' },
-                    { data: 'cantidad_reservas' },
+                    { data: 'nombre_recurso', render: renderTextoSeguro },
+                    { data: 'cantidad_reservas', render: renderTextoSeguro },
                     {
                         data: 'ingresos_totales',
                         render: function (data) {

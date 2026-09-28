@@ -212,12 +212,12 @@
                             return generarAvatar(fila.nombre);
                         }
                     },
-                    { data: 'nombre' },
-                    { data: 'telefono' },
+                    { data: 'nombre', render: renderTextoSeguro },
+                    { data: 'telefono', render: renderTextoSeguro },
                     {
                         data: 'email',
                         render: function (data) {
-                            return data ? data : '<span class="text-muted">—</span>';
+                            return data ? escaparTexto(data) : '<span class="text-muted">—</span>';
                         }
                     },
                     {

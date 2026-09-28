@@ -9,7 +9,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
  * Reporte de ingresos por servicio: una fila por servicio, con cuántas veces se
  * reservó y cuánto aportó en el rango consultado.
  */
-class ReporteServiciosExport implements FromArray, WithHeadings
+class ReporteServiciosExport extends BinderCeldasSeguras implements FromArray, WithHeadings
 {
     private array $servicios;
 

@@ -251,14 +251,14 @@
                     {
                         data: 'categoria',
                         render: function (data) {
-                            return data ? data : '<span class="text-muted">—</span>';
+                            return data ? escaparTexto(data) : '<span class="text-muted">—</span>';
                         }
                     },
-                    { data: 'nombre' },
+                    { data: 'nombre', render: renderTextoSeguro },
                     {
                         data: 'duracion_minutos',
                         render: function (data) {
-                            return data + ' min';
+                            return escaparTexto(data) + ' min';
                         }
                     },
                     {
@@ -270,7 +270,7 @@
                     {
                         data: 'capacidad',
                         render: function (data) {
-                            return data ? data : '<span class="text-muted">—</span>';
+                            return data ? escaparTexto(data) : '<span class="text-muted">—</span>';
                         }
                     },
                     {

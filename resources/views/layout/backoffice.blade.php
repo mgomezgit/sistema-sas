@@ -3414,7 +3414,7 @@
                 }).join('');
 
                 // Se escapa por si el nombre trae caracteres con significado en HTML.
-                contenido = jQuery('<div>').text(iniciales || '?').html();
+                contenido = escaparTexto(iniciales || '?');
             }
 
             return '<span class="avatar-iniciales" style="background-color: var(--avatar-' + indiceColor + ');">' +
@@ -4044,7 +4044,7 @@
 
                     html += '<div class="item-stock-bajo ' + (agotado ? 'urgencia-agotado' : 'urgencia-bajo') + '">' +
                         '<div class="info-producto-bajo">' +
-                        '<div class="nombre-producto-bajo">' + jQuery('<div>').text(producto.nombre).html() + etiqueta + '</div>' +
+                        '<div class="nombre-producto-bajo">' + escaparTexto(producto.nombre) + etiqueta + '</div>' +
                         '<div class="detalle-producto-bajo">' + producto.cantidad_actual + ' de ' + producto.cantidad_minima + ' unidades</div>' +
                         '</div>' +
                         '<a class="btn-ingresar-stock-campana" href="' + UrlGlobal + 'backoffice/productos?producto=' + producto.id_producto + '">Ingresar stock</a>' +
@@ -4123,8 +4123,8 @@
 
                 var html = '';
                 solicitudes.forEach(function (solicitud) {
-                    var nombreEscapado = jQuery('<div>').text(solicitud.nombre_cliente).html();
-                    var servicioEscapado = jQuery('<div>').text(solicitud.nombre_servicio).html();
+                    var nombreEscapado = escaparTexto(solicitud.nombre_cliente);
+                    var servicioEscapado = escaparTexto(solicitud.nombre_servicio);
                     var cuando = formatearFechaHoraSolicitud(solicitud.fecha_reserva, solicitud.hora_inicio);
 
                     html += '<button type="button" class="item-solicitud-pendiente" data-id_reserva="' + solicitud.id_reserva + '">' +

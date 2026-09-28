@@ -209,13 +209,6 @@
             return hoy.getFullYear() + '-' + mes + '-' + dia;
         }
 
-        function escaparTexto(texto) {
-            if (texto === null || texto === undefined) {
-                return '';
-            }
-            return jQuery('<div>').text(texto).html();
-        }
-
         function recortarHora(hora) {
             return hora ? hora.substring(0, 5) : '';
         }

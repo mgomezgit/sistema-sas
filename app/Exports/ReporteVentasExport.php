@@ -11,7 +11,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
  * Recibe los datos ya consultados por el Service; aquí solo se les da forma de
  * hoja de cálculo, para no repartir consultas fuera de la capa de servicio.
  */
-class ReporteVentasExport implements FromArray, WithHeadings
+class ReporteVentasExport extends BinderCeldasSeguras implements FromArray, WithHeadings
 {
     private array $ventas;
 

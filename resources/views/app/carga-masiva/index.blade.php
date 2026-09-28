@@ -203,10 +203,6 @@
 
 @section('scripts')
     <script>
-        function escaparTexto(texto) {
-            return jQuery('<div>').text(texto === null || texto === undefined ? '' : texto).html();
-        }
-
         // La descarga es un archivo binario: se navega a la URL en vez de pedirla
         // por axios.
         jQuery('.btn-descargar-plantilla').on('click', function () {

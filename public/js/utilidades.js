@@ -10,16 +10,66 @@ function Ocultarloader() {
     jQuery("#loader_proceso").css("display", "none");
 }
 
-async function notificarUsuario(Mensaje = "", icono = "info", urlRedireccion = "") {
-    if (Array.isArray(Mensaje)) {
-        var TempMensaje = "";
-        for (i = 0; i < Mensaje.length; i++) {
-            TempMensaje = "- " + Mensaje[i] + "<br>" + TempMensaje;
-        }
-        Mensaje = TempMensaje;
+/**
+ * Escapa texto para insertarlo en HTML armado a mano.
+ *
+ * ÚNICA función de escape del proyecto: todo texto que escribe una persona
+ * (un cliente desde la página pública, un admin, una fila de un Excel
+ * importado) y que se concatena dentro de un string de HTML tiene que pasar
+ * por aquí. Si el destino es un nodo concreto, mejor todavía .text().
+ *
+ * No hace falta en: .text(), .val(), textContent, la opción "text" de
+ * SweetAlert2. SÍ hace falta en: .html(), .append()/.prepend() con strings,
+ * los render de DataTables, y las opciones "title" y "html" de SweetAlert2
+ * (las dos interpretan HTML).
+ */
+function escaparTexto(texto) {
+    if (texto === null || texto === undefined) {
+        return "";
     }
 
-    if (Mensaje.length > 20) {
+    return jQuery("<div>").text(String(texto)).html();
+}
+
+/**
+ * Render seguro para columnas de DataTables que muestran texto.
+ *
+ * DataTables 1.13 mete el valor de la columna como innerHTML: sin esto, un
+ * cliente que agende desde la página pública con el nombre
+ * "<img src=x onerror=alert(1)>" ejecutaría código en la sesión del admin
+ * al abrir la tabla. Solo se escapa lo que se muestra ("display"); el orden
+ * y la búsqueda siguen trabajando sobre el valor original.
+ */
+function renderTextoSeguro(data, tipo) {
+    return tipo === "display" ? escaparTexto(data) : data;
+}
+
+async function notificarUsuario(Mensaje = "", icono = "info", urlRedireccion = "") {
+    // SweetAlert2 en su forma corta es Swal.fire(title, html, icon): las DOS
+    // posiciones interpretan HTML, y varios mensajes del backend repiten lo
+    // que escribió el usuario (por ejemplo, 'El usuario "..." ya está en
+    // uso'). Por eso el mensaje se escapa siempre. El único HTML propio es el
+    // <br> con que se unen los mensajes de un arreglo de errores.
+    // El largo que decide si va como título o como cuerpo se mide sobre el
+    // texto original, no sobre el escapado: escapar alarga el texto ("&" pasa
+    // a "&amp;") y eso no debe cambiar cómo se ve el aviso.
+    var largoOriginal;
+
+    if (Array.isArray(Mensaje)) {
+        var TempMensaje = "";
+        var textoPlano = "";
+        for (var i = 0; i < Mensaje.length; i++) {
+            TempMensaje = "- " + escaparTexto(Mensaje[i]) + "<br>" + TempMensaje;
+            textoPlano = "- " + Mensaje[i] + "<br>" + textoPlano;
+        }
+        largoOriginal = textoPlano.length;
+        Mensaje = TempMensaje;
+    } else {
+        largoOriginal = String(Mensaje).length;
+        Mensaje = escaparTexto(Mensaje);
+    }
+
+    if (largoOriginal > 20) {
         return await Swal.fire("", Mensaje, icono).then(function () {
             if (urlRedireccion === "reload") {
                 window.location.reload();

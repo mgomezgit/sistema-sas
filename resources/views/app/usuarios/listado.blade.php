@@ -278,19 +278,19 @@
                             return generarAvatar(fila.nombre);
                         }
                     },
-                    { data: 'usuario' },
-                    { data: 'nombre' },
-                    { data: 'email' },
+                    { data: 'usuario', render: renderTextoSeguro },
+                    { data: 'nombre', render: renderTextoSeguro },
+                    { data: 'email', render: renderTextoSeguro },
                     {
                         data: 'nombre_rol',
                         render: function (data) {
-                            return '<span class="badge-rol"><i class="bi bi-shield-check"></i> ' + data + '</span>';
+                            return '<span class="badge-rol"><i class="bi bi-shield-check"></i> ' + escaparTexto(data) + '</span>';
                         }
                     },
                     {
                         data: 'nombre_negocio',
                         render: function (data) {
-                            return data ? data : '<span class="text-muted">—</span>';
+                            return data ? escaparTexto(data) : '<span class="text-muted">—</span>';
                         }
                     },
                     {
@@ -487,7 +487,9 @@
 
             Swal.fire({
                 title: '¿Desactivar también al empleado?',
-                html: 'Esta cuenta es del empleado <b>' + empleadoVinculadoEnEdicion.nombre + '</b>.<br>'
+                // "html" de SweetAlert2 interpreta HTML: el nombre del empleado
+                // lo escribió una persona (o vino de un Excel importado).
+                html: 'Esta cuenta es del empleado <b>' + escaparTexto(empleadoVinculadoEnEdicion.nombre) + '</b>.<br>'
                     + 'Al desactivarla, ese empleado quedará inactivo: perderá el acceso y <b>dejará de poder asignarse a nuevas reservas</b>.<br><br>'
                     + 'Para que vuelva a atender tendrás que darlo de alta aparte desde el módulo de Empleados.',
                 icon: 'warning',

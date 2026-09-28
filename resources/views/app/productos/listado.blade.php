@@ -392,24 +392,24 @@
                             return generarAvatar(fila.nombre, 'bi-box-seam');
                         }
                     },
-                    { data: 'nombre' },
+                    { data: 'nombre', render: renderTextoSeguro },
                     {
                         data: 'sku',
                         render: function (data) {
-                            return data ? '<span class="celda-sku">' + data + '</span>' : '<span class="text-muted">—</span>';
+                            return data ? '<span class="celda-sku">' + escaparTexto(data) + '</span>' : '<span class="text-muted">—</span>';
                         }
                     },
                     {
                         data: 'descripcion',
                         render: function (data) {
-                            return data ? data : '<span class="text-muted">—</span>';
+                            return data ? escaparTexto(data) : '<span class="text-muted">—</span>';
                         }
                     },
                     {
                         data: null,
                         render: function (fila) {
                             var urgencia = urgenciaDeProducto(fila);
-                            var texto = fila.cantidad_actual;
+                            var texto = escaparTexto(fila.cantidad_actual);
 
                             if (urgencia === 'agotado') {
                                 return texto + ' <span class="badge-agotado"><i class="bi bi-x-octagon-fill"></i> Agotado</span>';
@@ -422,7 +422,7 @@
                             return texto;
                         }
                     },
-                    { data: 'cantidad_minima' },
+                    { data: 'cantidad_minima', render: renderTextoSeguro },
                     {
                         data: 'estado',
                         render: function (data) {

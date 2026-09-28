@@ -782,13 +782,6 @@
             return h + ':' + m;
         }
 
-        function escaparTexto(texto) {
-            if (texto === null || texto === undefined) {
-                return '';
-            }
-            return jQuery('<div>').text(texto).html();
-        }
-
         function badgeEstadoReserva(estadoReserva) {
             var iconos = {
                 pendiente: 'bi-hourglass-split',

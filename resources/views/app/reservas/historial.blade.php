@@ -223,7 +223,7 @@
                             return generarAvatar(fila.nombre_cliente);
                         }
                     },
-                    { data: 'fecha_reserva' },
+                    { data: 'fecha_reserva', render: renderTextoSeguro },
                     {
                         data: null,
                         orderable: false,
@@ -231,12 +231,12 @@
                             return recortarHora(fila.hora_inicio) + ' - ' + recortarHora(fila.hora_fin);
                         }
                     },
-                    { data: 'nombre_cliente' },
-                    { data: 'nombre_recurso' },
+                    { data: 'nombre_cliente', render: renderTextoSeguro },
+                    { data: 'nombre_recurso', render: renderTextoSeguro },
                     {
                         data: 'nombre_empleado',
                         render: function (data) {
-                            return data ? data : '<span class="text-muted">Sin asignar</span>';
+                            return data ? escaparTexto(data) : '<span class="text-muted">Sin asignar</span>';
                         }
                     },
                     {

@@ -611,9 +611,9 @@
                             return generarAvatar(fila.nombre_empleado, 'bi-person-badge');
                         }
                     },
-                    { data: 'nombre_empleado' },
-                    { data: 'nombre_servicio' },
-                    { data: 'cantidad_citas' },
+                    { data: 'nombre_empleado', render: renderTextoSeguro },
+                    { data: 'nombre_servicio', render: renderTextoSeguro },
+                    { data: 'cantidad_citas', render: renderTextoSeguro },
                     {
                         data: 'porcentaje_aplicado',
                         render: function (data) {
@@ -774,7 +774,7 @@
             // calcular desde la base de datos al confirmar.
             Swal.fire(opcionesSwal({
                 title: '¿Marcar como pagado?',
-                html: 'Se registrará el pago de <strong>' + jQuery('<div>').text(nombreEmpleado).html() + '</strong>' +
+                html: 'Se registrará el pago de <strong>' + escaparTexto(nombreEmpleado) + '</strong>' +
                     ' por <strong>' + formatearPrecio(total) + '</strong><br>' +
                     'del ' + rangoAplicado.fecha_inicio + ' al ' + rangoAplicado.fecha_fin + '.<br><br>' +
                     'Esas citas dejarán de aparecer como pendientes.',
@@ -852,8 +852,8 @@
                             return generarAvatar(fila.nombre_empleado, 'bi-person-badge');
                         }
                     },
-                    { data: 'nombre_empleado' },
-                    { data: 'nombre_servicio' },
+                    { data: 'nombre_empleado', render: renderTextoSeguro },
+                    { data: 'nombre_servicio', render: renderTextoSeguro },
                     {
                         data: 'porcentaje_comision',
                         render: function (data) {
@@ -1099,11 +1099,11 @@
                             return generarAvatar(fila.nombre_empleado, 'bi-person-badge');
                         }
                     },
-                    { data: 'nombre_empleado' },
+                    { data: 'nombre_empleado', render: renderTextoSeguro },
                     {
                         data: null,
                         render: function (fila) {
-                            return fila.fecha_inicio + ' &rarr; ' + fila.fecha_fin;
+                            return escaparTexto(fila.fecha_inicio) + ' &rarr; ' + escaparTexto(fila.fecha_fin);
                         }
                     },
                     {
@@ -1112,7 +1112,7 @@
                             return formatearPrecio(data);
                         }
                     },
-                    { data: 'fecha_pago' }
+                    { data: 'fecha_pago', render: renderTextoSeguro }
                 ]
             });
         }
