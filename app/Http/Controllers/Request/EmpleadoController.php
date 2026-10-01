@@ -192,8 +192,8 @@ class EmpleadoController extends Controller
             'id_empleado' => 'required',
             'usuario' => 'required',
             'email' => 'required|email',
-            'clave' => 'required',
-        ]);
+            'clave' => 'required|min:'.SvcUsuario::LARGO_MINIMO_CLAVE,
+        ], SvcUsuario::mensajesDeClave());
 
         if (! $this->validateRequestRules()) {
             return $this->sendResponse();

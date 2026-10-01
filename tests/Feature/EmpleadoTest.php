@@ -73,7 +73,10 @@ class EmpleadoTest extends TestCase
     {
         return [
             'app_sesion' => VerificarSesion::CLAVE_SESION,
-            'id_usuario' => 1,
+            // Admin simulado, sin fila propia en usuarios. No puede ser 1: el
+            // primer usuario que crea la prueba recibe ese id, y al desactivarlo
+            // VerificarSesion cortaría esta sesión creyendo que es la suya.
+            'id_usuario' => 999999,
             'usuario' => 'admin.test',
             'nombre_usuario' => 'Admin Test',
             'tenant_id' => $tenantId,

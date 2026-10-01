@@ -2,15 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\IniciaSesion;
 use App\Http\Middleware\VerificarSesion;
-use App\Models\Empleado;
 use App\Models\Negocio;
 use App\Service\SvcUsuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class AutenticacionController extends Controller
 {
+    use IniciaSesion;
+
+    /**
+     * Límites contra fuerza bruta en el login. Solo cuentan los intentos
+     * FALLIDOS, y se revisan ANTES de comparar la clave: una vez agotado el
+     * cupo, ni siquiera la clave correcta entra hasta que pase el minuto.
+     *
+     * - Por correo + IP: quien prueba claves contra UNA cuenta.
+     * - Solo por IP (más alto): quien prueba muchos correos distintos desde el
+     *   mismo lugar para esquivar el límite anterior.
+     */
+    const INTENTOS_POR_CORREO_E_IP = 5;
+
+    const INTENTOS_POR_IP = 20;
+
+    const VENTANA_SEGUNDOS = 60;
+
     protected SvcUsuario $svcUsuario;
 
     public function __construct()
@@ -40,6 +59,20 @@ class AutenticacionController extends Controller
 
         $datos = $this->getRequestData();
 
+        $claveCorreo = $this->claveLimiteCorreo($datos['email']);
+        $claveIp = $this->claveLimiteIp();
+
+        // El bloqueo no mira si el correo existe: responde igual para una
+        // cuenta real y para una inventada, así no sirve para averiguarlo.
+        if (RateLimiter::tooManyAttempts($claveCorreo, self::INTENTOS_POR_CORREO_E_IP)
+            || RateLimiter::tooManyAttempts($claveIp, self::INTENTOS_POR_IP)) {
+            $segundos = max(RateLimiter::availableIn($claveCorreo), RateLimiter::availableIn($claveIp));
+
+            $this->agregarError('Demasiados intentos de inicio de sesión. Espera '.$segundos.' segundos e inténtalo de nuevo.');
+
+            return $this->sendResponse();
+        }
+
         $usuario = $this->svcUsuario->getUsuarioByEmail($datos['email']);
 
         if (! empty($usuario) && Hash::check($datos['clave'], $usuario['clave'])) {
@@ -54,58 +87,47 @@ class AutenticacionController extends Controller
                 return $this->sendResponse();
             }
 
-            // Si la cuenta corresponde a un empleado, se guarda su id en la sesión
-            // para poder filtrar "sus" citas. Un admin o super admin queda en null.
-            $idEmpleado = Empleado::where('id_usuario', $usuario['id_usuario'])
-                ->where('estado', 1)
-                ->value('id_empleado');
+            // Entró: se limpia su contador por correo (no el de la IP, que
+            // si no un atacante lo reiniciaría entrando con su propia cuenta).
+            RateLimiter::clear($claveCorreo);
 
-            session([
-                'id_usuario' => $usuario['id_usuario'],
-                'usuario' => $usuario['usuario'],
-                'nombre_usuario' => $usuario['nombre'],
-                'email' => $usuario['email'],
-                'tenant_id' => $usuario['tenant_id'],
-                'id_rol' => $usuario['id_rol'],
-                'id_empleado' => $idEmpleado ?: null,
-                'app_sesion' => 'xLXAiX0fFTjLKEiJam7X57',
-            ]);
-
-            // El rubro del negocio define el tema visual del backoffice, y su
-            // nombre se muestra en el sidebar. El super admin no pertenece a
-            // ningún negocio, así que ambos quedan en null.
-            if (session('tenant_id') !== null) {
-                $negocio = Negocio::where('id_negocio', session('tenant_id'))
-                    ->select('rubro', 'nombre_negocio', 'modo_tema', 'color_acento')
-                    ->first();
-
-                session([
-                    'rubro_negocio' => $negocio->rubro ?? null,
-                    'nombre_negocio_sesion' => $negocio->nombre_negocio ?? null,
-                    'modo_tema' => $negocio->modo_tema ?? 'claro',
-                    'color_acento' => $negocio->color_acento ?? 'oro_rosa',
-                ]);
-            } else {
-                // La plataforma tiene su propio tema fijo, no personalizable.
-                session([
-                    'rubro_negocio' => null,
-                    'nombre_negocio_sesion' => null,
-                    'modo_tema' => 'oscuro',
-                    'color_acento' => 'rojo',
-                ]);
-            }
+            $this->iniciarSesionDeUsuario($usuario);
 
             $this->respSinError();
         } else {
+            RateLimiter::hit($claveCorreo, self::VENTANA_SEGUNDOS);
+            RateLimiter::hit($claveIp, self::VENTANA_SEGUNDOS);
+
             $this->agregarError('El correo o la contraseña no son correctos. Verifica los datos e inténtalo de nuevo.');
         }
 
         return $this->sendResponse();
     }
 
+    /**
+     * El correo se normaliza (minúsculas, sin espacios, sin tildes) para que
+     * "Admin@Demo.test " y "admin@demo.test" compartan el mismo contador.
+     */
+    private function claveLimiteCorreo(string $email): string
+    {
+        return 'login-correo:'.Str::transliterate(Str::lower(trim($email))).'|'.$this->request->ip();
+    }
+
+    private function claveLimiteIp(): string
+    {
+        return 'login-ip:'.$this->request->ip();
+    }
+
+    /**
+     * invalidate() y no solo flush(): flush() vacía los datos pero deja vivo
+     * el mismo ID de sesión; invalidate() además lo destruye en el almacén y
+     * emite uno nuevo. regenerateToken() cambia el token CSRF, para que uno
+     * que se haya filtrado durante la sesión tampoco sirva después.
+     */
     public function logout()
     {
-        session()->flush();
+        session()->invalidate();
+        session()->regenerateToken();
 
         return redirect(url('/'));
     }

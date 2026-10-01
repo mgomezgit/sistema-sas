@@ -10,6 +10,21 @@ use Illuminate\Support\Facades\Log;
 
 class SvcUsuario
 {
+    /**
+     * Largo mínimo de toda clave que se crea o se cambia (registro público,
+     * usuarios, acceso de empleados). El login no lo revisa: solo compara
+     * contra el hash ya guardado.
+     */
+    const LARGO_MINIMO_CLAVE = 8;
+
+    /** Mensaje de validación compartido por todos los formularios que fijan una clave. */
+    public static function mensajesDeClave(): array
+    {
+        return [
+            'clave.min' => 'La clave debe tener al menos '.self::LARGO_MINIMO_CLAVE.' caracteres.',
+        ];
+    }
+
     public function crear($info)
     {
         try {

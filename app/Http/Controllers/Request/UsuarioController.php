@@ -71,10 +71,10 @@ class UsuarioController extends Controller
             'usuario' => 'required',
             'nombre' => 'required',
             'email' => 'required|email',
-            'clave' => 'required',
+            'clave' => 'required|min:'.SvcUsuario::LARGO_MINIMO_CLAVE,
             'tenant_id' => 'required',
             'id_rol' => 'required',
-        ]);
+        ], SvcUsuario::mensajesDeClave());
 
         if (! $this->validateRequestRules()) {
             return $this->sendResponse();
@@ -143,7 +143,10 @@ class UsuarioController extends Controller
             'tenant_id' => 'required',
             'id_rol' => 'required',
             'estado' => 'required|in:0,1',
-        ]);
+            // Al editar la clave es opcional (vacía = no se cambia); si
+            // viene, cumple el mismo largo mínimo que al crear.
+            'clave' => 'nullable|min:'.SvcUsuario::LARGO_MINIMO_CLAVE,
+        ], SvcUsuario::mensajesDeClave());
 
         if (! $this->validateRequestRules()) {
             return $this->sendResponse();
