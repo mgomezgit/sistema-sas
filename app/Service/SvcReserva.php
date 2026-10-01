@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Models\Cliente;
+use App\Models\HistorialEstadoReserva;
 use App\Models\RecursoReservable;
 use App\Models\Reserva;
 use Carbon\Carbon;
@@ -11,6 +12,16 @@ use Illuminate\Support\Facades\Log;
 
 class SvcReserva
 {
+    /* Resultados posibles de cambiarEstado(). No es un bool porque el
+       Controller necesita saber POR QUÉ no se hizo, para dar el mensaje justo. */
+    const CAMBIO_HECHO = 'hecho';
+
+    const CAMBIO_NO_DISPONIBLE = 'no_disponible';
+
+    const CAMBIO_COMISION_PAGADA = 'comision_pagada';
+
+    const CAMBIO_ERROR = 'error';
+
     /* ================= REPORTES ================= */
 
     /**
@@ -442,22 +453,110 @@ class SvcReserva
         }
     }
 
-    public function cambiarEstado($id, $estadoReserva, $tenantId): bool
+    /**
+     * Cambia el estado de una reserva y deja el rastro en historial_estados_reserva.
+     *
+     * Es el ÚNICO punto que escribe estado_reserva sobre una reserva existente:
+     * lo usan el admin (modal de edición y círculos del panel de detalle, que
+     * es también por donde se confirma una solicitud pública) y el empleado
+     * (Mis Citas). Por eso las dos reglas viven aquí y no en los Controllers:
+     *
+     * 1. Con la comisión ya pagada (id_pago_comision no nulo) NO se cambia, sin
+     *    excepción de rol: esa cita ya es parte de un pago confirmado.
+     * 2. El cambio y su fila de historial van en la misma transacción: si uno
+     *    falla, se revierten los dos.
+     *
+     * @param  int|null  $idUsuario  Quién hace el cambio (el Controller lo saca
+     *                               de la sesión). Null = un proceso de sistema.
+     * @return string Una de las constantes CAMBIO_*.
+     */
+    public function cambiarEstado($id, $estadoReserva, $tenantId, $idUsuario): string
     {
         try {
-            $query = Reserva::where('id_reserva', $id)->where('tenant_id', $tenantId);
+            return DB::transaction(function () use ($id, $estadoReserva, $tenantId, $idUsuario) {
+                // lockForUpdate: dos cambios simultáneos sobre la misma reserva
+                // no pueden leer el mismo "estado anterior".
+                $reserva = Reserva::select('id_reserva', 'estado_reserva', 'id_pago_comision')
+                    ->where('id_reserva', $id)
+                    ->where('tenant_id', $tenantId)
+                    ->lockForUpdate()
+                    ->first();
 
-            if (! $query->exists()) {
-                return false;
-            }
+                if ($reserva === null) {
+                    return self::CAMBIO_NO_DISPONIBLE;
+                }
 
-            $query->update(['estado_reserva' => $estadoReserva]);
+                if ($reserva->id_pago_comision !== null) {
+                    return self::CAMBIO_COMISION_PAGADA;
+                }
 
-            return true;
+                // Mismo estado: no hubo cambio real, así que no hay nada que
+                // registrar. Se responde igual que siempre para no romper a
+                // quien lo llame así.
+                if ($reserva->estado_reserva === $estadoReserva) {
+                    return self::CAMBIO_HECHO;
+                }
+
+                Reserva::where('id_reserva', $id)
+                    ->where('tenant_id', $tenantId)
+                    ->update(['estado_reserva' => $estadoReserva]);
+
+                HistorialEstadoReserva::create([
+                    'tenant_id' => $tenantId,
+                    'id_reserva' => $reserva->id_reserva,
+                    'estado_anterior' => $reserva->estado_reserva,
+                    'estado_nuevo' => $estadoReserva,
+                    'id_usuario' => $idUsuario,
+                    'fecha_cambio' => date('Y-m-d H:i:s'),
+                ]);
+
+                return self::CAMBIO_HECHO;
+            });
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
-            return false;
+            return self::CAMBIO_ERROR;
+        }
+    }
+
+    /**
+     * Historial de cambios de estado de UNA reserva, del más antiguo al más
+     * nuevo, con el nombre de quien hizo cada cambio ("Sistema" si no fue una
+     * persona). Siempre acotado al negocio: nunca devuelve el historial de una
+     * reserva de otro tenant, aunque se pida su id.
+     */
+    public function listarHistorialEstados($idReserva, $tenantId)
+    {
+        try {
+            return HistorialEstadoReserva::from('historial_estados_reserva as h')
+                ->leftJoin('usuarios as u', 'u.id_usuario', '=', 'h.id_usuario')
+                ->select(
+                    'h.id_historial',
+                    'h.estado_anterior',
+                    'h.estado_nuevo',
+                    'h.fecha_cambio',
+                    'h.id_usuario',
+                    'u.nombre as nombre_usuario'
+                )
+                ->where('h.id_reserva', $idReserva)
+                ->where('h.tenant_id', $tenantId)
+                ->orderBy('h.fecha_cambio')
+                ->orderBy('h.id_historial')
+                ->get()
+                ->map(function ($fila) {
+                    return [
+                        'id_historial' => (int) $fila->id_historial,
+                        'estado_anterior' => $fila->estado_anterior,
+                        'estado_nuevo' => $fila->estado_nuevo,
+                        'fecha_cambio' => $fila->fecha_cambio,
+                        'nombre_usuario' => $fila->id_usuario === null ? 'Sistema' : ($fila->nombre_usuario ?? 'Usuario desconocido'),
+                    ];
+                })
+                ->all();
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
         }
     }
 

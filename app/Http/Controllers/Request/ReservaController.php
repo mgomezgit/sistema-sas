@@ -355,10 +355,10 @@ class ReservaController extends Controller
             return $this->sendResponse();
         }
 
-        $resultado = $this->svcReserva->cambiarEstado($datos['id_reserva'], $datos['estado_reserva'], $tenantId);
+        $resultado = $this->svcReserva->cambiarEstado($datos['id_reserva'], $datos['estado_reserva'], $tenantId, session('id_usuario'));
 
-        if (! $resultado) {
-            $this->agregarErrorNoDisponible('la reserva', 'RES-ESTADO');
+        if ($resultado !== SvcReserva::CAMBIO_HECHO) {
+            $this->errorDeCambioDeEstado($resultado, 'la reserva', 'RES-ESTADO');
 
             return $this->sendResponse();
         }
@@ -366,6 +366,54 @@ class ReservaController extends Controller
         $this->notificarCambioEstado($datos['id_reserva'], $tenantId, $datos['estado_reserva']);
 
         $this->respSinError();
+
+        return $this->sendResponse();
+    }
+
+    /** Traduce un resultado de SvcReserva::cambiarEstado() que no fue CAMBIO_HECHO. */
+    private function errorDeCambioDeEstado(string $resultado, string $registro, string $codigo): void
+    {
+        if ($resultado === SvcReserva::CAMBIO_COMISION_PAGADA) {
+            $this->agregarError('Esta cita ya forma parte de un pago de comisión confirmado y no se puede modificar.');
+
+            return;
+        }
+
+        if ($resultado === SvcReserva::CAMBIO_ERROR) {
+            $this->agregarErrorSistema($codigo);
+
+            return;
+        }
+
+        $this->agregarErrorNoDisponible($registro, $codigo);
+    }
+
+    /**
+     * Historial de cambios de estado de una reserva, para el botón "Ver
+     * historial" del panel de detalle. Acotado al negocio de la sesión: el id
+     * de una reserva de otro negocio devuelve una lista vacía.
+     */
+    public function historial(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        if ($tenantId === null) {
+            $this->agregarError('Las reservas se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
+
+            return $this->sendResponse();
+        }
+
+        $this->setRequestValidationRules(['id_reserva' => 'required']);
+
+        if (! $this->validateRequestRules()) {
+            return $this->sendResponse();
+        }
+
+        $this->respSinError();
+        $this->setDataResponse(
+            $this->svcReserva->listarHistorialEstados($this->getRequestData()['id_reserva'], $tenantId),
+            'historial'
+        );
 
         return $this->sendResponse();
     }
@@ -640,10 +688,10 @@ class ReservaController extends Controller
             return $this->sendResponse();
         }
 
-        $resultado = $this->svcReserva->cambiarEstado($datos['id_reserva'], $datos['estado_reserva'], session('tenant_id'));
+        $resultado = $this->svcReserva->cambiarEstado($datos['id_reserva'], $datos['estado_reserva'], session('tenant_id'), session('id_usuario'));
 
-        if (! $resultado) {
-            $this->agregarErrorNoDisponible('la cita', 'RES-MICITA-ESTADO');
+        if ($resultado !== SvcReserva::CAMBIO_HECHO) {
+            $this->errorDeCambioDeEstado($resultado, 'la cita', 'RES-MICITA-ESTADO');
 
             return $this->sendResponse();
         }

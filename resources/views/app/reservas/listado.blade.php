@@ -274,6 +274,13 @@
         /* Mismo rotulo que .etiqueta-seccion-form del kit: el panel no es un modal
            (aparece en el punto del clic, no centrado), asi que no toma su marco ni
            su animacion, pero si su tipografia para que se lean como una familia. */
+        .fila-etiqueta-estados {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+
         .detalle-etiqueta-estados {
             color: var(--text-secondary);
             font-size: 0.78rem;
@@ -281,6 +288,47 @@
             text-transform: uppercase;
             letter-spacing: 0.04em;
             margin-bottom: 0.5rem;
+        }
+
+        /* ---------- Modal de historial de estados ---------- */
+        .item-historial-estado {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            padding: 0.85rem 0.2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .item-historial-estado:last-child {
+            border-bottom: none;
+        }
+
+        .fecha-historial-estado {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .transicion-historial-estado {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .transicion-historial-estado i {
+            color: var(--text-muted);
+        }
+
+        .autor-historial-estado {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .autor-historial-estado i {
+            color: var(--text-muted);
         }
 
         .detalle-estados {
@@ -569,7 +617,12 @@
             </div>
         </div>
 
-        <div class="detalle-etiqueta-estados">Estado de la reserva</div>
+        <div class="fila-etiqueta-estados">
+            <div class="detalle-etiqueta-estados">Estado de la reserva</div>
+            <button type="button" id="btn-detalle-historial" class="btn-accion-icono" data-bs-toggle="tooltip" title="Ver historial">
+                <i class="bi bi-clock-history"></i>
+            </button>
+        </div>
         <div class="detalle-estados">
             <button type="button" class="chip-estado chip-pendiente" data-estado="pendiente" title="Pendiente"><i class="bi bi-check-lg"></i></button>
             <button type="button" class="chip-estado chip-confirmada" data-estado="confirmada" title="Confirmada"><i class="bi bi-check-lg"></i></button>
@@ -692,6 +745,24 @@
                         <i class="bi bi-check2 icono-guardar"></i>
                         <span id="texto-btn-guardar-reserva">Guardar</span>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade modal-moderno" id="modal-historial-reserva" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header-moderno">
+                    <span class="insignia-encabezado"><i class="bi bi-clock-history"></i></span>
+                    <div>
+                        <h5 class="titulo-modal-moderno">Historial de la reserva</h5>
+                        <p class="subtitulo-modal-moderno">Cada cambio de estado, con quién lo hizo y cuándo</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="contenedor-historial-reserva"></div>
                 </div>
             </div>
         </div>
@@ -1513,6 +1584,83 @@
             jQuery('#panel-detalle-evento .chip-estado').removeClass('activo');
             jQuery('#panel-detalle-evento .chip-estado[data-estado="' + estado + '"]').addClass('activo');
         }
+
+        /**
+         * Historial de cambios de estado de la reserva abierta en el panel.
+         *
+         * badgeEstadoReserva() ya pinta con un vocabulario fijo (4 estados
+         * conocidos), así que no necesita escaparTexto(); nombre_usuario en
+         * cambio lo escribió una persona al crear su cuenta, así que SIEMPRE
+         * pasa por escaparTexto() antes de entrar al HTML armado a mano —
+         * igual que la campana de solicitudes pendientes.
+         */
+        function pintarHistorialReserva(historial) {
+            var contenedor = jQuery('#contenedor-historial-reserva');
+
+            if (!historial || historial.length === 0) {
+                contenedor.html(
+                    '<div class="mensaje-vacio">' +
+                    '<i class="bi bi-clock-history"></i>' +
+                    'Esta reserva todavía no tiene cambios de estado.' +
+                    '</div>'
+                );
+
+                return;
+            }
+
+            var html = '';
+
+            historial.forEach(function (fila) {
+                var autorEscapado = escaparTexto(fila.nombre_usuario);
+                // El endpoint no manda id_usuario, solo el nombre ya resuelto
+                // ("Sistema" cuando no fue una persona): es la única señal que
+                // hay aquí para elegir el ícono, así que es solo cosmético.
+                var iconoAutor = fila.nombre_usuario === 'Sistema' ? 'bi-gear' : 'bi-person';
+
+                html += '<div class="item-historial-estado">' +
+                    '<span class="fecha-historial-estado">' + escaparTexto(formatearFechaHoraHistorial(fila.fecha_cambio)) + '</span>' +
+                    '<div class="transicion-historial-estado">' +
+                    badgeEstadoReserva(fila.estado_anterior) +
+                    '<i class="bi bi-arrow-right"></i>' +
+                    badgeEstadoReserva(fila.estado_nuevo) +
+                    '</div>' +
+                    '<span class="autor-historial-estado"><i class="bi ' + iconoAutor + '"></i>' + autorEscapado + '</span>' +
+                    '</div>';
+            });
+
+            contenedor.html(html);
+        }
+
+        /** "2026-09-29 16:48:22" -> "29 de septiembre de 2026, 16:48". */
+        function formatearFechaHoraHistorial(fechaHora) {
+            var partes = (fechaHora || '').split(' ');
+
+            if (partes.length < 2) {
+                return fechaHora || '';
+            }
+
+            return formatearFechaLarga(partes[0]) + ', ' + recortarHora(partes[1]);
+        }
+
+        function abrirHistorialReserva() {
+            if (!reservaEnPanel) {
+                return;
+            }
+
+            jQuery('#contenedor-historial-reserva').html('<div class="mensaje-vacio"><i class="bi bi-hourglass-split"></i>Cargando...</div>');
+
+            new bootstrap.Modal(document.getElementById('modal-historial-reserva')).show();
+
+            axiosSipleInterno('GET', 'request/reserva/historial', { id_reserva: reservaEnPanel.id_reserva }, {}, false, function (respuesta) {
+                if (respuesta.error == 0) {
+                    pintarHistorialReserva(respuesta.data.historial);
+                } else {
+                    notificarUsuario(respuesta.mensaje, 'error');
+                }
+            });
+        }
+
+        jQuery('#btn-detalle-historial').on('click', abrirHistorialReserva);
 
         function posicionarPanelDetalle(jsEvent) {
             var panel = document.getElementById('panel-detalle-evento');
