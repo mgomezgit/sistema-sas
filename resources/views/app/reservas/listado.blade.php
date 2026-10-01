@@ -757,15 +757,9 @@
             });
         }
 
-        function fechaDeHoy() {
-            return formatearFechaISO(new Date());
-        }
-
-        function formatearFechaISO(fecha) {
-            var mes = String(fecha.getMonth() + 1).padStart(2, '0');
-            var dia = String(fecha.getDate()).padStart(2, '0');
-            return fecha.getFullYear() + '-' + mes + '-' + dia;
-        }
+        // fechaDeHoy() y formatearFechaISO() viven en public/js/validacion-horario.js
+        // (cargado globalmente en layout/backoffice.blade.php), compartidas con la
+        // página pública.
 
         function formatearFechaLarga(fechaTexto) {
             var partes = fechaTexto.split('-');
@@ -1244,50 +1238,18 @@
             });
         }
 
-        function esFechaPasada(fechaTexto) {
-            return fechaTexto < fechaDeHoy();
-        }
-
-        // Día de la semana en la convención del negocio: 1=lunes ... 7=domingo,
-        // la misma que usa dias_atencion y que valida el backend.
-        function negocioAtiendeEseDia(fechaTexto) {
-            var dias = (horarioNegocio && horarioNegocio.dias_atencion)
-                ? String(horarioNegocio.dias_atencion).split(',').map(function (d) { return parseInt(jQuery.trim(d), 10); })
-                : null;
-
-            // Sin días configurados no se restringe nada (igual que el backend).
-            if (dias === null || dias.length === 0) {
-                return true;
-            }
-
-            var partes = fechaTexto.split('-');
-            var fecha = new Date(partes[0], partes[1] - 1, partes[2]);
-            var diaSemana = fecha.getDay() === 0 ? 7 : fecha.getDay();
-
-            return dias.indexOf(diaSemana) !== -1;
-        }
-
-        /**
-         * Devuelve el motivo por el que una fecha no está disponible, o null si sí
-         * lo está. "fechaOriginal" permite editar una reserva antigua sin moverla
-         * de día, exactamente igual que lo permite el backend.
-         */
+        // esFechaPasada() y negocioAtiendeEseDia() viven en
+        // public/js/validacion-horario.js. Este envoltorio conserva la firma que
+        // ya usaban las llamadas de este archivo (fechaTexto, fechaOriginal),
+        // completando desde aquí el horario ya cargado y el texto del aviso
+        // propio del admin.
         function motivoFechaNoDisponible(fechaTexto, fechaOriginal) {
-            if (!fechaTexto) {
-                return null;
-            }
-
-            var seMueveLaFecha = !fechaOriginal || fechaTexto !== fechaOriginal;
-
-            if (seMueveLaFecha && esFechaPasada(fechaTexto)) {
-                return 'Esta fecha ya pasó, elige un día de hoy en adelante';
-            }
-
-            if (!negocioAtiendeEseDia(fechaTexto)) {
-                return 'Tu negocio no atiende este día';
-            }
-
-            return null;
+            return motivoFechaNoDisponibleBase(
+                fechaTexto,
+                fechaOriginal,
+                horarioNegocio ? horarioNegocio.dias_atencion : null,
+                'Tu negocio no atiende este día'
+            );
         }
 
         /* ================= CALENDARIO (FullCalendar) ================= */

@@ -3383,6 +3383,7 @@
         const UrlGlobal = "{{ url('/') }}/";
     </script>
     <script src="{{ asset('js/utilidades.js') }}"></script>
+    <script src="{{ asset('js/validacion-horario.js') }}"></script>
     <script src="{{ asset('js/validador.js') }}"></script>
 
     <script>

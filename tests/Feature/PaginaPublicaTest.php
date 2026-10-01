@@ -265,7 +265,12 @@ class PaginaPublicaTest extends TestCase
 
         $servicios = $this->getJson('publico/spa-fashion/servicios')->json('data.servicios');
 
-        $permitidos = ['nombre', 'categoria', 'duracion_minutos', 'precio'];
+        // id_recurso sale a propósito: el formulario de agendar lo necesita
+        // para decir cuál servicio se pide. crearSolicitudPublica() vuelve a
+        // comprobar que sea de este mismo negocio antes de crear nada (ver
+        // test_no_se_puede_pedir_cita_con_el_servicio_de_otro_negocio en
+        // SolicitudPublicaTest), así que exponerlo no abre ninguna puerta.
+        $permitidos = ['id_recurso', 'nombre', 'categoria', 'duracion_minutos', 'precio'];
 
         foreach ($servicios as $servicio) {
             $this->assertSame(
@@ -279,7 +284,7 @@ class PaginaPublicaTest extends TestCase
         // Y explícitamente: nada de lo que vive en la fila pero es interno.
         $crudo = $this->getJson('publico/spa-fashion/servicios')->getContent();
 
-        foreach (['tenant_id', 'id_recurso', 'descripcion', 'capacidad', 'usuario_registra', 'fecha_registro', 'estado'] as $prohibido) {
+        foreach (['tenant_id', 'descripcion', 'capacidad', 'usuario_registra', 'fecha_registro', 'estado'] as $prohibido) {
             $this->assertStringNotContainsString('"'.$prohibido.'"', $crudo);
         }
 
@@ -603,5 +608,171 @@ class PaginaPublicaTest extends TestCase
             'fecha_registro' => date('Y-m-d H:i:s'),
             'estado' => 1,
         ]);
+    }
+
+    /* ================= 8) LA VISTA SERVER-RENDERED (publico/pagina.blade.php) =================
+     *
+     * ---------- PRUEBA DE MUTACIÓN DEL TENANT_ID ----------
+     *
+     * test_la_vista_nunca_muestra_servicios_empleados_ni_banners_de_otro_negocio()
+     * se verificó rompiendo el código a propósito. Procedimiento ejecutado:
+     *
+     *   1. En app/Service/SvcPaginaPublica.php, dentro de servicios(), se quitó
+     *      ->where('tenant_id', $tenantId).
+     *   2. Se ejecutó: php artisan test --filter=PaginaPublicaTest
+     *      Resultado: 41 tests, 39 passed, 2 FAILED:
+     *        - test_los_servicios_publicos_nunca_incluyen_los_de_otro_negocio
+     *          (el endpoint JSON, que usa el mismo Service):
+     *          "Failed asserting that actual size 2 matches expected size 1."
+     *        - test_la_vista_nunca_muestra_servicios_empleados_ni_banners_de_otro_negocio:
+     *          "...' does not contain "Facial del B"." — la vista de
+     *          spa-fashion mostró, en la tarjeta de servicios y en el select
+     *          del modal de agendar, el servicio del negocio B.
+     *   3. Se restauró la línea tal cual estaba.
+     *   4. Se volvió a ejecutar: php artisan test --filter=PaginaPublicaTest
+     *      Resultado: 41 passed.
+     *
+     * Es decir: la prueba falla exactamente cuando el aislamiento desaparece en
+     * el mismo Service que usan tanto el endpoint JSON como esta vista —
+     * PublicoController y PaginaPublicaViewController comparten SvcPaginaPublica,
+     * así que un solo filtro roto se detecta desde los dos lados.
+     */
+
+    public function test_la_vista_trae_nombre_servicios_equipo_y_horario(): void
+    {
+        DB::table('negocios')->where('id_negocio', $this->negocioA)->update([
+            'dias_atencion' => '1,2,3,4,5,6',
+            'hora_apertura' => '08:00:00',
+            'hora_cierre' => '18:00:00',
+        ]);
+        $this->crearRecurso($this->negocioA, 'Masaje del A');
+        $this->crearEmpleado($this->negocioA, 'Empleada Del A');
+
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        $this->assertStringContainsString('Spa Fashion', $html);
+        $this->assertStringContainsString('Masaje del A', $html);
+        $this->assertStringContainsString('Empleada Del A', $html);
+        $this->assertStringContainsString('Lunes a Sábado', $html);
+        $this->assertStringContainsString('8:00 AM', $html);
+        $this->assertStringContainsString('6:00 PM', $html);
+    }
+
+    public function test_la_vista_nunca_muestra_servicios_empleados_ni_banners_de_otro_negocio(): void
+    {
+        $this->crearRecurso($this->negocioA, 'Masaje del A');
+        $this->crearRecurso($this->negocioB, 'Facial del B');
+        $this->crearEmpleado($this->negocioA, 'Empleada Del A');
+        $this->crearEmpleado($this->negocioB, 'Empleado Del B');
+        $this->crearBanner($this->negocioA, ['titulo' => 'Promo del A']);
+        $this->crearBanner($this->negocioB, ['titulo' => 'Promo del B']);
+
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        $this->assertStringContainsString('Masaje del A', $html);
+        $this->assertStringNotContainsString('Facial del B', $html);
+        $this->assertStringContainsString('Empleada Del A', $html);
+        $this->assertStringNotContainsString('Empleado Del B', $html);
+        $this->assertStringContainsString('Promo del A', $html);
+        $this->assertStringNotContainsString('Promo del B', $html);
+    }
+
+    public function test_sin_banners_la_seccion_de_promociones_no_aparece(): void
+    {
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        $this->assertStringNotContainsString('id="seccion-promos"', $html);
+        $this->assertStringNotContainsString('Promociones para ti', $html);
+    }
+
+    public function test_un_solo_banner_no_muestra_controles_de_carrusel(): void
+    {
+        $this->crearBanner($this->negocioA, ['titulo' => 'Única promo']);
+
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        $this->assertStringContainsString('id="seccion-promos"', $html);
+        $this->assertStringContainsString('Única promo', $html);
+        $this->assertStringNotContainsString('class="historias"', $html, 'Con un solo banner no debe haber historias navegables');
+    }
+
+    public function test_dos_o_mas_banners_muestran_controles_de_carrusel(): void
+    {
+        $this->crearBanner($this->negocioA, ['titulo' => 'Promo Uno', 'orden' => 1]);
+        $this->crearBanner($this->negocioA, ['titulo' => 'Promo Dos', 'orden' => 2]);
+
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        $this->assertStringContainsString('class="historias"', $html);
+        $this->assertSame(2, substr_count($html, 'class="historia" data-indice='));
+    }
+
+    public function test_sin_empleados_activos_la_seccion_de_equipo_no_aparece(): void
+    {
+        $this->crearEmpleado($this->negocioA, 'Ya No Trabaja', 0);
+
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        $this->assertStringNotContainsString('id="seccion-equipo"', $html);
+        $this->assertStringNotContainsString('Ya No Trabaja', $html);
+    }
+
+    public function test_sin_whatsapp_numero_el_boton_flotante_no_aparece(): void
+    {
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        // "btn-whatsapp" sola no sirve: esa clase también nombra la regla CSS,
+        // que vive siempre en el <style> aunque el botón no se pinte.
+        $this->assertStringNotContainsString('class="btn-whatsapp"', $html);
+    }
+
+    public function test_con_whatsapp_numero_el_boton_flotante_aparece_con_el_enlace_correcto(): void
+    {
+        DB::table('negocios')->where('id_negocio', $this->negocioA)->update(['whatsapp_numero' => '573001234567']);
+
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        $this->assertStringContainsString('class="btn-whatsapp"', $html);
+        $this->assertStringContainsString('https://wa.me/573001234567?text=', $html);
+    }
+
+    public function test_sin_politica_de_cancelacion_esa_parte_del_pie_no_aparece(): void
+    {
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        // "pie-politica" sola no sirve: esa clase también nombra la regla
+        // CSS, que vive siempre en el <style> aunque el párrafo no se pinte.
+        $this->assertStringNotContainsString('class="pie-politica"', $html);
+    }
+
+    public function test_con_politica_de_cancelacion_el_pie_la_muestra(): void
+    {
+        DB::table('negocios')->where('id_negocio', $this->negocioA)->update([
+            'politica_cancelacion' => 'Cancela con 24 horas de anticipación.',
+        ]);
+
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        $this->assertStringContainsString('class="pie-politica"', $html);
+        $this->assertStringContainsString('Cancela con 24 horas de anticipación.', $html);
+    }
+
+    /**
+     * Payload guardado en una transacción que RefreshDatabase revierte al
+     * terminar la prueba (como cualquier otra prueba de esta clase): ni el
+     * nombre del negocio ni el banner quedan en la base real.
+     */
+    public function test_un_payload_en_el_negocio_y_en_un_banner_sale_escapado_en_la_vista(): void
+    {
+        $payload = '<img src=x onerror=alert(1)>';
+        $escapado = '&lt;img src=x onerror=alert(1)&gt;';
+
+        DB::table('negocios')->where('id_negocio', $this->negocioA)->update(['nombre_negocio' => $payload]);
+        $this->crearBanner($this->negocioA, ['titulo' => $payload, 'texto' => $payload]);
+
+        $html = $this->get('reservar/spa-fashion')->assertStatus(200)->getContent();
+
+        $this->assertStringNotContainsString($payload, $html, 'El payload aparece SIN escapar en la página pública');
+        $this->assertStringContainsString($escapado, $html, 'El payload no aparece escapado (¿se pintó siquiera?)');
     }
 }
