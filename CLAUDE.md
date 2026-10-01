@@ -13,6 +13,7 @@ Plataforma SaaS de gestión de reservas/citas multi-rubro (spa, y a futuro hotel
 - Cualquier librería nueva (JS/CSS por CDN, o paquete de Composer) se propone a Mateo primero, explicando qué hace y por qué ayuda, y se espera su confirmación antes de usarla en un prompt.
 - Correo: Laravel Mail vía Mailpit en desarrollo (127.0.0.1:1025, bandeja en localhost:8025). Todos los Mailables implementan ShouldQueue — requiere php artisan queue:work corriendo en una terminal aparte para que se envíen de verdad.
 - Colas: QUEUE_CONNECTION=database.
+- Si un cambio modifica la firma (constructor/propiedades) de un Mailable o un Job, reinicia el queue:work después de aplicar el cambio (mátalo y vuelve a correrlo, o php artisan queue:restart) — un worker de larga vida mantiene en memoria la versión vieja de la clase y falla con errores confusos de propiedades sin inicializar hasta que se reinicia.
 - Scheduler: routes/console.php (Laravel 11+/13, no Kernel.php).
 
 ## Arquitectura de capas (orden obligatorio por módulo)
@@ -121,7 +122,8 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 ## Seguridad y autenticación
 
 - Sesión manual de Laravel (session()), NUNCA Auth:: nativo ni middleware auth.
-- Claves de sesión: id_usuario, usuario, nombre_usuario, email, tenant_id, id_rol, id_empleado, rubro_negocio, nombre_negocio_sesion, modo_tema, color_acento, app_sesion.
+- Claves de sesión: id_usuario, usuario, nombre_usuario, email, tenant_id, id_rol, id_empleado, rubro_negocio, nombre_negocio_sesion, modo_tema, color_acento, app_sesion, version_sesion.
+- version_sesion: copia, al iniciar sesión, de usuarios.version_sesion. VerificarSesion la compara contra la de la base en cada petición; si no coincide, corta la sesión (mensaje "La clave de tu cuenta cambió..."). Es el mecanismo para cerrar TODAS las sesiones abiertas de una cuenta cuando su clave cambia (recuperación de clave, o un admin editando la clave de un usuario) — el login es manual y sessions no sabe a qué usuario pertenece cada sesión, así que no hay otra forma de invalidarlas.
 - Contraseñas con Hash::make()/Hash::check(), nunca texto plano.
 - Middleware VerificarSesion (sesion.activa) y RestringirEmpleado (restringir.empleado) bloquean TANTO vistas backoffice/* COMO endpoints request/* — nunca solo la pantalla.
 - Email y usuario (login) son ÚNICOS GLOBALMENTE (no por tenant) — es un requisito del login de pantalla única, no una opción de diseño. Un usuario INACTIVO libera su correo/usuario para reutilizarse (columnas generadas email_activo_unico/ usuario_activo_unico con índice único condicional a nivel de base de datos, no solo validación de código).
