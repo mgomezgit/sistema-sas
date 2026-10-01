@@ -134,6 +134,20 @@
 
         #paso-formulario { display: none; }
 
+        #paso-revisar-correo { display: none; }
+
+        #paso-revisar-correo.abierto {
+            display: block;
+            animation: aparecer 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .icono-revisar-correo {
+            font-size: 2.6rem;
+            color: var(--accent);
+            display: block;
+            margin-bottom: 0.75rem;
+        }
+
         #paso-formulario.abierto {
             display: block;
             animation: aparecer 0.45s cubic-bezier(0.4, 0, 0.2, 1);
@@ -225,6 +239,14 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* Campo trampa: fuera de la vista de una persona, pero presente en el
+           formulario para un bot que rellena todo lo que encuentra. */
+        #campo-trampa-registro {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+        }
     </style>
 </head>
 <body>
@@ -302,6 +324,10 @@
 
                 <form id="contenedor-form-registro">
                     <input type="hidden" id="rubro" name="rubro" value="spa">
+                    {{-- Mismo nombre que el campo trampa de publico/*/agendar. Una
+                         persona no lo ve ni lo rellena; si llega con algo, el
+                         backend responde "creado" sin crear nada. --}}
+                    <input type="text" id="campo-trampa-registro" name="sitio_web" tabindex="-1" autocomplete="off" aria-hidden="true">
 
                     <div class="row g-3">
                         <div class="col-12">
@@ -348,6 +374,18 @@
                 </div>
             </div>
         </div>
+
+        <!-- PASO 3: el registro quedó pendiente de confirmar el correo -->
+        <div id="paso-revisar-correo" class="mt-5 text-center">
+            <div class="tarjeta-formulario">
+                <i class="bi bi-envelope-check icono-revisar-correo"></i>
+                <h2 class="titulo-paso" id="titulo-revisar-correo"></h2>
+                <p class="subtitulo-paso mb-0">
+                    Te enviamos un correo con un enlace para terminar. Ábrelo desde el mismo correo que escribiste;
+                    vence en 24 horas. Si no lo ves, revisa la carpeta de spam.
+                </p>
+            </div>
+        </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -390,7 +428,14 @@
 
             axiosSipleInterno('POST', 'request/registro-publico/crear', {}, datos, true, function (respuesta) {
                 if (respuesta.error == 0) {
-                    location.href = UrlGlobal + 'login?registrado=1';
+                    // La cuenta todavía NO existe: se crea al abrir el enlace
+                    // del correo. El texto viene del servidor y es siempre el
+                    // mismo; va con .text() como todo lo que llega de fuera.
+                    jQuery('#titulo-revisar-correo').text(respuesta.data.mensaje);
+                    jQuery('#paso-rubro').hide();
+                    jQuery('#paso-formulario').removeClass('abierto');
+                    jQuery('#paso-revisar-correo').addClass('abierto');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
                     notificarUsuario(respuesta.mensaje, 'error');
                 }

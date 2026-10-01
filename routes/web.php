@@ -7,7 +7,16 @@ Route::get('/login', [App\Http\Controllers\AutenticacionController::class, 'most
 Route::get('registro', [App\Http\Controllers\RegistroPublicoViewController::class, 'mostrar']);
 
 // Alta autoservicio: pública, sin middleware de sesión ni restricción de rol.
-Route::post('request/registro-publico/crear', [App\Http\Controllers\Request\RegistroPublicoController::class, 'crear']);
+// El throttle frena la creación masiva de negocios falsos (ver el limitador
+// "registro-publico" en AppServiceProvider); el campo trampa va en el controller.
+Route::post('request/registro-publico/crear', [App\Http\Controllers\Request\RegistroPublicoController::class, 'crear'])
+    ->middleware('throttle:registro-publico');
+
+// Paso 2 del registro: el link del correo de confirmación. Sin sesión (quien
+// llega todavía no tiene cuenta) y GET, así que no aplica CSRF. Lo protege el
+// token de un solo uso; el throttle es el mismo de la zona pública.
+Route::get('request/registro-publico/confirmar/{token}', [App\Http\Controllers\Request\RegistroPublicoController::class, 'confirmar'])
+    ->middleware('throttle:60,1');
 
 /*
  * ================= ZONA PÚBLICA DE AUTOGESTIÓN =================

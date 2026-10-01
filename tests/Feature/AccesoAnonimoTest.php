@@ -52,6 +52,9 @@ class AccesoAnonimoTest extends TestCase
         'request/autenticacion/login',
         // Alta autoservicio de un negocio nuevo: quien la usa aún no tiene cuenta.
         'request/registro-publico/crear',
+        // Paso 2 del alta: el link del correo de confirmación. Quien lo abre
+        // todavía no tiene cuenta; lo protege el token de un solo uso.
+        'request/registro-publico/confirmar/{token}',
     ];
 
     private int $negocio;

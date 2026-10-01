@@ -41,6 +41,32 @@ class SvcUsuario
     }
 
     /**
+     * Igual que crear(), pero con la clave YA hasheada.
+     *
+     * Solo la usa la confirmación del registro público: la clave se hasheó al
+     * llenar el formulario (paso 1) y nunca volvió a existir en texto plano.
+     * Pasarla por crear() la hashearía dos veces y la cuenta nunca podría
+     * entrar. Por la misma razón se niega a guardar algo que no sea un hash
+     * reconocible: si por error llegara la clave en claro, no se guarda.
+     *
+     * @return int|false
+     */
+    public function crearConClaveHasheada($info)
+    {
+        try {
+            if (empty($info['clave']) || Hash::info($info['clave'])['algoName'] === 'unknown') {
+                return false;
+            }
+
+            return Usuario::create($info)->id_usuario;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
+        }
+    }
+
+    /**
      * Columnas del empleado vinculado para los listados.
      *
      * Van como subconsultas y no como un LEFT JOIN a propósito: no hay índice

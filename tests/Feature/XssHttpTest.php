@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\VerificarSesion;
+use App\Mail\IntentoRegistroCorreoExistente;
 use App\Mail\NuevaSolicitudPublica;
 use App\Mail\ReservaConfirmada;
 use App\Mail\ReservaEstadoActualizado;
@@ -255,6 +256,13 @@ class XssHttpTest extends TestCase
             'ReservaConfirmada' => new ReservaConfirmada($this->reservaConPayload(), $this->negocioConPayload()),
             'ReservaEstadoActualizado' => new ReservaEstadoActualizado($this->reservaConPayload(), $this->negocioConPayload(), 'confirmada'),
             'ReservaRecordatorio' => new ReservaRecordatorio($this->reservaConPayload(), $this->negocioConPayload()),
+            // Las URLs del aviso se arman en el servidor con el correo (ya
+            // validado como email), pero van a un href: se prueban igual con el
+            // payload para confirmar que salen escapadas.
+            'IntentoRegistroCorreoExistente' => new IntentoRegistroCorreoExistente(
+                'http://localhost/login?x='.self::PAYLOAD,
+                'http://localhost/recuperar-clave?correo='.self::PAYLOAD
+            ),
             'ResumenStockBajo' => new ResumenStockBajo(self::PAYLOAD, [
                 ['nombre' => self::PAYLOAD, 'cantidad_actual' => 1, 'cantidad_minima' => 5, 'urgencia' => 'bajo'],
             ]),
