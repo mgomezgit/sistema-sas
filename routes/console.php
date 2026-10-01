@@ -31,3 +31,11 @@ Schedule::command('reservas:enviar-recordatorios')->dailyAt('08:00');
 | Prueba manual: "php artisan productos:enviar-resumen-stock-bajo".
 */
 Schedule::command('productos:enviar-resumen-stock-bajo')->twiceDaily(8, 18);
+
+/*
+| Limpieza de acceso: registros públicos sin confirmar y códigos de
+| recuperación de clave que ya vencieron sin usarse. A las 03:00 para no
+| coincidir con los envíos de las 08:00 y las 18:00.
+| Prueba manual: "php artisan auth:limpiar-pendientes-vencidos".
+*/
+Schedule::command('auth:limpiar-pendientes-vencidos')->dailyAt('03:00');

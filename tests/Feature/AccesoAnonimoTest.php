@@ -55,6 +55,10 @@ class AccesoAnonimoTest extends TestCase
         // Paso 2 del alta: el link del correo de confirmación. Quien lo abre
         // todavía no tiene cuenta; lo protege el token de un solo uso.
         'request/registro-publico/confirmar/{token}',
+        // Recuperación de clave: quien la usa, por definición, no puede entrar.
+        // La protegen el throttle por IP y el límite de intentos por correo+IP.
+        'request/recuperacion/solicitar',
+        'request/recuperacion/confirmar',
     ];
 
     private int $negocio;

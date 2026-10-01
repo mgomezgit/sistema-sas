@@ -45,6 +45,11 @@ use Tests\TestCase;
  *      18 tests, 17 passed, 1 FAILED — el ID viejo seguía vivo en el almacén
  *      (se leyó '{"_previous":...}' donde debía estar vacío). Restaurado:
  *      18 passed.
+ * M7 — (al agregar el cierre de sesión desde SvcUsuario::editar()) Sin el
+ *      increment('version_sesion') cuando editar() cambia la clave: 20 tests,
+ *      19 passed, 1 FAILED — la sesión abierta antes del cambio siguió viva
+ *      ("received 200" en vez de la redirección al login). Restaurado:
+ *      20 passed.
  */
 class SeguridadAccesoTest extends TestCase
 {
@@ -490,5 +495,125 @@ class SeguridadAccesoTest extends TestCase
     {
         $this->withSession($this->sesionDe($this->admin, 1))->get('backoffice/dashboard')->assertOk();
         $this->withSession($this->sesionDe($this->admin, 1))->getJson('request/negocio/horario')->assertJsonPath('error', 0);
+    }
+
+    /* ================= 9) UN ADMIN CAMBIANDO LA CLAVE DE OTRO USUARIO TAMBIÉN CIERRA SUS SESIONES =================
+     * (mutación: ver la cabecera del archivo)
+     */
+
+    /**
+     * Nota sobre este grupo: a diferencia de otras pruebas del archivo, aquí
+     * NO se usa el helper editarUsuario() (que llama a withSession()). Mezclar
+     * withSession() con el patrón de "otra cookie = otro dispositivo" rompe
+     * ese patrón: withSession() arranca el Store de sesión del contenedor, y
+     * una vez arrancado, StartSession no lo vuelve a resolver desde la cookie
+     * de la siguiente petición — flushSession() lo deja vacío en vez de
+     * recargar la sesión vieja, y la prueba ve "Tu sesión terminó" en lugar
+     * del aviso real. Por eso aquí el admin también entra con una cookie de
+     * verdad (login real), igual que el resto de "dispositivos" de la prueba.
+     */
+    private function editarComoAdminConCookie(string $cookie, int $idOtro, array $extra)
+    {
+        $this->flushSession();
+        $idSesionAdmin = $this->login('admin@seguro.test', self::CLAVE)->getCookie($cookie)->getValue();
+
+        $this->flushSession();
+
+        return $this->withCredentials()
+            ->withCookie($cookie, $idSesionAdmin)
+            ->postJson('request/usuario/editar', array_merge([
+                'id_usuario' => $idOtro,
+                'usuario' => 'otro',
+                'nombre' => 'Otro',
+                'email' => 'otro@seguro.test',
+                'id_rol' => 1,
+                'tenant_id' => $this->negocio,
+                'estado' => 1,
+            ], $extra));
+    }
+
+    public function test_cambiar_la_clave_de_un_usuario_desde_editar_corta_su_sesion_abierta(): void
+    {
+        $idOtro = $this->crearUsuario('otro', 'otro@seguro.test', 1);
+        $cookie = $this->nombreCookieSesion();
+
+        // Dos sesiones reales de "otro" abiertas ANTES de que el admin le
+        // cambie la clave (dos pestañas/dispositivos). Cada una se visita
+        // UNA sola vez después del cambio: la propia VerificarSesion hace
+        // session()->flush() al cortar, así que una cookie ya cortada no
+        // sirve para comprobar el aviso una segunda vez (la segunda petición
+        // con esa misma cookie ya no tiene ni siquiera app_sesion, y cae en
+        // el aviso genérico "Tu sesión terminó" en vez del de clave
+        // cambiada — correcto, pero no es lo que esta prueba quiere medir).
+        $idSesionParaBackoffice = $this->login('otro@seguro.test', self::CLAVE)
+            ->assertJsonPath('error', 0)
+            ->getCookie($cookie)
+            ->getValue();
+
+        $this->flushSession();
+        $idSesionParaRequest = $this->login('otro@seguro.test', self::CLAVE)
+            ->assertJsonPath('error', 0)
+            ->getCookie($cookie)
+            ->getValue();
+
+        // Control: las dos sesiones funcionan.
+        $this->flushSession();
+        $this->withCookie($cookie, $idSesionParaBackoffice)->get('backoffice/dashboard')->assertOk();
+        $this->flushSession();
+        $this->withCredentials()
+            ->withCookie($cookie, $idSesionParaRequest)
+            ->getJson('request/negocio/horario')
+            ->assertJsonPath('error', 0);
+
+        // El admin (su propia sesión real) le cambia la clave desde usuario/editar.
+        $this->editarComoAdminConCookie($cookie, $idOtro, ['clave' => 'ClaveNuevaDesdeAdmin2026'])
+            ->assertJsonPath('error', 0);
+
+        // La primera sesión vieja deja de servir en backoffice...
+        $this->flushSession();
+        $this->withCookie($cookie, $idSesionParaBackoffice)
+            ->get('backoffice/dashboard')
+            ->assertRedirect(url('/login'))
+            ->assertSessionHas('aviso_login', VerificarSesion::MENSAJE_CLAVE_CAMBIADA);
+
+        // ...y la segunda, en request/* (primera y única visita de ESTA cookie
+        // tras el cambio, así que todavía conserva el motivo específico).
+        $this->flushSession();
+        $this->withCredentials()
+            ->withCookie($cookie, $idSesionParaRequest)
+            ->getJson('request/negocio/horario')
+            ->assertJsonPath('error', 1)
+            ->assertJsonPath('mensaje', VerificarSesion::MENSAJE_CLAVE_CAMBIADA);
+
+        // Y la clave nueva sirve para entrar.
+        $this->flushSession();
+        $this->login('otro@seguro.test', 'ClaveNuevaDesdeAdmin2026')->assertJsonPath('error', 0);
+    }
+
+    /** Convención ya existente: clave vacía = "no la cambies". No debe tocar version_sesion. */
+    public function test_editar_un_usuario_sin_cambiar_la_clave_no_corta_su_sesion(): void
+    {
+        $idOtro = $this->crearUsuario('otro', 'otro@seguro.test', 1);
+        $cookie = $this->nombreCookieSesion();
+        $versionAntes = DB::table('usuarios')->where('id_usuario', $idOtro)->value('version_sesion');
+
+        $idSesion = $this->login('otro@seguro.test', self::CLAVE)
+            ->assertJsonPath('error', 0)
+            ->getCookie($cookie)
+            ->getValue();
+
+        $this->editarComoAdminConCookie($cookie, $idOtro, ['clave' => '', 'nombre' => 'Otro Editado'])
+            ->assertJsonPath('error', 0);
+        $this->editarComoAdminConCookie($cookie, $idOtro, ['nombre' => 'Otro Editado De Nuevo'])
+            ->assertJsonPath('error', 0);
+
+        $this->assertSame(
+            $versionAntes,
+            DB::table('usuarios')->where('id_usuario', $idOtro)->value('version_sesion'),
+            'Editar sin tocar la clave no debe incrementar version_sesion'
+        );
+
+        $this->flushSession();
+        $this->withCookie($cookie, $idSesion)->get('backoffice/dashboard')->assertOk();
     }
 }

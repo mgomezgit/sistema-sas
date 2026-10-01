@@ -18,6 +18,14 @@ Route::post('request/registro-publico/crear', [App\Http\Controllers\Request\Regi
 Route::get('request/registro-publico/confirmar/{token}', [App\Http\Controllers\Request\RegistroPublicoController::class, 'confirmar'])
     ->middleware('throttle:60,1');
 
+// Recuperación de clave: pública, porque quien la usa no puede entrar. El
+// pedido de código lleva throttle por IP; el intento de código lleva su propio
+// límite por correo + IP dentro del controller.
+Route::get('recuperar-clave', [App\Http\Controllers\RecuperacionClaveViewController::class, 'mostrar']);
+Route::post('request/recuperacion/solicitar', [App\Http\Controllers\Request\RecuperacionClaveController::class, 'solicitar'])
+    ->middleware('throttle:recuperacion-solicitar');
+Route::post('request/recuperacion/confirmar', [App\Http\Controllers\Request\RecuperacionClaveController::class, 'confirmar']);
+
 /*
  * ================= ZONA PÚBLICA DE AUTOGESTIÓN =================
  *

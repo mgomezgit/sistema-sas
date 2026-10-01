@@ -16,6 +16,9 @@ class AppServiceProvider extends ServiceProvider
      */
     const REGISTROS_POR_MINUTO = 5;
 
+    /** Pedidos de código de recuperación de clave por minuto desde una IP. */
+    const SOLICITUDES_RECUPERACION_POR_MINUTO = 5;
+
     /**
      * Register any application services.
      */
@@ -44,6 +47,20 @@ class AppServiceProvider extends ServiceProvider
                     return response()->json([
                         'error' => 1,
                         'mensaje' => 'Se hicieron demasiados intentos de registro desde esta conexión. Espera un minuto e inténtalo de nuevo.',
+                        'data' => [],
+                    ]);
+                });
+        });
+
+        // Mismo patrón para pedir códigos de recuperación de clave: frena el
+        // envío masivo de correos a terceros desde una misma conexión.
+        RateLimiter::for('recuperacion-solicitar', function (Request $request) {
+            return Limit::perMinute(self::SOLICITUDES_RECUPERACION_POR_MINUTO)
+                ->by($request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'error' => 1,
+                        'mensaje' => 'Se pidieron demasiados códigos desde esta conexión. Espera un minuto e inténtalo de nuevo.',
                         'data' => [],
                     ]);
                 });

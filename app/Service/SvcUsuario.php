@@ -205,6 +205,10 @@ class SvcUsuario
                 }
             }
 
+            // Tras la normalización de arriba, la llave "clave" solo sigue en
+            // $info si de verdad se está cambiando (un valor vacío ya se quitó).
+            $seEstaCambiandoClave = array_key_exists('clave', $info);
+
             $query = Usuario::where('id_usuario', $id);
 
             if ($tenantId !== null) {
@@ -230,11 +234,18 @@ class SvcUsuario
             // arrastrar sigue siendo el del negocio de origen.
             $tenantIdUsuario = (int) $usuario->tenant_id;
 
-            DB::transaction(function () use ($query, $info, $id, $tenantIdUsuario, $seEstaDesactivando) {
+            DB::transaction(function () use ($query, $info, $id, $tenantIdUsuario, $seEstaDesactivando, $seEstaCambiandoClave) {
                 $query->update($info);
 
                 if ($seEstaDesactivando) {
                     $this->desactivarEmpleadoVinculado($id, $tenantIdUsuario);
+                }
+
+                // Igual que la recuperación de clave: incrementar version_sesion
+                // hace que VerificarSesion corte, en la siguiente petición,
+                // cualquier sesión abierta con la clave anterior.
+                if ($seEstaCambiandoClave) {
+                    Usuario::where('id_usuario', $id)->increment('version_sesion');
                 }
             });
 
@@ -362,7 +373,7 @@ class SvcUsuario
     public function getUsuarioByEmail($email)
     {
         try {
-            $usuario = Usuario::select('id_usuario', 'usuario', 'nombre', 'email', 'clave', 'tenant_id', 'id_rol', 'estado')
+            $usuario = Usuario::select('id_usuario', 'usuario', 'nombre', 'email', 'clave', 'tenant_id', 'id_rol', 'estado', 'version_sesion')
                 ->where('email', $email)
                 ->where('estado', 1)
                 ->first();

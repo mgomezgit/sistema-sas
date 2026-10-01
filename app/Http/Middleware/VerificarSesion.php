@@ -17,6 +17,8 @@ class VerificarSesion
 
     const MENSAJE_USUARIO_INACTIVO = 'Tu usuario fue desactivado. Si crees que es un error, comunícate con el administrador de tu negocio.';
 
+    const MENSAJE_CLAVE_CAMBIADA = 'La clave de tu cuenta cambió. Inicia sesión de nuevo con la clave nueva.';
+
     /**
      * Handle an incoming request.
      */
@@ -63,19 +65,27 @@ class VerificarSesion
 
     /**
      * Motivo por el que la sesión ya no vale aunque el negocio siga activo, o
-     * null si vale. Una sola consulta por llave primaria al usuario y, si es
-     * empleado, otra al empleado.
+     * null si vale. Una sola consulta por llave primaria al usuario (estado y
+     * versión de sesión) y, si es empleado, otra al empleado.
      */
     private function motivoParaCortar(): ?string
     {
         $idUsuario = session('id_usuario');
 
         $usuario = $idUsuario !== null
-            ? Usuario::select('estado')->where('id_usuario', $idUsuario)->first()
+            ? Usuario::select('estado', 'version_sesion')->where('id_usuario', $idUsuario)->first()
             : null;
 
         if ($usuario !== null && (int) $usuario->estado === 0) {
             return self::MENSAJE_USUARIO_INACTIVO;
+        }
+
+        // La clave cambió después de abrir esta sesión (recuperación de
+        // clave): se cierran TODAS las sesiones de esa cuenta. Una sesión
+        // anterior a esta columna no trae versión y cuenta como 0, que es el
+        // valor inicial en la base: solo se corta si la clave cambió.
+        if ($usuario !== null && (int) $usuario->version_sesion !== (int) session('version_sesion', 0)) {
+            return self::MENSAJE_CLAVE_CAMBIADA;
         }
 
         $idEmpleado = session('id_empleado');
