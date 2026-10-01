@@ -15,21 +15,25 @@ class ReservaEstadoActualizado extends Mailable implements ShouldQueue
 
     public array $reserva;
 
-    public string $nombreNegocio;
+    public array $negocio;
 
     public string $estadoReserva;
 
-    public function __construct(array $reserva, string $nombreNegocio, string $estadoReserva)
+    /**
+     * @param  array  $negocio  nombre_negocio, color_acento, slug, politica_cancelacion.
+     *                          Ver ReservaConfirmada para el detalle de cada campo.
+     */
+    public function __construct(array $reserva, array $negocio, string $estadoReserva)
     {
         $this->reserva = $reserva;
-        $this->nombreNegocio = $nombreNegocio;
+        $this->negocio = $negocio;
         $this->estadoReserva = $estadoReserva;
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Actualización de tu reserva en '.$this->nombreNegocio,
+            subject: 'Actualización de tu reserva en '.($this->negocio['nombre_negocio'] ?? ''),
         );
     }
 
@@ -39,7 +43,7 @@ class ReservaEstadoActualizado extends Mailable implements ShouldQueue
             view: 'emails.reserva-estado-actualizado',
             with: [
                 'reserva' => $this->reserva,
-                'nombreNegocio' => $this->nombreNegocio,
+                'negocio' => $this->negocio,
                 'estadoReserva' => $this->estadoReserva,
             ],
         );

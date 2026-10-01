@@ -35,7 +35,12 @@ class EnviarRecordatoriosReservas extends Command
             // Un fallo puntual no debe detener el resto de recordatorios.
             try {
                 Mail::to($reserva['email_cliente'])->queue(
-                    new ReservaRecordatorio($reserva, $reserva['nombre_negocio'] ?? '')
+                    new ReservaRecordatorio($reserva, [
+                        'nombre_negocio' => $reserva['nombre_negocio'] ?? '',
+                        'color_acento' => $reserva['color_acento'] ?? null,
+                        'slug' => $reserva['slug'] ?? null,
+                        'politica_cancelacion' => $reserva['politica_cancelacion'] ?? null,
+                    ])
                 );
 
                 $encolados++;

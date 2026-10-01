@@ -66,10 +66,22 @@ class ReservaController extends Controller
             return null;
         }
 
+        $negocio = Negocio::where('id_negocio', $tenantId)
+            ->first(['nombre_negocio', 'color_acento', 'slug', 'politica_cancelacion']);
+
         return [
             'reserva' => $reserva[0],
             'email' => $email,
-            'nombre_negocio' => Negocio::where('id_negocio', $tenantId)->value('nombre_negocio') ?? '',
+            // Todo lo que necesitan los correos al cliente para pintarse:
+            // nombre, acento (el nombre guardado; ColorAcento lo traduce a
+            // hex en la vista), slug (el botón se omite si falta) y la
+            // política de cancelación (el pie la omite si está vacía).
+            'negocio' => [
+                'nombre_negocio' => $negocio->nombre_negocio ?? '',
+                'color_acento' => $negocio->color_acento ?? null,
+                'slug' => $negocio->slug ?? null,
+                'politica_cancelacion' => $negocio->politica_cancelacion ?? null,
+            ],
         ];
     }
 
@@ -187,7 +199,7 @@ class ReservaController extends Controller
             $datos = $this->datosParaNotificar($idReserva, $tenantId);
 
             if ($datos !== null) {
-                Mail::to($datos['email'])->queue(new ReservaConfirmada($datos['reserva'], $datos['nombre_negocio']));
+                Mail::to($datos['email'])->queue(new ReservaConfirmada($datos['reserva'], $datos['negocio']));
             }
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
@@ -373,7 +385,7 @@ class ReservaController extends Controller
 
             if ($datos !== null) {
                 Mail::to($datos['email'])->queue(
-                    new ReservaEstadoActualizado($datos['reserva'], $datos['nombre_negocio'], $estadoReserva)
+                    new ReservaEstadoActualizado($datos['reserva'], $datos['negocio'], $estadoReserva)
                 );
             }
         } catch (\Exception $e) {

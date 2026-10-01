@@ -661,7 +661,10 @@ class SvcReserva
                     'c.email as email_cliente',
                     'rec.nombre as nombre_recurso',
                     'e.nombre as nombre_empleado',
-                    'n.nombre_negocio as nombre_negocio'
+                    'n.nombre_negocio as nombre_negocio',
+                    'n.color_acento',
+                    'n.slug',
+                    'n.politica_cancelacion'
                 )
                 ->where('r.fecha_reserva', $fecha)
                 ->whereIn('r.estado_reserva', ['pendiente', 'confirmada'])

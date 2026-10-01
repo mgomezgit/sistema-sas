@@ -231,13 +231,30 @@ class XssHttpTest extends TestCase
         ];
     }
 
+    /**
+     * El negocio también es un dato que escribió una persona (nombre, y la
+     * política de cancelación que el admin redactó en Configuración): los
+     * 3 correos al cliente los pintan en su franja superior y en su pie.
+     * color_acento y slug SÍ son de la lista blanca (SvcNegocio::ACENTOS_VALIDOS
+     * y el slug real del negocio de esta prueba), nunca texto libre.
+     */
+    private function negocioConPayload(): array
+    {
+        return [
+            'nombre_negocio' => self::PAYLOAD,
+            'color_acento' => 'azul',
+            'slug' => 'spa-normal',
+            'politica_cancelacion' => self::PAYLOAD,
+        ];
+    }
+
     public function test_cada_correo_con_datos_de_usuario_sale_escapado(): void
     {
         $correos = [
             'NuevaSolicitudPublica' => new NuevaSolicitudPublica($this->reservaConPayload(), self::PAYLOAD),
-            'ReservaConfirmada' => new ReservaConfirmada($this->reservaConPayload(), self::PAYLOAD),
-            'ReservaEstadoActualizado' => new ReservaEstadoActualizado($this->reservaConPayload(), self::PAYLOAD, 'confirmada'),
-            'ReservaRecordatorio' => new ReservaRecordatorio($this->reservaConPayload(), self::PAYLOAD),
+            'ReservaConfirmada' => new ReservaConfirmada($this->reservaConPayload(), $this->negocioConPayload()),
+            'ReservaEstadoActualizado' => new ReservaEstadoActualizado($this->reservaConPayload(), $this->negocioConPayload(), 'confirmada'),
+            'ReservaRecordatorio' => new ReservaRecordatorio($this->reservaConPayload(), $this->negocioConPayload()),
             'ResumenStockBajo' => new ResumenStockBajo(self::PAYLOAD, [
                 ['nombre' => self::PAYLOAD, 'cantidad_actual' => 1, 'cantidad_minima' => 5, 'urgencia' => 'bajo'],
             ]),

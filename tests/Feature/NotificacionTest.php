@@ -140,7 +140,7 @@ class NotificacionTest extends TestCase
 
         Mail::assertQueued(ReservaConfirmada::class, function (ReservaConfirmada $mail) use ($lunesFuturo) {
             return $mail->hasTo('cliente@test.local')
-                && $mail->nombreNegocio === 'Spa de Pruebas'
+                && $mail->negocio['nombre_negocio'] === 'Spa de Pruebas'
                 && $mail->reserva['nombre_cliente'] === 'Cliente Con Email'
                 && $mail->reserva['nombre_recurso'] === 'Masaje'
                 && $mail->reserva['fecha_reserva'] === $lunesFuturo
@@ -192,7 +192,7 @@ class NotificacionTest extends TestCase
         Mail::assertQueued(ReservaEstadoActualizado::class, function (ReservaEstadoActualizado $mail) {
             return $mail->hasTo('cliente@test.local')
                 && $mail->estadoReserva === 'confirmada'
-                && $mail->nombreNegocio === 'Spa de Pruebas'
+                && $mail->negocio['nombre_negocio'] === 'Spa de Pruebas'
                 && $mail->reserva['nombre_cliente'] === 'Cliente Con Email';
         });
     }
@@ -260,7 +260,7 @@ class NotificacionTest extends TestCase
 
         Mail::assertQueued(ReservaRecordatorio::class, function (ReservaRecordatorio $mail) use ($manana) {
             return $mail->hasTo('manana@test.local')
-                && $mail->nombreNegocio === 'Spa de Pruebas'
+                && $mail->negocio['nombre_negocio'] === 'Spa de Pruebas'
                 && $mail->reserva['fecha_reserva'] === $manana
                 && $mail->reserva['nombre_cliente'] === 'Cliente Manana';
         });
@@ -355,11 +355,11 @@ class NotificacionTest extends TestCase
         Mail::assertQueuedCount(2);
 
         Mail::assertQueued(ReservaRecordatorio::class, function (ReservaRecordatorio $mail) {
-            return $mail->hasTo('a@test.local') && $mail->nombreNegocio === 'Spa de Pruebas';
+            return $mail->hasTo('a@test.local') && $mail->negocio['nombre_negocio'] === 'Spa de Pruebas';
         });
 
         Mail::assertQueued(ReservaRecordatorio::class, function (ReservaRecordatorio $mail) {
-            return $mail->hasTo('b@test.local') && $mail->nombreNegocio === 'Otro Negocio';
+            return $mail->hasTo('b@test.local') && $mail->negocio['nombre_negocio'] === 'Otro Negocio';
         });
     }
 }

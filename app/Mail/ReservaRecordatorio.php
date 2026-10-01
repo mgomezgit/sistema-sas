@@ -15,18 +15,22 @@ class ReservaRecordatorio extends Mailable implements ShouldQueue
 
     public array $reserva;
 
-    public string $nombreNegocio;
+    public array $negocio;
 
-    public function __construct(array $reserva, string $nombreNegocio)
+    /**
+     * @param  array  $negocio  nombre_negocio, color_acento, slug, politica_cancelacion.
+     *                          Ver ReservaConfirmada para el detalle de cada campo.
+     */
+    public function __construct(array $reserva, array $negocio)
     {
         $this->reserva = $reserva;
-        $this->nombreNegocio = $nombreNegocio;
+        $this->negocio = $negocio;
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Recordatorio: tienes una reserva mañana en '.$this->nombreNegocio,
+            subject: 'Recordatorio: tienes una reserva mañana en '.($this->negocio['nombre_negocio'] ?? ''),
         );
     }
 
@@ -36,7 +40,7 @@ class ReservaRecordatorio extends Mailable implements ShouldQueue
             view: 'emails.reserva-recordatorio',
             with: [
                 'reserva' => $this->reserva,
-                'nombreNegocio' => $this->nombreNegocio,
+                'negocio' => $this->negocio,
             ],
         );
     }

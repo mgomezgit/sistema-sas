@@ -15,22 +15,26 @@ class ReservaConfirmada extends Mailable implements ShouldQueue
 
     public array $reserva;
 
-    public string $nombreNegocio;
+    public array $negocio;
 
     /**
      * @param  array  $reserva  Datos de la reserva ya resueltos (nombre_cliente,
      *                          nombre_recurso, fecha_reserva, hora_inicio, hora_fin).
+     * @param  array  $negocio  Datos del negocio que ya se resolvieron para pintar el
+     *                          correo: nombre_negocio, color_acento (el nombre guardado,
+     *                          lo traduce ColorAcento en la vista), slug (para el botón;
+     *                          si falta, la vista omite el botón) y politica_cancelacion.
      */
-    public function __construct(array $reserva, string $nombreNegocio)
+    public function __construct(array $reserva, array $negocio)
     {
         $this->reserva = $reserva;
-        $this->nombreNegocio = $nombreNegocio;
+        $this->negocio = $negocio;
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Confirmación de tu reserva en '.$this->nombreNegocio,
+            subject: 'Confirmación de tu reserva en '.($this->negocio['nombre_negocio'] ?? ''),
         );
     }
 
@@ -40,7 +44,7 @@ class ReservaConfirmada extends Mailable implements ShouldQueue
             view: 'emails.reserva-confirmada',
             with: [
                 'reserva' => $this->reserva,
-                'nombreNegocio' => $this->nombreNegocio,
+                'negocio' => $this->negocio,
             ],
         );
     }
