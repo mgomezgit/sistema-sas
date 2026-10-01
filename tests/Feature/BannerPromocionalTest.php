@@ -422,4 +422,127 @@ class BannerPromocionalTest extends TestCase
 
         $this->assertSame(['Del A'], $titulos);
     }
+
+    /* ================= 7) RECORTE AUTOMÁTICO A 1200x300 =================
+     *
+     * Storage::fake('public') respalda el disco con una carpeta real de
+     * pruebas (no un mock en memoria), así que getimagesize() sobre la ruta
+     * absoluta lee el archivo procesado de verdad.
+     */
+
+    private function rutaAbsoluta(string $rutaRelativa): string
+    {
+        return Storage::disk('public')->path($rutaRelativa);
+    }
+
+    public function test_una_imagen_vertical_queda_recortada_a_1200x300(): void
+    {
+        $id = $this->svcBanner->crear(
+            $this->negocioA,
+            ['orden' => 0, 'usuario_registra' => 'test'],
+            UploadedFile::fake()->image('vertical.jpg', 800, 1200)
+        );
+
+        $this->assertIsInt($id);
+
+        $dimensiones = getimagesize($this->rutaAbsoluta($this->rutaDe($id)));
+
+        $this->assertSame(SvcBannerPromocional::ANCHO_BANNER, $dimensiones[0]);
+        $this->assertSame(SvcBannerPromocional::ALTO_BANNER, $dimensiones[1]);
+    }
+
+    public function test_una_imagen_ya_en_proporcion_4_a_1_tambien_queda_en_1200x300(): void
+    {
+        // 1600x400 ya es 4:1 (el mismo que 1200x300), pero más grande: cover()
+        // la reduce sin recortar nada, porque la proporción ya coincide.
+        $id = $this->svcBanner->crear(
+            $this->negocioA,
+            ['orden' => 0, 'usuario_registra' => 'test'],
+            UploadedFile::fake()->image('proporcionada.jpg', 1600, 400)
+        );
+
+        $this->assertIsInt($id);
+
+        $dimensiones = getimagesize($this->rutaAbsoluta($this->rutaDe($id)));
+
+        $this->assertSame(SvcBannerPromocional::ANCHO_BANNER, $dimensiones[0]);
+        $this->assertSame(SvcBannerPromocional::ALTO_BANNER, $dimensiones[1]);
+    }
+
+    public function test_una_imagen_muy_pequena_es_rechazada_por_el_service_sin_guardar_nada(): void
+    {
+        $resultado = $this->svcBanner->crear(
+            $this->negocioA,
+            ['orden' => 0, 'usuario_registra' => 'test'],
+            UploadedFile::fake()->image('chica.jpg', 400, 100)
+        );
+
+        $this->assertFalse($resultado);
+        $this->assertSame(0, DB::table('banners_promocionales')->count());
+        $this->assertEmpty(Storage::disk('public')->allFiles());
+    }
+
+    public function test_el_endpoint_rechaza_una_imagen_muy_pequena_con_un_mensaje_claro(): void
+    {
+        $respuesta = $this->withSession($this->sesionAdmin($this->negocioA))
+            ->postJson('request/banner/crear', [
+                'imagen' => UploadedFile::fake()->image('chica.jpg', 400, 100),
+                'orden' => 0,
+            ]);
+
+        $respuesta->assertJsonPath('error', 1);
+        $this->assertContains('La imagen es muy pequeña, sube una de al menos 800x200px.', $respuesta->json('mensaje'));
+
+        $this->assertSame(0, DB::table('banners_promocionales')->count());
+        $this->assertEmpty(Storage::disk('public')->allFiles());
+    }
+
+    public function test_editar_con_imagen_nueva_la_deja_tambien_en_1200x300_y_borra_la_vieja(): void
+    {
+        $id = $this->crearBanner($this->negocioA);
+        $rutaVieja = $this->rutaDe($id);
+
+        $this->svcBanner->editar(
+            $id,
+            $this->negocioA,
+            ['titulo' => 'Renovado', 'orden' => 0, 'estado' => 1],
+            UploadedFile::fake()->image('nueva-vertical.png', 900, 1800)
+        );
+
+        $rutaNueva = $this->rutaDe($id);
+
+        $this->assertNotSame($rutaVieja, $rutaNueva);
+        Storage::disk('public')->assertMissing($rutaVieja);
+        Storage::disk('public')->assertExists($rutaNueva);
+
+        $dimensiones = getimagesize($this->rutaAbsoluta($rutaNueva));
+        $this->assertSame(SvcBannerPromocional::ANCHO_BANNER, $dimensiones[0]);
+        $this->assertSame(SvcBannerPromocional::ALTO_BANNER, $dimensiones[1]);
+    }
+
+    /**
+     * Aislamiento: el recorte automático no cambió dónde se guarda el
+     * archivo. Extiende test_cada_negocio_guarda_sus_imagenes_en_su_propia_carpeta
+     * confirmando que el archivo YA PROCESADO (1200x300) sigue cayendo en la
+     * carpeta del tenant correcto, y que cada negocio solo ve el suyo.
+     */
+    public function test_la_imagen_procesada_sigue_cayendo_en_la_carpeta_del_tenant_correcto(): void
+    {
+        $delA = $this->svcBanner->crear(
+            $this->negocioA,
+            ['orden' => 0, 'usuario_registra' => 'test'],
+            UploadedFile::fake()->image('a.jpg', 1000, 1000)
+        );
+        $delB = $this->svcBanner->crear(
+            $this->negocioB,
+            ['orden' => 0, 'usuario_registra' => 'test'],
+            UploadedFile::fake()->image('b.jpg', 1000, 1000)
+        );
+
+        $this->assertStringStartsWith('banners/'.$this->negocioA.'/', $this->rutaDe($delA));
+        $this->assertStringStartsWith('banners/'.$this->negocioB.'/', $this->rutaDe($delB));
+
+        $this->assertCount(1, $this->svcBanner->listar($this->negocioA));
+        $this->assertCount(1, $this->svcBanner->listar($this->negocioB));
+    }
 }

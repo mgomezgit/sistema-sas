@@ -38,11 +38,24 @@ class BannerPromocionalController extends Controller
      * Reglas del archivo de imagen. Van tanto aquí como en el Service: el
      * Controller da el mensaje de error entendible, y el Service se niega a
      * escribir en disco aunque lo llame otro código que no pase por aquí.
+     *
+     * dimensions: por debajo de ANCHO_MINIMO x ALTO_MINIMO, recortar a
+     * 1200x300 (ver SvcBannerPromocional::ANCHO_BANNER/ALTO_BANNER) estiraría
+     * la imagen y saldría borrosa, así que se rechaza antes de procesarla.
      */
     private function reglasDeImagen(bool $obligatoria): string
     {
         return ($obligatoria ? 'required' : 'sometimes')
-            .'|file|mimes:jpg,jpeg,png,webp|max:'.SvcBannerPromocional::PESO_MAXIMO_KB;
+            .'|file|mimes:jpg,jpeg,png,webp|max:'.SvcBannerPromocional::PESO_MAXIMO_KB
+            .'|dimensions:min_width='.SvcBannerPromocional::ANCHO_MINIMO.',min_height='.SvcBannerPromocional::ALTO_MINIMO;
+    }
+
+    /** Mensajes propios para el archivo de imagen: los usan crear() y editar(). */
+    private function mensajesDeImagen(): array
+    {
+        return [
+            'imagen.dimensions' => 'La imagen es muy pequeña, sube una de al menos 800x200px.',
+        ];
     }
 
     private function reglasComunes(): array
@@ -78,7 +91,7 @@ class BannerPromocionalController extends Controller
         $this->setRequestValidationRules(array_merge(
             ['imagen' => $this->reglasDeImagen(true)],
             $this->reglasComunes()
-        ));
+        ), $this->mensajesDeImagen());
 
         if (! $this->validateRequestRules()) {
             return $this->sendResponse();
@@ -124,7 +137,7 @@ class BannerPromocionalController extends Controller
                 'estado' => 'required|in:0,1',
             ],
             $this->reglasComunes()
-        ));
+        ), $this->mensajesDeImagen());
 
         if (! $this->validateRequestRules()) {
             return $this->sendResponse();

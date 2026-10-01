@@ -8,6 +8,11 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Encoders\JpegEncoder;
+use Intervention\Image\Encoders\PngEncoder;
+use Intervention\Image\Encoders\WebpEncoder;
+use Intervention\Image\ImageManager;
 
 /**
  * Banners promocionales de la página pública de cada negocio.
@@ -30,11 +35,37 @@ class SvcBannerPromocional
     const DISCO = 'public';
 
     /**
-     * Guarda la imagen en el disco y devuelve su ruta relativa.
+     * Tamaño final de toda imagen de banner: la misma proporción 4:1 que usa
+     * el banner grande de la página pública (ver publico/pagina.blade.php).
+     * Toda imagen que se guarda queda EXACTAMENTE en este tamaño, sin
+     * excepción, para que el carrusel nunca reciba una proporción distinta.
+     */
+    const ANCHO_BANNER = 1200;
+
+    const ALTO_BANNER = 300;
+
+    /**
+     * Por debajo de esto, recortar a 1200x300 estiraría la imagen y saldría
+     * borrosa. Se rechaza antes de tocar el disco en vez de procesarla igual.
+     */
+    const ANCHO_MINIMO = 800;
+
+    const ALTO_MINIMO = 200;
+
+    const CALIDAD_COMPRESION = 85;
+
+    /**
+     * Procesa la imagen y guarda el resultado en el disco; devuelve su ruta
+     * relativa.
      *
-     * Valida ANTES de mover: un archivo que no pasa el filtro no llega a
-     * tocar el disco. El nombre se genera aquí y no se toma del que subió el
-     * usuario, que además de poder chocar con otro es texto que él controla.
+     * Valida ANTES de procesar: un archivo que no pasa el filtro no llega a
+     * tocar el disco ni la librería de imágenes. El nombre se genera aquí y
+     * no se toma del que subió el usuario, que además de poder chocar con
+     * otro es texto que él controla.
+     *
+     * El archivo que se guarda NO es el que subió el admin: es siempre el
+     * resultado de recortarlo (cover, centrado, sin deformar) a
+     * ANCHO_BANNER x ALTO_BANNER. No se conserva el original sin procesar.
      *
      * @return string|false La ruta relativa, o false si el archivo no sirve.
      */
@@ -51,9 +82,38 @@ class SvcBannerPromocional
             return false;
         }
 
-        $nombre = Str::uuid()->toString().'.'.$extension;
+        // getimagesize() lee las dimensiones reales del archivo subido, sin
+        // decodificarlo todavía con Intervention: si no es una imagen válida
+        // (o es más chica de lo que se puede recortar sin verse borrosa), se
+        // rechaza aquí, antes de escribir nada en disco. El Controller ya
+        // valida esto mismo con un mensaje legible (regla "dimensions"); esta
+        // comprobación es la misma defensa que ya existía para tipo y peso:
+        // el Service se niega a procesar aunque lo llame otro código que no
+        // pase por el Controller.
+        $dimensiones = @getimagesize($archivo->getRealPath());
 
-        return $archivo->storeAs('banners/'.$tenantId, $nombre, self::DISCO);
+        if ($dimensiones === false || $dimensiones[0] < self::ANCHO_MINIMO || $dimensiones[1] < self::ALTO_MINIMO) {
+            return false;
+        }
+
+        $imagenProcesada = (new ImageManager(new Driver))
+            ->decodePath($archivo->getRealPath())
+            ->cover(self::ANCHO_BANNER, self::ALTO_BANNER);
+
+        // La calidad de compresión solo aplica a los formatos con pérdida
+        // (jpg/webp); PngEncoder no acepta ese parámetro, es sin pérdida.
+        $codificador = match ($extension) {
+            'jpg', 'jpeg' => new JpegEncoder(quality: self::CALIDAD_COMPRESION),
+            'webp' => new WebpEncoder(quality: self::CALIDAD_COMPRESION),
+            default => new PngEncoder(),
+        };
+
+        $nombre = Str::uuid()->toString().'.'.$extension;
+        $rutaRelativa = 'banners/'.$tenantId.'/'.$nombre;
+
+        Storage::disk(self::DISCO)->put($rutaRelativa, (string) $imagenProcesada->encode($codificador));
+
+        return $rutaRelativa;
     }
 
     /**
