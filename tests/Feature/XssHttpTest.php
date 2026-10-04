@@ -71,7 +71,16 @@ class XssHttpTest extends TestCase
             'nombre_negocio' => 'Spa Normal',
             'slug' => 'spa-normal',
             'rubro' => 'spa',
-            'dias_atencion' => '0,1,2,3,4,5,6',
+            // Los 7 días ISO (1=lunes...7=domingo), a propósito: junto con
+            // hora_apertura/hora_cierre cubriendo el día completo, la intención
+            // es un negocio SIEMPRE abierto, sin restricción alguna — esta clase
+            // prueba escape de XSS, no horarios. El valor original, '0,1,2,3,4,
+            // 5,6', tenía un "0" que no corresponde a ningún día en la
+            // convención ISO de Carbon y además excluía el 7 (domingo): la
+            // solicitud pública de la prueba fallaba por horario cualquier
+            // domingo que se corriera la suite (ver XssHttpTest::
+            // test_una_solicitud_publica_con_payload_se_ve_escapada_en_el_dashboard_del_admin).
+            'dias_atencion' => '1,2,3,4,5,6,7',
             'hora_apertura' => '00:00:00',
             'hora_cierre' => '23:59:00',
             'usuario_registra' => 'test',
@@ -139,6 +148,17 @@ class XssHttpTest extends TestCase
     public function test_una_solicitud_publica_con_payload_se_ve_escapada_en_el_dashboard_del_admin(): void
     {
         Mail::fake();
+
+        // OJO: no se congela aquí a una fecha fija (p.ej. un lunes concreto).
+        // SvcReserva::contarHoy()/listarProximasHoy(), que alimentan el
+        // dashboard que esta prueba lee más abajo, filtran con date('Y-m-d')
+        // NATIVO de PHP — eso NO respeta Carbon::setTestNow(), así que si aquí
+        // se fijara "hoy" a otro día, la solicitud quedaría fechada ese día
+        // mientras el dashboard sigue mirando el día real, y el payload nunca
+        // aparecería en la página (se intentó así y falló exactamente por
+        // esto). Por eso se mantiene Carbon::today() real; solo se fija la
+        // hora, y la prueba no depende del día de la semana porque el negocio
+        // de este setUp() atiende los 7 días (ver el comentario en setUp()).
         Carbon::setTestNow(Carbon::today()->setTime(6, 0));
 
         $respuesta = $this->postJson('publico/spa-normal/agendar', [
