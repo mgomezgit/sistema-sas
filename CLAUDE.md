@@ -137,6 +137,7 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 - Preferir pruebas que recorran el camino real (HTTP con withSession(), archivos reales para importaciones) en vez de mocks de capas intermedias.
 - Las pruebas corren sobre SQLite en memoria (phpunit.xml) — la base real nunca se toca.
 - Ante un bug que persiste tras un primer intento de corrección: el siguiente intento DEBE exigir diagnóstico de causa raíz antes de corregir, no otro parche a ciegas.
+- Las pruebas no deben depender de la fecha ni de la hora real en que se corren. Si una prueba toca horarios de atención, reservas, recordatorios o vigencias, congela el reloj con Carbon::setTestNow() en un día y una hora conocidos (en los que el negocio de prueba atienda) y restaurarlo al terminar.
 
 ## Aislamiento entre negocios: regla sin excepciones
 
