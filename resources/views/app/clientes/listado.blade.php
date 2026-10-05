@@ -274,6 +274,81 @@
             establecerEstadoCliente(jQuery(this).is(':checked'));
         });
 
+        /* ================= BAJA CON RESERVAS FUTURAS ================= */
+
+        // Estado y nombre del cliente abierto en el modal, tal como estaban al
+        // abrirlo: la pregunta de las reservas solo aplica al pasar de activo a
+        // inactivo, nunca al guardar uno que ya estaba de baja.
+        var estadoOriginalCliente = 1;
+        var nombreClienteEnEdicion = '';
+
+        /** Pide al backend cuántas reservas futuras cancelables tiene el cliente. */
+        function consultarReservasFuturas(idCliente, alTerminar) {
+            axiosSipleInterno('GET', 'request/cliente/reservas-futuras', { id_cliente: idCliente }, {}, true, function (respuesta) {
+                if (!respuesta || respuesta.error != 0) {
+                    notificarUsuario(respuesta ? respuesta.mensaje : 'No se pudieron consultar las reservas del cliente', 'error');
+
+                    return;
+                }
+
+                alTerminar(parseInt(respuesta.data.total, 10) || 0);
+            });
+        }
+
+        /**
+         * Pregunta qué hacer con las reservas futuras antes de dar de baja.
+         * alTerminar recibe 1 (cancelarlas), 0 (conservarlas) o null (no dar
+         * de baja). "title" y "html" de SweetAlert2 interpretan HTML: el
+         * nombre del cliente pasa por escaparTexto().
+         */
+        function preguntarQueHacerConReservas(nombreCliente, total, alTerminar) {
+            var textoReservas = total === 1 ? 'la reserva' : 'las ' + total + ' reservas';
+
+            Swal.fire({
+                title: 'Dar de baja a "' + escaparTexto(nombreCliente) + '"',
+                html: 'Este cliente tiene <strong>' + escaparTexto(total) + (total === 1 ? ' reserva futura' : ' reservas futuras') + '</strong> pendientes o confirmadas.<br><br>' +
+                    'Si las cancelas, se le avisará por correo al cliente si tiene email registrado.',
+                icon: 'warning',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'Dar de baja y cancelar ' + textoReservas,
+                denyButtonText: 'Dar de baja y conservar las reservas',
+                cancelButtonText: 'No dar de baja',
+                confirmButtonColor: colorVariable('--danger'),
+                denyButtonColor: colorVariable('--accent'),
+                cancelButtonColor: colorVariable('--text-muted')
+            }).then(function (resultado) {
+                if (resultado.isConfirmed) {
+                    alTerminar(1);
+                } else if (resultado.isDenied) {
+                    alTerminar(0);
+                } else {
+                    alTerminar(null);
+                }
+            });
+        }
+
+        /** Mensaje de éxito de una baja: cuántas se cancelaron y cuántas no se pudieron. */
+        function mensajeBajaCliente(respuesta, textoBase) {
+            var canceladas = parseInt(respuesta.data.reservas_canceladas, 10) || 0;
+            var omitidas = parseInt(respuesta.data.reservas_omitidas, 10) || 0;
+            var mensaje = textoBase;
+
+            if (canceladas > 0) {
+                mensaje += canceladas === 1 ? '. Se canceló 1 reserva' : '. Se cancelaron ' + canceladas + ' reservas';
+            }
+
+            if (omitidas > 0) {
+                mensaje += omitidas === 1
+                    ? '. 1 reserva no se canceló porque su comisión ya fue pagada'
+                    : '. ' + omitidas + ' reservas no se cancelaron porque su comisión ya fue pagada';
+            }
+
+            return mensaje;
+        }
+
         function limpiarFormularioCliente() {
             jQuery('#id_cliente').val('');
             jQuery('#nombre').val('');
@@ -316,14 +391,31 @@
             // nace activo, así que no hay nada que preguntar en ese momento.
             jQuery('#seccion-estado-cliente').prop('hidden', false);
             establecerEstadoCliente(fila.estado == 1);
+            estadoOriginalCliente = fila.estado == 1 ? 1 : 0;
+            nombreClienteEnEdicion = fila.nombre;
 
             var modalCliente = new bootstrap.Modal(document.getElementById('modal-cliente'));
             modalCliente.show();
         });
 
-        jQuery('#tabla-clientes').on('click', '.btn-eliminar-cliente', function () {
-            var idCliente = jQuery(this).data('id_cliente');
+        function enviarEliminarCliente(idCliente, cancelarReservasFuturas) {
+            var cuerpo = { id_cliente: idCliente };
 
+            if (cancelarReservasFuturas !== undefined) {
+                cuerpo.cancelar_reservas_futuras = cancelarReservasFuturas;
+            }
+
+            axiosSipleInterno('POST', 'request/cliente/eliminar', {}, cuerpo, true, function (respuesta) {
+                if (respuesta.error == 0) {
+                    notificarUsuario(mensajeBajaCliente(respuesta, 'Cliente eliminado correctamente'), 'success');
+                    cargarClientes();
+                } else {
+                    notificarUsuario(respuesta.mensaje, 'error');
+                }
+            });
+        }
+
+        function confirmarEliminarSinReservas(idCliente, cancelarReservasFuturas) {
             Swal.fire({
                 title: '¿Eliminar cliente?',
                 text: 'Esta acción no se puede deshacer',
@@ -336,15 +428,36 @@
                 cancelButtonText: 'Cancelar'
             }).then(function (resultado) {
                 if (resultado.isConfirmed) {
-                    axiosSipleInterno('POST', 'request/cliente/eliminar', {}, { id_cliente: idCliente }, true, function (respuesta) {
-                        if (respuesta.error == 0) {
-                            notificarUsuario('Cliente eliminado correctamente', 'success');
-                            cargarClientes();
-                        } else {
-                            notificarUsuario(respuesta.mensaje, 'error');
-                        }
-                    });
+                    enviarEliminarCliente(idCliente, cancelarReservasFuturas);
                 }
+            });
+        }
+
+        jQuery('#tabla-clientes').on('click', '.btn-eliminar-cliente', function () {
+            var fila = tablaClientes.row(jQuery(this).closest('tr')).data();
+
+            // Un cliente que ya está de baja no tiene nada que preguntar: la
+            // papelera sigue como siempre.
+            if (fila.estado != 1) {
+                confirmarEliminarSinReservas(fila.id_cliente);
+
+                return;
+            }
+
+            consultarReservasFuturas(fila.id_cliente, function (total) {
+                if (total === 0) {
+                    confirmarEliminarSinReservas(fila.id_cliente, 0);
+
+                    return;
+                }
+
+                // El aviso de tres botones ya es la confirmación: no se
+                // pregunta dos veces.
+                preguntarQueHacerConReservas(fila.nombre, total, function (decision) {
+                    if (decision !== null) {
+                        enviarEliminarCliente(fila.id_cliente, decision);
+                    }
+                });
             });
         });
 
@@ -374,6 +487,36 @@
             // crear() lo ignora porque un cliente nuevo siempre nace activo.
             datos.estado = jQuery('#estado_cliente').is(':checked') ? 1 : 0;
 
+            var esBaja = modoFormularioCliente === 'editar' && estadoOriginalCliente === 1 && datos.estado === 0;
+
+            if (!esBaja) {
+                enviarGuardarCliente(url, datos);
+
+                return;
+            }
+
+            // Baja desde el interruptor: antes de enviar se pregunta qué pasa
+            // con las reservas futuras. La decisión viaja siempre explícita.
+            consultarReservasFuturas(datos.id_cliente, function (total) {
+                if (total === 0) {
+                    datos.cancelar_reservas_futuras = 0;
+                    enviarGuardarCliente(url, datos);
+
+                    return;
+                }
+
+                preguntarQueHacerConReservas(nombreClienteEnEdicion, total, function (decision) {
+                    if (decision === null) {
+                        return;
+                    }
+
+                    datos.cancelar_reservas_futuras = decision;
+                    enviarGuardarCliente(url, datos);
+                });
+            });
+        });
+
+        function enviarGuardarCliente(url, datos) {
             // El propio botón hace de indicador, así que no se levanta el loader
             // que tapa la pantalla: el formulario sigue a la vista.
             estadoBotonGuardar('ocupado');
@@ -402,10 +545,12 @@
 
                     estadoBotonGuardar('normal');
                     cargarClientes();
-                    avisarGuardado(modoFormularioCliente === 'crear' ? 'Cliente creado correctamente' : 'Cliente actualizado correctamente');
+                    avisarGuardado(modoFormularioCliente === 'crear'
+                        ? 'Cliente creado correctamente'
+                        : mensajeBajaCliente(respuesta, 'Cliente actualizado correctamente'));
                 }, ESPERA_CONFIRMACION_GUARDADO);
             });
-        });
+        }
 
         jQuery(document).ready(function () {
             cargarClientes();

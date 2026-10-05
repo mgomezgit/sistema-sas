@@ -18,17 +18,32 @@ function Ocultarloader() {
  * importado) y que se concatena dentro de un string de HTML tiene que pasar
  * por aquí. Si el destino es un nodo concreto, mejor todavía .text().
  *
- * No hace falta en: .text(), .val(), textContent, la opción "text" de
- * SweetAlert2. SÍ hace falta en: .html(), .append()/.prepend() con strings,
- * los render de DataTables, y las opciones "title" y "html" de SweetAlert2
- * (las dos interpretan HTML).
+ * No hace falta en: .text(), .val(), .attr(nombre, valor), textContent, la
+ * opción "text" de SweetAlert2 (ahí escapar mostraría entidades literales).
+ * SÍ hace falta en: .html(), .append()/.prepend() con strings, los render de
+ * DataTables, las opciones "title" y "html" de SweetAlert2 (las dos
+ * interpretan HTML), y dentro del valor de un atributo armado a mano
+ * (data-*="...", title="...", value="...").
+ *
+ * Escapa también " y ': antes era jQuery("<div>").text(x).html(), que no
+ * toca las comillas, y un valor como  " onmouseover="alert(1)  se salía de
+ * data-nombre="..." en el panel del super admin.
+ *
+ * OJO: .data()/.attr() DECODIFICAN las entidades al leer un atributo. Un
+ * valor leído así vuelve a ser texto crudo: si se reinserta como HTML, se
+ * escapa otra vez en ese punto.
  */
 function escaparTexto(texto) {
     if (texto === null || texto === undefined) {
         return "";
     }
 
-    return jQuery("<div>").text(String(texto)).html();
+    return String(texto)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
 /**
@@ -50,13 +65,10 @@ function renderTextoSeguro(data, tipo) {
  * vista, con riesgo de que divergieran entre sí.
  *
  * estadoReserva hoy solo recibe un vocabulario fijo (pendiente/confirmada/
- * completada/cancelada), pero por si algún día llega otro valor: escaparTexto()
- * no alcanza para la clase CSS, porque no escapa comillas y un valor con '"'
- * podría romper el atributo class="..." e inyectar HTML ahí mismo (escaparTexto
- * está pensado para contenido de texto, no para dentro de un atributo). Por
- * eso la clase se limita siempre a un valor conocido ('desconocido' si no lo
- * es); la etiqueta de respaldo, que sí es contenido de texto, pasa por
- * escaparTexto().
+ * completada/cancelada), pero por si algún día llega otro valor, la clase CSS
+ * se limita siempre a un valor conocido ('desconocido' si no lo es): un
+ * nombre de clase no debe depender de texto libre aunque esté escapado. La
+ * etiqueta de respaldo, que es contenido de texto, pasa por escaparTexto().
  */
 function badgeEstadoReserva(estadoReserva) {
     var iconos = {

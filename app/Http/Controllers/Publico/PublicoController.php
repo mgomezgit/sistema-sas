@@ -219,6 +219,9 @@ class PublicoController extends Controller
                 'hora_inicio' => $reserva[0]['hora_inicio'] ?? '',
                 'hora_fin' => $reserva[0]['hora_fin'] ?? '',
                 'notas' => $reserva[0]['notas'] ?? null,
+                // Solo al admin: la respuesta pública es la misma para un
+                // cliente activo o dado de baja.
+                'cliente_inactivo' => (int) ($reserva[0]['estado_cliente'] ?? 1) === 0,
             ], $negocio->nombre_negocio));
         } catch (\Exception $e) {
             Log::channel('database')->info($e);

@@ -139,6 +139,22 @@
             gap: 0.35rem;
         }
 
+        /* Aviso informativo (no es un error): el cliente de la reserva está
+           dado de baja. Mismo mecanismo de .visible que el aviso de fecha. */
+        .aviso-cliente-inactivo {
+            display: none;
+            color: var(--warning);
+            font-size: 0.78rem;
+            font-weight: 500;
+            margin-top: 0.4rem;
+        }
+
+        .aviso-cliente-inactivo.visible {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.35rem;
+        }
+
         .ayuda-campo {
             color: var(--text-muted);
             font-size: 0.78rem;
@@ -669,6 +685,11 @@
                                 <label for="id_cliente">Cliente</label>
                             </div>
 
+                            <small id="aviso-cliente-inactivo" class="aviso-cliente-inactivo">
+                                <i class="bi bi-info-circle"></i>
+                                <span>Este cliente está dado de baja. Puedes confirmar la cita o reactivarlo desde Clientes.</span>
+                            </small>
+
                             <div class="campo-flotante mt-3">
                                 <i class="bi bi-calendar-check"></i>
                                 <select id="id_recurso" name="id_recurso" class="system_validador_vacio">
@@ -1010,7 +1031,18 @@
             jQuery('#contenedor-form-reserva #system_validador').remove();
             estadoBotonGuardarReserva('normal');
             ocultarAvisoFecha();
+            idClienteInactivoEnEdicion = null;
+            jQuery('#aviso-cliente-inactivo').removeClass('visible');
         }
+
+        // Cliente dado de baja de la reserva abierta en edición (null si no lo
+        // está). El aviso se ve mientras ese siga siendo el cliente elegido.
+        var idClienteInactivoEnEdicion = null;
+
+        jQuery('#id_cliente').on('change', function () {
+            var esElInactivo = idClienteInactivoEnEdicion !== null && String(jQuery(this).val()) === String(idClienteInactivoEnEdicion);
+            jQuery('#aviso-cliente-inactivo').toggleClass('visible', esElInactivo);
+        });
 
         /* ---------- Validación de la fecha dentro del formulario ---------- */
 
@@ -1119,18 +1151,24 @@
                 // reserva antigua a la que solo se le están corrigiendo detalles.
                 fechaOriginalReserva = datos.fecha_reserva;
 
-                // El desplegable solo trae clientes activos (igual que el de
-                // arriba, con cargarCatalogos() cacheado una sola vez): si el
-                // cliente de esta reserva ya está inactivo, su opción no está
-                // ahí, y sin esto .val() quedaría vacío y se perdería el
-                // cliente al guardar sin querer cambiarlo. nombre_cliente ya
-                // viene de request/reserva/obtener; .text() lo inserta seguro.
+                // El desplegable solo trae clientes activos y se carga una sola
+                // vez (cargarCatalogos() cacheado). Si el cliente de esta
+                // reserva no está ahí —porque está dado de baja, o porque se
+                // creó después de cargar el desplegable (por ejemplo, desde la
+                // página pública)— se agrega su opción; sin esto .val() quedaría
+                // vacío y se perdería el cliente al guardar. "(inactivo)" y el
+                // aviso salen del estado real del cliente (estado_cliente), no
+                // de que falte la opción. .text() inserta el nombre seguro.
+                var clienteInactivo = String(datos.estado_cliente) === '0';
                 var selectCliente = jQuery('#id_cliente');
                 if (datos.id_cliente && selectCliente.find('option[value="' + datos.id_cliente + '"]').length === 0) {
                     selectCliente.append(
-                        jQuery('<option>').val(datos.id_cliente).text((datos.nombre_cliente || 'Cliente') + ' (inactivo)')
+                        jQuery('<option>').val(datos.id_cliente).text((datos.nombre_cliente || 'Cliente') + (clienteInactivo ? ' (inactivo)' : ''))
                     );
                 }
+
+                idClienteInactivoEnEdicion = clienteInactivo ? datos.id_cliente : null;
+                jQuery('#aviso-cliente-inactivo').toggleClass('visible', clienteInactivo);
 
                 jQuery('#id_cliente').val(datos.id_cliente);
                 jQuery('#id_recurso').val(datos.id_recurso);
@@ -1552,6 +1590,7 @@
                 id_reserva: evento.id,
                 id_cliente: props.id_cliente,
                 nombre_cliente: partesTitulo.cliente,
+                estado_cliente: props.estado_cliente,
                 id_recurso: props.id_recurso,
                 id_empleado: props.id_empleado,
                 fecha_reserva: formatearFechaISO(evento.start),

@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Models\Cliente;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SvcCliente
@@ -88,6 +89,83 @@ class SvcCliente
             $query->update(['estado' => 0]);
 
             return true;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
+        }
+    }
+
+    /**
+     * Guarda un cliente (edición o papelera) cuando el admin ya eligió qué
+     * pasa con sus reservas futuras al darlo de baja.
+     *
+     * - $info son las columnas a guardar: los datos del formulario en
+     *   editar(), o solo ['estado' => 0] desde la papelera.
+     * - $cancelarReservasFuturas solo se respeta en la TRANSICIÓN de activo a
+     *   inactivo. Si el cliente ya estaba inactivo, o se está reactivando, se
+     *   ignora y no se toca ninguna reserva (reactivar nunca toca reservas).
+     * - La baja y las cancelaciones van en UNA transacción: si una
+     *   cancelación falla, el cliente sigue activo y ninguna reserva cambia.
+     * - Los correos NO se mandan aquí: se devuelven los ids cancelados para
+     *   que el Controller los notifique después de confirmada la transacción.
+     *
+     * Devuelve false si el cliente no existe o es de otro negocio, o si algo
+     * falló (y en ese caso no quedó nada guardado).
+     *
+     * @return array{es_baja: bool, canceladas: int[], omitidas: int}|false
+     */
+    public function aplicarBaja($id, $tenantId, array $info, bool $cancelarReservasFuturas, $idUsuario)
+    {
+        try {
+            $resultado = DB::transaction(function () use ($id, $tenantId, $info, $cancelarReservasFuturas, $idUsuario) {
+                $cliente = Cliente::select('id_cliente', 'estado')
+                    ->where('id_cliente', $id)
+                    ->where('tenant_id', $tenantId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($cliente === null) {
+                    return false;
+                }
+
+                // Solo cuenta el paso de activo a inactivo: guardar un cliente
+                // que ya estaba de baja no vuelve a cancelar nada.
+                $esBaja = (int) $cliente->estado === 1 && (int) ($info['estado'] ?? 1) === 0;
+
+                Cliente::where('id_cliente', $id)->where('tenant_id', $tenantId)->update($info);
+
+                $canceladas = [];
+                $omitidas = 0;
+
+                if ($esBaja && $cancelarReservasFuturas) {
+                    $cancelacion = (new SvcReserva)->cancelarFuturasDeCliente($id, $tenantId, $idUsuario);
+
+                    if ($cancelacion === false) {
+                        throw new \RuntimeException('CLI-BAJA-CANCELACION');
+                    }
+
+                    $canceladas = $cancelacion['canceladas'];
+                    $omitidas = $cancelacion['omitidas'];
+                }
+
+                return ['es_baja' => $esBaja, 'canceladas' => $canceladas, 'omitidas' => $omitidas];
+            });
+
+            if ($resultado !== false && $resultado['es_baja']) {
+                Log::channel('database')->info(sprintf(
+                    'BAJA DE CLIENTE: el usuario %s dio de baja al cliente %d del negocio %d el %s; reservas futuras canceladas: %d, omitidas por comision pagada: %d%s.',
+                    $idUsuario ?? 'sistema',
+                    $id,
+                    $tenantId,
+                    Carbon::now()->format('Y-m-d H:i:s'),
+                    count($resultado['canceladas']),
+                    $resultado['omitidas'],
+                    $cancelarReservasFuturas ? '' : ' (eligio conservarlas)'
+                ));
+            }
+
+            return $resultado;
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 

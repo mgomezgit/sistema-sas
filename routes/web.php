@@ -83,6 +83,7 @@ Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->
     Route::post('cliente/editar', [App\Http\Controllers\Request\ClienteController::class, 'editar']);
     Route::post('cliente/eliminar', [App\Http\Controllers\Request\ClienteController::class, 'eliminar']);
     Route::get('cliente/listar', [App\Http\Controllers\Request\ClienteController::class, 'listar']);
+    Route::get('cliente/reservas-futuras', [App\Http\Controllers\Request\ClienteController::class, 'reservasFuturas']);
     Route::post('recurso/crear', [App\Http\Controllers\Request\RecursoReservableController::class, 'crear']);
     Route::post('recurso/editar', [App\Http\Controllers\Request\RecursoReservableController::class, 'editar']);
     Route::post('recurso/eliminar', [App\Http\Controllers\Request\RecursoReservableController::class, 'eliminar']);

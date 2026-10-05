@@ -2187,6 +2187,15 @@
             text-overflow: ellipsis;
         }
 
+        .item-solicitud-pendiente .distintivo-solicitud-pendiente {
+            margin: 0.2rem 0;
+        }
+
+        .item-solicitud-pendiente .distintivo-solicitud-pendiente .badge-estado-inactivo {
+            padding: 0.15rem 0.55rem;
+            font-size: 0.72rem;
+        }
+
         .item-solicitud-pendiente .detalle-solicitud-pendiente {
             font-size: 0.8rem;
             color: var(--text-secondary);
@@ -4201,9 +4210,16 @@
                     var servicioEscapado = escaparTexto(solicitud.nombre_servicio);
                     var cuando = formatearFechaHoraSolicitud(solicitud.fecha_reserva, solicitud.hora_inicio);
 
+                    // Texto fijo, no dato de usuario: el cliente que pidió cita
+                    // está dado de baja (la página pública reutilizó su ficha).
+                    var distintivoInactivo = solicitud.cliente_inactivo === true
+                        ? '<div class="distintivo-solicitud-pendiente"><span class="badge-estado-inactivo"><i class="bi bi-dash-circle-fill"></i> Cliente dado de baja</span></div>'
+                        : '';
+
                     html += '<button type="button" class="item-solicitud-pendiente" data-id_reserva="' + solicitud.id_reserva + '">' +
                         '<div class="info-solicitud-pendiente">' +
                         '<div class="nombre-cliente-solicitud">' + nombreEscapado + '</div>' +
+                        distintivoInactivo +
                         '<div class="detalle-solicitud-pendiente">' + servicioEscapado + ' · ' + cuando + '</div>' +
                         '</div>' +
                         '<i class="bi bi-chevron-right icono-solicitud-pendiente"></i>' +

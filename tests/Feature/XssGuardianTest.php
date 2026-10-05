@@ -30,6 +30,15 @@ use Tests\TestCase;
  *      estadoReserva + ..." sin pasar por la clase sanitizada: 7 tests, 6
  *      passed, 1 FAILED — test_badge_estado_reserva_existe_una_sola_vez_y_no_concatena_el_atributo_sin_filtrar.
  *      Restaurado: 7 passed.
+ * M9 — escaparTexto() sin los .replace() de " y ' (como la versión vieja con
+ *      jQuery, que no tocaba comillas): 9 tests, 8 passed, 1 FAILED —
+ *      test_escapar_texto_cubre_comillas_dobles_y_simples ("debe reemplazar
+ *      /"/g por &quot;"). Restaurado: 9 passed.
+ * M10 — data-nombre del panel del super admin sin escaparTexto() (fila
+ *       269 de superadmin/negocios): 9 tests, 8 passed, 1 FAILED —
+ *       test_los_atributos_armados_a_mano_escapan_su_valor, que nombró
+ *       "app/superadmin/negocios.blade.php:269: data-nombre=...". Restaurado:
+ *       9 passed.
  * (M2, M3 y M4 se documentan en XssHttpTest.)
  */
 class XssGuardianTest extends TestCase
@@ -165,11 +174,10 @@ class XssGuardianTest extends TestCase
     /**
      * badgeEstadoReserva() es una sola copia (antes había 4 idénticas en
      * reservas/listado, mis-citas, reportes/ventas e historial), y no debe
-     * concatenar el valor crudo dentro de class="...": escaparTexto() no
-     * escapa comillas, así que un valor con '"' rompería ese atributo aunque
-     * se le aplicara. La clase CSS solo puede ser un valor conocido fijo
-     * ("clase" en el código); el valor libre solo puede ir como contenido de
-     * texto, ahí sí detrás de escaparTexto().
+     * concatenar el valor crudo dentro de class="...": un nombre de clase no
+     * debe depender de texto libre aunque esté escapado. La clase CSS solo
+     * puede ser un valor conocido fijo ("clase" en el código); el valor libre
+     * solo puede ir como contenido de texto, ahí sí detrás de escaparTexto().
      */
     public function test_badge_estado_reserva_existe_una_sola_vez_y_no_concatena_el_atributo_sin_filtrar(): void
     {
@@ -188,5 +196,94 @@ class XssGuardianTest extends TestCase
         $this->assertStringNotContainsString("badge-reserva-' + estadoReserva", $cuerpo);
         $this->assertStringContainsString("badge-reserva-' + clase", $cuerpo);
         $this->assertStringContainsString('escaparTexto(estadoReserva)', $cuerpo);
+    }
+
+    /**
+     * escaparTexto() se usa también dentro del valor de atributos armados a
+     * mano (data-nombre="..."), así que tiene que escapar las dos comillas
+     * además de & < >. La versión anterior (jQuery("<div>").text(x).html())
+     * no las tocaba, y " onmouseover="alert(1)  se salía del atributo en el
+     * panel del super admin (verificado con Chromium real).
+     *
+     * PHPUnit no ejecuta JS: se revisa el cuerpo real de la función. La
+     * ejecución real con payloads se verifica con navegador (ver reporte).
+     */
+    public function test_escapar_texto_cubre_comillas_dobles_y_simples(): void
+    {
+        $utilidades = File::get(public_path('js/utilidades.js'));
+        $cuerpo = substr($utilidades, strpos($utilidades, 'function escaparTexto('));
+        $cuerpo = substr($cuerpo, 0, strpos($cuerpo, "\n}") + 2);
+
+        foreach (['/&/g' => '&amp;', '/</g' => '&lt;', '/>/g' => '&gt;', '/"/g' => '&quot;', "/'/g" => '&#39;'] as $patron => $entidad) {
+            $this->assertMatchesRegularExpression(
+                '#\.replace\(\s*'.preg_quote($patron, '#').'\s*,\s*"'.preg_quote($entidad, '#').'"\s*\)#',
+                $cuerpo,
+                "escaparTexto() debe reemplazar $patron por $entidad"
+            );
+        }
+
+        // & primero: si no, el & de "&lt;" se volvería a escapar a "&amp;lt;".
+        $this->assertLessThan(
+            strpos($cuerpo, '/</g'),
+            strpos($cuerpo, '/&/g'),
+            'escaparTexto() debe escapar & antes que el resto'
+        );
+    }
+
+    /**
+     * Atributos armados a mano con concatenación: attr="' + valor + '". El
+     * valor tiene que pasar por escaparTexto(), salvo los que se sabe que
+     * nunca son texto escrito por una persona (ids numéricos de la base,
+     * vocabularios fijos). Cada excepción lleva su porqué en la lista.
+     */
+    const ATRIBUTOS_CONCATENADOS_PERMITIDOS = [
+        // Ids enteros autoincrementales de la base, nunca texto de usuario.
+        '/^data-id_[a-z_]+$/' => '/^(data|fila\.id_[a-z_]+|reserva\.id_reserva|cita\.id_reserva|solicitud\.id_reserva)$/',
+        // Columnas numéricas de comisiones_tarifas (decimal y 0/1).
+        '/^data-porcentaje$/' => '/^fila\.porcentaje_comision$/',
+        '/^data-estado$/' => '/^fila\.estado$/',
+        // UrlGlobal es la base de la app; definicion.destino sale del catálogo
+        // fijo de la guía de inicio (layout/backoffice, "destino: 'backoffice/...'").
+        '/^href$/' => '/^UrlGlobal( \+ definicion\.destino)?$/',
+        // Clases de ícono literales de la guía de inicio ('bi ' + icono fijo).
+        '/^class$/' => "/^(clasesIcono|\\(resultado\\.exito \\? 'fila-exito' : 'fila-error'\\))$/",
+        // Índice entero del carrusel de banners de la página pública.
+        '/^data-indice$/' => '/^indice$/',
+    ];
+
+    public function test_los_atributos_armados_a_mano_escapan_su_valor(): void
+    {
+        $sinEscapar = [];
+
+        foreach ($this->vistas() as $ruta => $contenido) {
+            foreach (preg_split('/\R/', $contenido) as $numero => $linea) {
+                // (?<!\[): jQuery('[value="' + x + '"]') es un selector, no HTML.
+                preg_match_all('/(?<![\[\w-])([a-zA-Z_-]+)="\'\s*\+\s*(.+?)\s*\+\s*\'/', $linea, $coincidencias, PREG_SET_ORDER);
+
+                foreach ($coincidencias as [, $atributo, $valor]) {
+                    if (str_starts_with($valor, 'escaparTexto(')) {
+                        continue;
+                    }
+
+                    $permitido = false;
+                    foreach (self::ATRIBUTOS_CONCATENADOS_PERMITIDOS as $patronAtributo => $patronValor) {
+                        if (preg_match($patronAtributo, $atributo) && preg_match($patronValor, $valor)) {
+                            $permitido = true;
+                            break;
+                        }
+                    }
+
+                    if (! $permitido) {
+                        $sinEscapar[] = $ruta.':'.($numero + 1).': '.$atributo.'="\' + '.$valor;
+                    }
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $sinEscapar,
+            "Atributo armado a mano sin escaparTexto(). Escápalo, o si de verdad nunca es texto de usuario, documéntalo en ATRIBUTOS_CONCATENADOS_PERMITIDOS:\n".implode("\n", $sinEscapar)
+        );
     }
 }

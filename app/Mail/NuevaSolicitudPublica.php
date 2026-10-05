@@ -28,7 +28,9 @@ class NuevaSolicitudPublica extends Mailable implements ShouldQueue
     /**
      * @param  array  $solicitud  Datos ya resueltos de la solicitud
      *                            (nombre_cliente, telefono_cliente, nombre_recurso,
-     *                            fecha_reserva, hora_inicio, hora_fin, notas).
+     *                            fecha_reserva, hora_inicio, hora_fin, notas,
+     *                            y cliente_inactivo opcional: si es true, el
+     *                            correo agrega el aviso de cliente dado de baja).
      */
     public function __construct(array $solicitud, string $nombreNegocio)
     {

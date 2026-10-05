@@ -23,6 +23,11 @@
                                 Alguien pidió una cita desde tu página pública. Queda <strong>pendiente</strong> hasta que
                                 la revises: el cliente todavía no ha recibido ninguna confirmación.
                             </p>
+                            @if (! empty($solicitud['cliente_inactivo']))
+                                <p style="margin:0 0 18px 0; padding:12px 14px; font-size:14px; line-height:1.5; color:#7a4a00; background-color:#fff4e0; border:1px solid #f3d9a8; border-radius:6px;">
+                                    Este cliente está dado de baja en tu negocio. Sigue inactivo hasta que lo reactives desde Clientes; puedes confirmar la cita igual.
+                                </p>
+                            @endif
                         </td>
                     </tr>
 

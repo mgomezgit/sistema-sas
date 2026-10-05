@@ -565,6 +565,90 @@ class SvcReserva
         }
     }
 
+    /* ================= RESERVAS FUTURAS DE UN CLIENTE (baja de clientes) ================= */
+
+    /**
+     * Reservas de un cliente que todavía se pueden cancelar: de ESE negocio,
+     * no eliminadas, pendientes o confirmadas, y con fecha y hora de inicio
+     * posteriores a ahora (Carbon::now(), así las pruebas congelan el reloj).
+     * Quedan fuera las canceladas, las completadas y las ya pasadas.
+     *
+     * Una sola consulta para contar y para cancelar: lo que el admin ve en el
+     * aviso es exactamente lo que después se cancela.
+     */
+    private function consultaFuturasDeCliente($idCliente, $tenantId)
+    {
+        $ahora = Carbon::now();
+        $hoy = $ahora->format('Y-m-d');
+        $hora = $ahora->format('H:i:s');
+
+        return Reserva::where('id_cliente', $idCliente)
+            ->where('tenant_id', $tenantId)
+            ->where('estado', 1)
+            ->whereIn('estado_reserva', ['pendiente', 'confirmada'])
+            ->where(function ($q) use ($hoy, $hora) {
+                $q->where('fecha_reserva', '>', $hoy)
+                    ->orWhere(function ($mismoDia) use ($hoy, $hora) {
+                        $mismoDia->where('fecha_reserva', $hoy)->where('hora_inicio', '>', $hora);
+                    });
+            });
+    }
+
+    public function contarFuturasDeCliente($idCliente, $tenantId): int
+    {
+        try {
+            return $this->consultaFuturasDeCliente($idCliente, $tenantId)->count();
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return 0;
+        }
+    }
+
+    /**
+     * Cancela las reservas futuras de un cliente, una por una con
+     * cambiarEstado(), para que cada cancelación deje su fila en
+     * historial_estados_reserva con el usuario que actuó.
+     *
+     * Pensado para correr DENTRO de la transacción de quien lo llama
+     * (SvcCliente::aplicarBaja): si una cancelación falla, devuelve false y
+     * es el que llama quien deshace todo. Una reserva con la comisión ya
+     * pagada no se puede cancelar: se omite y se cuenta aparte.
+     *
+     * @return array{canceladas: int[], omitidas: int}|false
+     */
+    public function cancelarFuturasDeCliente($idCliente, $tenantId, $idUsuario)
+    {
+        try {
+            $ids = $this->consultaFuturasDeCliente($idCliente, $tenantId)
+                ->orderBy('fecha_reserva')
+                ->orderBy('hora_inicio')
+                ->pluck('id_reserva');
+
+            $canceladas = [];
+            $omitidas = 0;
+
+            foreach ($ids as $idReserva) {
+                $resultado = $this->cambiarEstado($idReserva, 'cancelada', $tenantId, $idUsuario);
+
+                if ($resultado === self::CAMBIO_HECHO) {
+                    $canceladas[] = (int) $idReserva;
+                } elseif ($resultado === self::CAMBIO_COMISION_PAGADA) {
+                    $omitidas++;
+                } else {
+                    // CAMBIO_ERROR o CAMBIO_NO_DISPONIBLE: no se cancela a medias.
+                    return false;
+                }
+            }
+
+            return ['canceladas' => $canceladas, 'omitidas' => $omitidas];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
+        }
+    }
+
     public function eliminar($id, $tenantId): bool
     {
         try {
@@ -603,6 +687,7 @@ class SvcReserva
                     'r.notas',
                     'c.nombre as nombre_cliente',
                     'c.telefono as telefono_cliente',
+                    'c.estado as estado_cliente',
                     'rec.nombre as nombre_recurso',
                     'rec.duracion_minutos',
                     'e.nombre as nombre_empleado'
@@ -651,7 +736,11 @@ class SvcReserva
                     'c.telefono as telefono_cliente',
                     'rec.nombre as nombre_servicio',
                     'r.fecha_reserva',
-                    'r.hora_inicio'
+                    'r.hora_inicio',
+                    // Quien pidió cita puede ser un cliente dado de baja: la
+                    // página pública reutiliza su ficha (por teléfono) sin
+                    // reactivarlo. La campana lo marca para que el admin decida.
+                    DB::raw('CASE WHEN c.estado = 0 THEN 1 ELSE 0 END as cliente_inactivo')
                 )
                 ->where('r.tenant_id', $tenantId)
                 ->where('r.estado', 1)
@@ -660,7 +749,13 @@ class SvcReserva
                 ->orderBy('r.fecha_reserva')
                 ->orderBy('r.hora_inicio')
                 ->get()
-                ->toArray() ?? [];
+                ->map(function ($fila) {
+                    $datos = $fila->toArray();
+                    $datos['cliente_inactivo'] = (int) $datos['cliente_inactivo'] === 1;
+
+                    return $datos;
+                })
+                ->all();
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
@@ -687,6 +782,7 @@ class SvcReserva
                     'r.notas',
                     'c.nombre as nombre_cliente',
                     'c.telefono as telefono_cliente',
+                    'c.estado as estado_cliente',
                     'rec.nombre as nombre_recurso',
                     'rec.duracion_minutos',
                     'e.nombre as nombre_empleado'
