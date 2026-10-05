@@ -213,24 +213,9 @@
             return hora ? hora.substring(0, 5) : '';
         }
 
-        function badgeEstadoReserva(estadoReserva) {
-            var iconos = {
-                pendiente: 'bi-hourglass-split',
-                confirmada: 'bi-check-circle-fill',
-                completada: 'bi-check2-all',
-                cancelada: 'bi-x-circle-fill'
-            };
-            var etiquetas = {
-                pendiente: 'Pendiente',
-                confirmada: 'Confirmada',
-                completada: 'Completada',
-                cancelada: 'Cancelada'
-            };
-            var icono = iconos[estadoReserva] || 'bi-question-circle';
-            var etiqueta = etiquetas[estadoReserva] || estadoReserva;
-
-            return '<span class="badge-reserva badge-reserva-' + estadoReserva + '"><i class="bi ' + icono + '"></i> ' + etiqueta + '</span>';
-        }
+        // badgeEstadoReserva() vive en public/js/utilidades.js (cargado
+        // globalmente en layout/backoffice.blade.php), compartida con la
+        // agenda de reservas, reportes de ventas e historial de reservas.
 
         function cargarMisCitas() {
             var fecha = jQuery('#filtro-fecha').val();

@@ -178,17 +178,11 @@
             return hora ? hora.substring(0, 5) : '';
         }
 
-        function badgeEstadoReserva(estadoReserva) {
-            var etiquetas = {
-                pendiente: 'Pendiente',
-                confirmada: 'Confirmada',
-                completada: 'Completada',
-                cancelada: 'Cancelada'
-            };
-
-            return '<span class="badge-reserva badge-reserva-' + estadoReserva + '">' +
-                   (etiquetas[estadoReserva] || estadoReserva) + '</span>';
-        }
+        // badgeEstadoReserva() vive en public/js/utilidades.js (cargado
+        // globalmente en layout/backoffice.blade.php), compartida con la
+        // agenda de reservas, mis citas e historial de reservas. Esta vista
+        // no traía los íconos que sí tienen las otras 3 copias; al unificar
+        // ahora los muestra también, por consistencia.
 
         // Los mismos filtros alimentan la tabla y la descarga del Excel.
         function filtrosActuales() {

@@ -26,6 +26,10 @@ use Tests\TestCase;
  *      6 tests, 5 passed, 1 FAILED —
  *      test_ninguna_columna_de_datatables_pinta_texto_sin_render. Restaurado:
  *      6 passed.
+ * M6 — badgeEstadoReserva() volvió a concatenar "...badge-reserva-' +
+ *      estadoReserva + ..." sin pasar por la clase sanitizada: 7 tests, 6
+ *      passed, 1 FAILED — test_badge_estado_reserva_existe_una_sola_vez_y_no_concatena_el_atributo_sin_filtrar.
+ *      Restaurado: 7 passed.
  * (M2, M3 y M4 se documentan en XssHttpTest.)
  */
 class XssGuardianTest extends TestCase
@@ -156,5 +160,33 @@ class XssGuardianTest extends TestCase
 
         $this->assertStringContainsString('Mensaje = escaparTexto(Mensaje)', $cuerpo);
         $this->assertStringContainsString('escaparTexto(Mensaje[i])', $cuerpo);
+    }
+
+    /**
+     * badgeEstadoReserva() es una sola copia (antes había 4 idénticas en
+     * reservas/listado, mis-citas, reportes/ventas e historial), y no debe
+     * concatenar el valor crudo dentro de class="...": escaparTexto() no
+     * escapa comillas, así que un valor con '"' rompería ese atributo aunque
+     * se le aplicara. La clase CSS solo puede ser un valor conocido fijo
+     * ("clase" en el código); el valor libre solo puede ir como contenido de
+     * texto, ahí sí detrás de escaparTexto().
+     */
+    public function test_badge_estado_reserva_existe_una_sola_vez_y_no_concatena_el_atributo_sin_filtrar(): void
+    {
+        $this->assertSame(
+            [],
+            $this->lineasQueCumplen('/function\s+badgeEstadoReserva\s*\(/'),
+            'Las vistas no deben redefinir badgeEstadoReserva(): vive en public/js/utilidades.js'
+        );
+
+        $utilidades = File::get(public_path('js/utilidades.js'));
+        $this->assertSame(1, substr_count($utilidades, 'function badgeEstadoReserva('));
+
+        $cuerpo = substr($utilidades, strpos($utilidades, 'function badgeEstadoReserva('));
+        $cuerpo = substr($cuerpo, 0, strpos($cuerpo, "\n}") + 2);
+
+        $this->assertStringNotContainsString("badge-reserva-' + estadoReserva", $cuerpo);
+        $this->assertStringContainsString("badge-reserva-' + clase", $cuerpo);
+        $this->assertStringContainsString('escaparTexto(estadoReserva)', $cuerpo);
     }
 }

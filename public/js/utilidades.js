@@ -44,6 +44,42 @@ function renderTextoSeguro(data, tipo) {
     return tipo === "display" ? escaparTexto(data) : data;
 }
 
+/**
+ * Badge visual para un estado de reserva (agenda, mis citas, reportes de
+ * ventas, historial). ÚNICA copia: antes había 4 idénticas repetidas en cada
+ * vista, con riesgo de que divergieran entre sí.
+ *
+ * estadoReserva hoy solo recibe un vocabulario fijo (pendiente/confirmada/
+ * completada/cancelada), pero por si algún día llega otro valor: escaparTexto()
+ * no alcanza para la clase CSS, porque no escapa comillas y un valor con '"'
+ * podría romper el atributo class="..." e inyectar HTML ahí mismo (escaparTexto
+ * está pensado para contenido de texto, no para dentro de un atributo). Por
+ * eso la clase se limita siempre a un valor conocido ('desconocido' si no lo
+ * es); la etiqueta de respaldo, que sí es contenido de texto, pasa por
+ * escaparTexto().
+ */
+function badgeEstadoReserva(estadoReserva) {
+    var iconos = {
+        pendiente: "bi-hourglass-split",
+        confirmada: "bi-check-circle-fill",
+        completada: "bi-check2-all",
+        cancelada: "bi-x-circle-fill"
+    };
+    var etiquetas = {
+        pendiente: "Pendiente",
+        confirmada: "Confirmada",
+        completada: "Completada",
+        cancelada: "Cancelada"
+    };
+    var esConocido = Object.prototype.hasOwnProperty.call(etiquetas, estadoReserva);
+
+    var clase = esConocido ? estadoReserva : "desconocido";
+    var icono = iconos[estadoReserva] || "bi-question-circle";
+    var etiqueta = esConocido ? etiquetas[estadoReserva] : escaparTexto(estadoReserva);
+
+    return '<span class="badge-reserva badge-reserva-' + clase + '"><i class="bi ' + icono + '"></i> ' + etiqueta + "</span>";
+}
+
 async function notificarUsuario(Mensaje = "", icono = "info", urlRedireccion = "") {
     // SweetAlert2 en su forma corta es Swal.fire(title, html, icon): las DOS
     // posiciones interpretan HTML, y varios mensajes del backend repiten lo
