@@ -102,7 +102,7 @@ class SolicitudPendienteCampanaTest extends TestCase
         return DB::table('negocios')->insertGetId([
             'nombre_negocio' => $nombre,
             'rubro' => 'spa',
-            'dias_atencion' => '1,2,3,4,5,6,0',
+            'dias_atencion' => '1,2,3,4,5,6,7',
             'hora_apertura' => '08:00:00',
             'hora_cierre' => '18:00:00',
             'usuario_registra' => 'test',

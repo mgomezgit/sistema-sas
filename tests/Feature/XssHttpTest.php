@@ -149,17 +149,11 @@ class XssHttpTest extends TestCase
     {
         Mail::fake();
 
-        // OJO: no se congela aquí a una fecha fija (p.ej. un lunes concreto).
-        // SvcReserva::contarHoy()/listarProximasHoy(), que alimentan el
-        // dashboard que esta prueba lee más abajo, filtran con date('Y-m-d')
-        // NATIVO de PHP — eso NO respeta Carbon::setTestNow(), así que si aquí
-        // se fijara "hoy" a otro día, la solicitud quedaría fechada ese día
-        // mientras el dashboard sigue mirando el día real, y el payload nunca
-        // aparecería en la página (se intentó así y falló exactamente por
-        // esto). Por eso se mantiene Carbon::today() real; solo se fija la
-        // hora, y la prueba no depende del día de la semana porque el negocio
-        // de este setUp() atiende los 7 días (ver el comentario en setUp()).
-        Carbon::setTestNow(Carbon::today()->setTime(6, 0));
+        // Fecha fija: desde que contarHoy()/listarProximasHoy() usan Carbon en
+        // vez de date() nativo, ya siguen el reloj congelado, así que el
+        // dashboard de más abajo encuentra la solicitud sin importar qué día
+        // real sea "hoy" (tearDown() restaura el reloj).
+        Carbon::setTestNow(Carbon::parse('2026-11-10')->setTime(6, 0));
 
         $respuesta = $this->postJson('publico/spa-normal/agendar', [
             'nombre' => self::PAYLOAD,

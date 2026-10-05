@@ -107,7 +107,7 @@ class SvcReserva
     {
         try {
             return Reserva::where('tenant_id', $tenantId)
-                ->where('fecha_reserva', date('Y-m-d'))
+                ->where('fecha_reserva', Carbon::today()->toDateString())
                 ->where('estado', 1)
                 ->where('estado_reserva', '!=', 'cancelada')
                 ->count();
@@ -134,7 +134,7 @@ class SvcReserva
                     'rec.nombre as nombre_recurso'
                 )
                 ->where('r.tenant_id', $tenantId)
-                ->where('r.fecha_reserva', date('Y-m-d'))
+                ->where('r.fecha_reserva', Carbon::today()->toDateString())
                 ->where('r.estado', 1)
                 ->where('r.estado_reserva', '!=', 'cancelada')
                 ->where('r.hora_inicio', '>=', Carbon::now()->format('H:i:s'))
@@ -185,7 +185,7 @@ class SvcReserva
             }
 
             $reservas = Reserva::where('tenant_id', $tenantId)
-                ->where('fecha_reserva', date('Y-m-d'))
+                ->where('fecha_reserva', Carbon::today()->toDateString())
                 ->where('estado', 1)
                 ->where('estado_reserva', '!=', 'cancelada')
                 ->pluck('hora_inicio');
@@ -219,7 +219,10 @@ class SvcReserva
                 ->where('r.tenant_id', $tenantId)
                 ->where('r.estado', 1)
                 ->whereIn('r.estado_reserva', ['confirmada', 'completada'])
-                ->whereBetween('r.fecha_reserva', [date('Y-m-01'), date('Y-m-t')])
+                ->whereBetween('r.fecha_reserva', [
+                    Carbon::now()->startOfMonth()->toDateString(),
+                    Carbon::now()->endOfMonth()->toDateString(),
+                ])
                 ->sum('rec.precio');
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
@@ -251,11 +254,13 @@ class SvcReserva
             if (! empty($diasAtencion)) {
                 $dias = array_map('intval', explode(',', $diasAtencion));
 
-                if (! in_array((int) date('N'), $dias, true)) {
+                if (! in_array(Carbon::now()->dayOfWeekIso, $dias, true)) {
                     return 0;
                 }
             }
 
+            // Aquí sí es correcto strtotime(): apertura/cierre son horas sueltas
+            // ("08:00:00"), no fechas, y no dependen de qué día es hoy.
             $minutosDisponibles = (strtotime($cierre) - strtotime($apertura)) / 60;
 
             if ($minutosDisponibles <= 0) {
@@ -265,7 +270,7 @@ class SvcReserva
             $minutosReservados = (float) Reserva::from('reservas as r')
                 ->join('recursos_reservables as rec', 'rec.id_recurso', '=', 'r.id_recurso')
                 ->where('r.tenant_id', $tenantId)
-                ->where('r.fecha_reserva', date('Y-m-d'))
+                ->where('r.fecha_reserva', Carbon::today()->toDateString())
                 ->where('r.estado', 1)
                 ->where('r.estado_reserva', '!=', 'cancelada')
                 ->sum('rec.duracion_minutos');

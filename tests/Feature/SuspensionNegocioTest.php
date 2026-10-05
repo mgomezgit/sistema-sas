@@ -64,7 +64,7 @@ class SuspensionNegocioTest extends TestCase
             'nombre_negocio' => $nombre,
             'slug' => $slug,
             'rubro' => 'spa',
-            'dias_atencion' => '0,1,2,3,4,5,6',
+            'dias_atencion' => '1,2,3,4,5,6,7',
             'hora_apertura' => '08:00:00',
             'hora_cierre' => '18:00:00',
             'usuario_registra' => 'test',

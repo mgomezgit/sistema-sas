@@ -638,7 +638,7 @@ class ReservaController extends Controller
             return $this->sendResponse();
         }
 
-        $fecha = $this->request->get('fecha', date('Y-m-d'));
+        $fecha = $this->request->get('fecha', Carbon::today()->toDateString());
 
         $this->respSinError();
         $this->setDataResponse(

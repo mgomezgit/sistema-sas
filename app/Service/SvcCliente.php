@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Models\Cliente;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class SvcCliente
@@ -32,7 +33,7 @@ class SvcCliente
         try {
             return Cliente::where('tenant_id', $tenantId)
                 ->where('estado', 1)
-                ->where('fecha_registro', '<', date('Y-m-01').' 00:00:00')
+                ->where('fecha_registro', '<', Carbon::now()->startOfMonth()->toDateTimeString())
                 ->count();
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
