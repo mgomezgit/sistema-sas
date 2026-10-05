@@ -74,6 +74,8 @@ Backend completo primero, frontend después. No mezclar módulos ni adelantar fr
 - Los atributos name="" en los <input> hijos SÍ se usan (los necesita getDataJson()/serializeObject()) — la prohibición es sobre el name/method de la etiqueta <form> misma.
 - Un checkbox de estado que puede desmarcarse (activo→inactivo) va SIN name, y su valor 0/1 se inyecta explícitamente antes de enviar — serializeObject() omite un checkbox desmarcado del payload, así que dejarle name pierde la desactivación en silencio.
 - Layout base layout.backoffice. Utilidades globales ya definidas: axiosSipleInterno, getDataJson, notificarUsuario(mensaje, icono, urlRedireccion), system_validarcampos, Mostrarloader()/Ocultarloader(), colorVariable(nombre), generarAvatar(nombre), dispararConfeti(cantidad, origenX).
+- Todo dato escrito por una persona se pinta escapado. La función global es escaparTexto() (public/js/utilidades.js, la ÚNICA función de escape del proyecto); las columnas de DataTables que muestran texto usan { render: renderTextoSeguro }; notificarUsuario() escapa su mensaje antes de pasarlo a SweetAlert2.
+- Exportaciones: toda exportación nueva que lleve texto escrito por usuarios extiende App\Exports\BinderCeldasSeguras, que neutraliza la inyección de fórmulas de Excel (un valor que empieza con =, +, -, @, tabulador o retorno de carro se guarda como texto explícito con "quote prefix").
 
 ## Sistema de diseño y theming (crítico)
 
