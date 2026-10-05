@@ -122,6 +122,12 @@ class ReservaController extends Controller
             return $this->sendResponse();
         }
 
+        if ((int) $cliente[0]['estado'] === 0) {
+            $this->agregarError('El cliente seleccionado está inactivo. Reactívalo o elige otro cliente.');
+
+            return $this->sendResponse();
+        }
+
         $recurso = $this->svcRecursoReservable->listarById($datos['id_recurso'], $tenantId);
 
         if (empty($recurso)) {
@@ -252,6 +258,17 @@ class ReservaController extends Controller
 
         if (empty($cliente)) {
             $this->agregarError('El cliente seleccionado no es válido');
+
+            return $this->sendResponse();
+        }
+
+        // Solo se bloquea si el usuario está CAMBIANDO el cliente a uno inactivo.
+        // Una reserva cuyo cliente ya está inactivo debe poder seguir
+        // editándose (notas, hora, etc.) sin tener que reasignarle otro cliente.
+        $seCambiaCliente = empty($reservaOriginal) || (int) $datos['id_cliente'] !== (int) $reservaOriginal[0]['id_cliente'];
+
+        if ($seCambiaCliente && (int) $cliente[0]['estado'] === 0) {
+            $this->agregarError('El cliente seleccionado está inactivo. Reactívalo o elige otro cliente.');
 
             return $this->sendResponse();
         }

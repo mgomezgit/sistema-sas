@@ -16,6 +16,18 @@ use Tests\TestCase;
  *
  * La autenticación de este proyecto no usa el Auth de Laravel sino la sesión
  * propia, por eso cada petición se emite con withSession() en vez de actingAs().
+ *
+ * ================= PRUEBAS DE MUTACIÓN: cliente inactivo (resultados reales) =================
+ *
+ * M1 — Quitando el chequeo de estado en crear() (if (false && ...)): 24 tests,
+ *      23 passed, 1 FAILED — test_rechaza_cliente_inactivo_al_crear
+ *      ("Failed asserting that 0 is identical to 1", se creó la reserva).
+ *      Restaurado: 24 passed.
+ * M2 — Forzando $seCambiaCliente = true en editar() (ya no distingue si el
+ *      cliente del formulario es el mismo que ya tenía la reserva): 24 tests,
+ *      23 passed, 1 FAILED — test_permite_editar_reserva_con_cliente_inactivo_sin_cambiarlo
+ *      ("Failed asserting that 1 is identical to 0", la edición se rechazó).
+ *      Restaurado: 24 passed.
  */
 class ReservaTest extends TestCase
 {
@@ -93,7 +105,7 @@ class ReservaTest extends TestCase
         ]);
     }
 
-    private function crearCliente(int $tenantId, string $nombre): int
+    private function crearCliente(int $tenantId, string $nombre, int $estado = 1): int
     {
         return DB::table('clientes')->insertGetId([
             'tenant_id' => $tenantId,
@@ -101,7 +113,7 @@ class ReservaTest extends TestCase
             'telefono' => '3000000000',
             'usuario_registra' => 'test',
             'fecha_registro' => date('Y-m-d H:i:s'),
-            'estado' => 1,
+            'estado' => $estado,
         ]);
     }
 
@@ -447,5 +459,79 @@ class ReservaTest extends TestCase
         // formulario, mientras que MySQL normaliza la columna TIME a H:i:s.
         $this->assertSame('09:15', substr($reserva->hora_inicio, 0, 5));
         $this->assertSame('10:45:00', $reserva->hora_fin);
+    }
+
+    /* ================= CLIENTE INACTIVO (mutación abajo) ================= */
+
+    /**
+     * No se puede agendar una cita nueva para un cliente dado de baja, aunque
+     * su id se mande a mano.
+     */
+    public function test_rechaza_cliente_inactivo_al_crear(): void
+    {
+        $idClienteInactivo = $this->crearCliente($this->tenantId, 'Cliente De Baja', 0);
+
+        $respuesta = $this->postComoAdmin('request/reserva/crear', $this->datosReserva([
+            'id_cliente' => $idClienteInactivo,
+        ]));
+
+        $respuesta->assertJsonPath('error', 1);
+        $respuesta->assertJsonPath('mensaje', 'El cliente seleccionado está inactivo. Reactívalo o elige otro cliente.');
+        $this->assertSame(0, DB::table('reservas')->count());
+    }
+
+    /** Un cliente activo (el caso normal) se sigue aceptando sin cambios. */
+    public function test_permite_cliente_activo_al_crear(): void
+    {
+        $respuesta = $this->postComoAdmin('request/reserva/crear', $this->datosReserva());
+
+        $respuesta->assertJsonPath('error', 0);
+        $this->assertSame(1, DB::table('reservas')->count());
+    }
+
+    /**
+     * Una reserva cuyo cliente ya se dio de baja DESPUÉS de agendada sigue
+     * pudiéndose editar (notas, hora, etc.) mientras no se le cambie el
+     * cliente: bloquearla de plano dejaría una cita huérfana sin forma de
+     * corregirla.
+     */
+    public function test_permite_editar_reserva_con_cliente_inactivo_sin_cambiarlo(): void
+    {
+        $idClienteQueLuegoSeDaDeBaja = $this->crearCliente($this->tenantId, 'Cliente Que Se Dio De Baja');
+        $idReserva = $this->insertarReserva(['id_cliente' => $idClienteQueLuegoSeDaDeBaja]);
+
+        DB::table('clientes')->where('id_cliente', $idClienteQueLuegoSeDaDeBaja)->update(['estado' => 0]);
+
+        $respuesta = $this->postComoAdmin('request/reserva/editar', $this->datosReserva([
+            'id_reserva' => $idReserva,
+            'id_cliente' => $idClienteQueLuegoSeDaDeBaja,
+            'notas' => 'Se corrigio la hora',
+            'hora_inicio' => '11:00',
+        ]));
+
+        $respuesta->assertJsonPath('error', 0);
+        $this->assertSame(
+            'Se corrigio la hora',
+            DB::table('reservas')->where('id_reserva', $idReserva)->value('notas')
+        );
+    }
+
+    /** Pero sí se bloquea si el formulario intenta CAMBIAR el cliente a uno inactivo. */
+    public function test_rechaza_cambiar_a_cliente_inactivo_al_editar(): void
+    {
+        $idReserva = $this->insertarReserva();
+        $idClienteInactivo = $this->crearCliente($this->tenantId, 'Otro Cliente De Baja', 0);
+
+        $respuesta = $this->postComoAdmin('request/reserva/editar', $this->datosReserva([
+            'id_reserva' => $idReserva,
+            'id_cliente' => $idClienteInactivo,
+        ]));
+
+        $respuesta->assertJsonPath('error', 1);
+        $respuesta->assertJsonPath('mensaje', 'El cliente seleccionado está inactivo. Reactívalo o elige otro cliente.');
+        $this->assertSame(
+            $this->idCliente,
+            DB::table('reservas')->where('id_reserva', $idReserva)->value('id_cliente')
+        );
     }
 }

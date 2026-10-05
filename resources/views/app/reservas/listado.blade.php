@@ -1134,6 +1134,19 @@
                 // reserva antigua a la que solo se le están corrigiendo detalles.
                 fechaOriginalReserva = datos.fecha_reserva;
 
+                // El desplegable solo trae clientes activos (igual que el de
+                // arriba, con cargarCatalogos() cacheado una sola vez): si el
+                // cliente de esta reserva ya está inactivo, su opción no está
+                // ahí, y sin esto .val() quedaría vacío y se perdería el
+                // cliente al guardar sin querer cambiarlo. nombre_cliente ya
+                // viene de request/reserva/obtener; .text() lo inserta seguro.
+                var selectCliente = jQuery('#id_cliente');
+                if (datos.id_cliente && selectCliente.find('option[value="' + datos.id_cliente + '"]').length === 0) {
+                    selectCliente.append(
+                        jQuery('<option>').val(datos.id_cliente).text((datos.nombre_cliente || 'Cliente') + ' (inactivo)')
+                    );
+                }
+
                 jQuery('#id_cliente').val(datos.id_cliente);
                 jQuery('#id_recurso').val(datos.id_recurso);
                 jQuery('#id_empleado').val(datos.id_empleado ? datos.id_empleado : '');
@@ -1553,6 +1566,7 @@
             reservaEnPanel = {
                 id_reserva: evento.id,
                 id_cliente: props.id_cliente,
+                nombre_cliente: partesTitulo.cliente,
                 id_recurso: props.id_recurso,
                 id_empleado: props.id_empleado,
                 fecha_reserva: formatearFechaISO(evento.start),
