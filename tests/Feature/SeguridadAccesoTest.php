@@ -50,6 +50,11 @@ use Tests\TestCase;
  *      19 passed, 1 FAILED — la sesión abierta antes del cambio siguió viva
  *      ("received 200" en vez de la redirección al login). Restaurado:
  *      20 passed.
+ * M8 — (al agregar el hash falso contra tiempo) Volviendo a
+ *      "! empty($usuario) && Hash::check(...)" (Hash::check ya no se llama
+ *      para un correo inexistente): 22 tests, 21 passed, 1 FAILED —
+ *      test_hash_check_se_llama_una_vez_para_un_correo_inexistente ("should
+ *      be called at least 1 times but called 0 times"). Restaurado: 22 passed.
  */
 class SeguridadAccesoTest extends TestCase
 {
@@ -205,6 +210,32 @@ class SeguridadAccesoTest extends TestCase
 
         $this->assertSame($real['error'], $inventado['error']);
         $this->assertSame($sinNumeros($real['mensaje']), $sinNumeros($inventado['mensaje']));
+    }
+
+    /**
+     * El mensaje ya respondía igual (prueba de arriba), pero el TIEMPO podía
+     * delatar si el correo existe: sin el hash falso, un correo inexistente
+     * no llamaba a Hash::check() en absoluto, mientras que uno real con
+     * clave incorrecta sí. Esta prueba (y la siguiente) no miden
+     * milisegundos (no es determinista); miden la única cosa que sí lo es:
+     * cuántas veces se llama Hash::check(), que tiene que ser UNA en los dos
+     * casos. Van en dos métodos separados, no uno con dos Hash::spy():
+     * Facade::spy() solo crea un espía nuevo "if (! static::isMock())", así
+     * que una segunda llamada en el mismo test no reinicia nada y las dos
+     * aserciones terminan contando sobre el mismo espía acumulado.
+     */
+    public function test_hash_check_se_llama_una_vez_para_un_correo_inexistente(): void
+    {
+        Hash::spy();
+        $this->login('nadie@inventado.test', 'cualquier-clave');
+        Hash::shouldHaveReceived('check')->once();
+    }
+
+    public function test_hash_check_se_llama_una_vez_para_clave_mala_de_un_correo_real(): void
+    {
+        Hash::spy();
+        $this->login('admin@seguro.test', 'clave-equivocada');
+        Hash::shouldHaveReceived('check')->once();
     }
 
     public function test_un_login_exitoso_reinicia_el_contador_de_su_correo(): void

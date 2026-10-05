@@ -30,6 +30,21 @@ class AutenticacionController extends Controller
 
     const VENTANA_SEGUNDOS = 60;
 
+    /**
+     * Hash bcrypt de una clave aleatoria que nadie conoce (generada una sola
+     * vez al escribir este código, con el mismo costo que usan las claves
+     * reales). Sirve para comparar contra ALGO cuando el correo no existe o
+     * está inactivo, y así ese camino tarde lo mismo que el de un correo real
+     * con clave incorrecta: sin esto, el tiempo de respuesta delataba si una
+     * cuenta existe, porque comparar contra un hash real con Hash::check()
+     * tarda más que no comparar nada.
+     *
+     * Fijo aquí y no generado en cada petición: Hash::make() es más lento que
+     * Hash::check(), así que crear uno nuevo por intento sería más lento
+     * todavía (y con una demora que varía de un intento a otro).
+     */
+    const HASH_FALSO = '$2y$12$aY3vxL.Gwg2EEmCQieooJujRxHOPI/5w8IrBfq.U0AG4ZGAMCoVfG';
+
     protected SvcUsuario $svcUsuario;
 
     public function __construct()
@@ -75,7 +90,12 @@ class AutenticacionController extends Controller
 
         $usuario = $this->svcUsuario->getUsuarioByEmail($datos['email']);
 
-        if (! empty($usuario) && Hash::check($datos['clave'], $usuario['clave'])) {
+        // Hash::check() se llama SIEMPRE, exista o no el usuario (contra su
+        // hash real, o contra el falso): es lo que empareja el tiempo de los
+        // tres casos (correo inexistente, inactivo, o clave incorrecta).
+        $claveCorrecta = Hash::check($datos['clave'], $usuario['clave'] ?? self::HASH_FALSO);
+
+        if (! empty($usuario) && $claveCorrecta) {
             // Negocio suspendido por el super admin: no se entra. Se revisa
             // DESPUÉS de validar la clave, para que este aviso no le confirme a
             // quien no la conoce que el correo existe. El super admin no tiene
