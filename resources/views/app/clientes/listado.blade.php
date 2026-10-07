@@ -418,7 +418,7 @@
         function confirmarEliminarSinReservas(idCliente, cancelarReservasFuturas) {
             Swal.fire({
                 title: '¿Eliminar cliente?',
-                text: 'Esta acción no se puede deshacer',
+                text: 'Quedará inactivo, pero podrás reactivarlo después desde "Mostrar inactivos".',
                 icon: 'warning',
                 background: 'var(--bg-card)',
                 color: 'var(--text-primary)',

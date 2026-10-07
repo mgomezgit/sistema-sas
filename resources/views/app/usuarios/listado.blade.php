@@ -424,8 +424,9 @@
             // sin la misma advertencia.
             var textoEliminar = fila.id_empleado_vinculado
                 ? 'Esta cuenta es del empleado <b>' + (fila.nombre_empleado_vinculado || fila.nombre) + '</b>.<br>'
-                  + 'Al eliminarla, ese empleado también quedará inactivo y <b>dejará de poder asignarse a nuevas reservas</b>.'
-                : 'Esta acción no se puede deshacer';
+                  + 'Al eliminarla, ese empleado también quedará inactivo y <b>dejará de poder asignarse a nuevas reservas</b>.<br><br>'
+                  + 'Podrás reactivar la cuenta después desde "Mostrar inactivos", pero eso no le devuelve el acceso al empleado: hay que reactivarlo aparte desde Empleados.'
+                : 'Quedará inactivo, pero podrás reactivarlo después desde "Mostrar inactivos".';
 
             Swal.fire({
                 title: '¿Eliminar usuario?',

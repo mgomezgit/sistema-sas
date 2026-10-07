@@ -382,7 +382,7 @@
 
             Swal.fire({
                 title: '¿Eliminar recurso?',
-                text: 'Esta acción no se puede deshacer',
+                text: 'Quedará inactivo, pero podrás reactivarlo después desde "Mostrar inactivos".',
                 icon: 'warning',
                 background: colorVariable('--bg-card'),
                 color: colorVariable('--text-primary'),
