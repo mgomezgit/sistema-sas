@@ -12,8 +12,9 @@ use Illuminate\Support\Facades\Log;
 
 class SvcReserva
 {
-    /* Resultados posibles de cambiarEstado(). No es un bool porque el
-       Controller necesita saber POR QUÉ no se hizo, para dar el mensaje justo. */
+    /* Resultados posibles de cambiarEstado(), editar() y eliminar(). No es un
+       bool porque el Controller necesita saber POR QUÉ no se hizo, para dar el
+       mensaje justo. */
     const CAMBIO_HECHO = 'hecho';
 
     const CAMBIO_NO_DISPONIBLE = 'no_disponible';
@@ -21,6 +22,13 @@ class SvcReserva
     const CAMBIO_COMISION_PAGADA = 'comision_pagada';
 
     const CAMBIO_ERROR = 'error';
+
+    /**
+     * Campos que definen la comisión de una cita (servicio -> precio, empleado
+     * -> a quién se le paga, fecha -> en qué periodo se liquidó, hora). Con la
+     * comisión ya pagada no se pueden cambiar: notas y cliente sí.
+     */
+    const CAMPOS_FIJOS_CON_COMISION_PAGADA = ['id_recurso', 'id_empleado', 'fecha_reserva', 'hora_inicio'];
 
     /* ================= REPORTES ================= */
 
@@ -437,25 +445,99 @@ class SvcReserva
         }
     }
 
-    public function editar($id, $info, $tenantId): bool
+    /**
+     * Edita una reserva. Con la comisión ya pagada (id_pago_comision no nulo)
+     * se rechaza si cambia alguno de CAMPOS_FIJOS_CON_COMISION_PAGADA; notas y
+     * cliente se siguen editando. Un valor que llega igual al guardado (aunque
+     * en otro formato, "10:00" contra "10:00:00") no cuenta como cambio: el
+     * modal manda siempre los cuatro campos.
+     *
+     * Misma transacción y bloqueo de fila que cambiarEstado(): un pago que se
+     * marca al mismo tiempo no puede colarse entre la lectura y el guardado.
+     *
+     * @param  int|null  $idUsuario  Quién edita, solo para el log de un intento rechazado.
+     * @return string Una de las constantes CAMBIO_*.
+     */
+    public function editar($id, $info, $tenantId, $idUsuario = null): string
     {
         try {
-            $query = Reserva::where('id_reserva', $id)->where('tenant_id', $tenantId);
+            return DB::transaction(function () use ($id, $info, $tenantId, $idUsuario) {
+                $reserva = Reserva::select('id_reserva', 'id_recurso', 'id_empleado', 'fecha_reserva', 'hora_inicio', 'id_pago_comision')
+                    ->where('id_reserva', $id)
+                    ->where('tenant_id', $tenantId)
+                    ->lockForUpdate()
+                    ->first();
 
-            // Si el registro no existe (o es de otro negocio) sí es un fallo real. En
-            // cambio, guardar sin cambiar ningún valor afecta 0 filas y es un caso válido.
-            if (! $query->exists()) {
-                return false;
-            }
+                // Si el registro no existe (o es de otro negocio) sí es un fallo
+                // real. Guardar sin cambiar ningún valor afecta 0 filas y es válido.
+                if ($reserva === null) {
+                    return self::CAMBIO_NO_DISPONIBLE;
+                }
 
-            $query->update($info);
+                if ($reserva->id_pago_comision !== null) {
+                    $cambiados = $this->camposFijosQueCambian($reserva, $info);
 
-            return true;
+                    if ($cambiados !== []) {
+                        $this->registrarIntentoSobrePagada($id, $tenantId, $idUsuario, 'editar '.implode(', ', $cambiados));
+
+                        return self::CAMBIO_COMISION_PAGADA;
+                    }
+                }
+
+                Reserva::where('id_reserva', $id)
+                    ->where('tenant_id', $tenantId)
+                    ->update($info);
+
+                return self::CAMBIO_HECHO;
+            });
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
-            return false;
+            return self::CAMBIO_ERROR;
         }
+    }
+
+    /**
+     * Cuáles de los campos fijos llegan distintos a lo guardado, normalizando
+     * antes de comparar: ids como entero (o null), fecha como Y-m-d y hora
+     * como H:i:s. Un campo que no viene en $info no se toca, así que tampoco
+     * cuenta como cambio.
+     */
+    private function camposFijosQueCambian($reserva, array $info): array
+    {
+        $normalizar = [
+            'id_recurso' => fn ($v) => empty($v) ? null : (int) $v,
+            'id_empleado' => fn ($v) => empty($v) ? null : (int) $v,
+            'fecha_reserva' => fn ($v) => empty($v) ? null : Carbon::parse($v)->format('Y-m-d'),
+            'hora_inicio' => fn ($v) => empty($v) ? null : Carbon::parse($v)->format('H:i:s'),
+        ];
+
+        $cambiados = [];
+
+        foreach (self::CAMPOS_FIJOS_CON_COMISION_PAGADA as $campo) {
+            if (! array_key_exists($campo, $info)) {
+                continue;
+            }
+
+            if ($normalizar[$campo]($info[$campo]) !== $normalizar[$campo]($reserva->{$campo})) {
+                $cambiados[] = $campo;
+            }
+        }
+
+        return $cambiados;
+    }
+
+    /** Rastro de quién intentó alterar una cita ya incluida en un pago de comisión. */
+    private function registrarIntentoSobrePagada($idReserva, $tenantId, $idUsuario, string $intento): void
+    {
+        Log::channel('database')->info(sprintf(
+            'RESERVA CON COMISION PAGADA: intento rechazado de %s sobre la reserva %d del negocio %d por el usuario %s el %s.',
+            $intento,
+            $idReserva,
+            $tenantId,
+            $idUsuario ?? 'sistema',
+            Carbon::now()->format('Y-m-d H:i:s')
+        ));
     }
 
     /**
@@ -492,6 +574,8 @@ class SvcReserva
                 }
 
                 if ($reserva->id_pago_comision !== null) {
+                    $this->registrarIntentoSobrePagada($id, $tenantId, $idUsuario, 'cambiar el estado a '.$estadoReserva);
+
                     return self::CAMBIO_COMISION_PAGADA;
                 }
 
@@ -649,22 +733,44 @@ class SvcReserva
         }
     }
 
-    public function eliminar($id, $tenantId): bool
+    /**
+     * Da de baja una reserva (estado = 0). Con la comisión ya pagada se
+     * rechaza siempre: esa cita es parte de un pago confirmado. Misma
+     * transacción y bloqueo de fila que cambiarEstado().
+     *
+     * @param  int|null  $idUsuario  Quién elimina, solo para el log de un intento rechazado.
+     * @return string Una de las constantes CAMBIO_*.
+     */
+    public function eliminar($id, $tenantId, $idUsuario = null): string
     {
         try {
-            $query = Reserva::where('id_reserva', $id)->where('tenant_id', $tenantId);
+            return DB::transaction(function () use ($id, $tenantId, $idUsuario) {
+                $reserva = Reserva::select('id_reserva', 'id_pago_comision')
+                    ->where('id_reserva', $id)
+                    ->where('tenant_id', $tenantId)
+                    ->lockForUpdate()
+                    ->first();
 
-            if (! $query->exists()) {
-                return false;
-            }
+                if ($reserva === null) {
+                    return self::CAMBIO_NO_DISPONIBLE;
+                }
 
-            $query->update(['estado' => 0]);
+                if ($reserva->id_pago_comision !== null) {
+                    $this->registrarIntentoSobrePagada($id, $tenantId, $idUsuario, 'eliminar');
 
-            return true;
+                    return self::CAMBIO_COMISION_PAGADA;
+                }
+
+                Reserva::where('id_reserva', $id)
+                    ->where('tenant_id', $tenantId)
+                    ->update(['estado' => 0]);
+
+                return self::CAMBIO_HECHO;
+            });
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
-            return false;
+            return self::CAMBIO_ERROR;
         }
     }
 
@@ -690,7 +796,9 @@ class SvcReserva
                     'c.estado as estado_cliente',
                     'rec.nombre as nombre_recurso',
                     'rec.duracion_minutos',
-                    'e.nombre as nombre_empleado'
+                    'e.nombre as nombre_empleado',
+                    // Solo si ya se pago la comision, nunca el pago ni su monto.
+                    DB::raw('CASE WHEN r.id_pago_comision IS NULL THEN 0 ELSE 1 END as comision_pagada')
                 )
                 ->where('r.tenant_id', $tenantId)
                 ->where('r.estado', 1);
@@ -707,7 +815,7 @@ class SvcReserva
                 $query->where('r.estado_reserva', $estadoReserva);
             }
 
-            return $query->get()->toArray() ?? [];
+            return self::conComisionPagadaBooleana($query->get()->toArray() ?? []);
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
@@ -766,7 +874,7 @@ class SvcReserva
     public function listarById($id, $tenantId)
     {
         try {
-            return Reserva::from('reservas as r')
+            $filas = Reserva::from('reservas as r')
                 ->join('clientes as c', 'c.id_cliente', '=', 'r.id_cliente')
                 ->join('recursos_reservables as rec', 'rec.id_recurso', '=', 'r.id_recurso')
                 ->leftJoin('empleados as e', 'e.id_empleado', '=', 'r.id_empleado')
@@ -785,17 +893,31 @@ class SvcReserva
                     'c.estado as estado_cliente',
                     'rec.nombre as nombre_recurso',
                     'rec.duracion_minutos',
-                    'e.nombre as nombre_empleado'
+                    'e.nombre as nombre_empleado',
+                    // Solo si ya se pago la comision, nunca el pago ni su monto.
+                    DB::raw('CASE WHEN r.id_pago_comision IS NULL THEN 0 ELSE 1 END as comision_pagada')
                 )
                 ->where('r.id_reserva', $id)
                 ->where('r.tenant_id', $tenantId)
                 ->get()
                 ->toArray() ?? [];
+
+            return self::conComisionPagadaBooleana($filas);
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
             return [];
         }
+    }
+
+    /** comision_pagada llega de la consulta como 0/1: al frontend va como booleano. */
+    private static function conComisionPagadaBooleana(array $filas): array
+    {
+        return array_map(function ($fila) {
+            $fila['comision_pagada'] = (int) $fila['comision_pagada'] === 1;
+
+            return $fila;
+        }, $filas);
     }
 
     public function listarPorEmpleado($idEmpleado, $tenantId, $fecha)

@@ -155,6 +155,26 @@
             gap: 0.35rem;
         }
 
+        /* La cita ya forma parte de un pago de comisión: servicio, empleado,
+           fecha, hora y estado quedan bloqueados en el modal. */
+        .aviso-comision-pagada {
+            display: none;
+            color: var(--warning);
+            background-color: color-mix(in srgb, var(--warning) 12%, transparent);
+            border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+            border-radius: 10px;
+            padding: 0.6rem 0.75rem;
+            font-size: 0.82rem;
+            font-weight: 500;
+            margin-bottom: 0.9rem;
+        }
+
+        .aviso-comision-pagada.visible {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.45rem;
+        }
+
         .ayuda-campo {
             color: var(--text-muted);
             font-size: 0.78rem;
@@ -433,6 +453,19 @@
             border-color: var(--danger);
         }
 
+        .acciones-reserva .btn-accion-icono:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .btn-detalle-eliminar:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            background-color: transparent;
+            border-color: var(--border-color);
+        }
+
         /* ---------- Reservas de este día (tarjetas por empleado) ---------- */
         .titulo-bloque-dia {
             display: flex;
@@ -673,6 +706,11 @@
                 <div class="modal-body">
                     <form id="contenedor-form-reserva">
                         <input type="hidden" id="id_reserva" name="id_reserva">
+
+                        <div id="aviso-comision-pagada" class="aviso-comision-pagada">
+                            <i class="bi bi-lock-fill"></i>
+                            <span>Esta cita ya forma parte de un pago de comisión. Solo puedes editar las notas y el cliente.</span>
+                        </div>
 
                         <div class="tarjeta-seccion-form">
                             <div class="etiqueta-seccion-form">Detalles de la cita</div>
@@ -950,6 +988,15 @@
             reservas.forEach(function (reserva) {
                 var claseCancelada = reserva.estado_reserva === 'cancelada' ? ' reserva-cancelada' : '';
 
+                // Con la comisión pagada la papelera queda deshabilitada (el
+                // servidor igual la rechaza). Un botón deshabilitado no dispara el
+                // tooltip de Bootstrap, por eso el título va en un envoltorio.
+                var botonEliminar = reserva.comision_pagada === true
+                    ? '<span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="' + escaparTexto(TITULO_ELIMINAR_PAGADA) + '">' +
+                      '<button type="button" class="btn-accion-icono btn-accion-eliminar" disabled><i class="bi bi-trash3"></i></button>' +
+                      '</span>'
+                    : '<button type="button" class="btn-accion-icono btn-accion-eliminar btn-eliminar-reserva" data-bs-toggle="tooltip" title="Eliminar" data-id_reserva="' + reserva.id_reserva + '"><i class="bi bi-trash3"></i></button>';
+
                 html += '<div class="linea-reserva' + claseCancelada + '">' +
                         '<span class="horario-reserva">' + recortarHora(reserva.hora_inicio) + ' - ' + recortarHora(reserva.hora_fin) + '</span>' +
                         '<span class="cliente-reserva">' + escaparTexto(reserva.nombre_cliente) + '</span>' +
@@ -957,7 +1004,7 @@
                         badgeEstadoReserva(reserva.estado_reserva) +
                         '<span class="acciones-reserva">' +
                         '<button type="button" class="btn-accion-icono btn-editar-reserva" data-bs-toggle="tooltip" title="Editar" data-id_reserva="' + reserva.id_reserva + '"><i class="bi bi-pencil-square"></i></button>' +
-                        '<button type="button" class="btn-accion-icono btn-accion-eliminar btn-eliminar-reserva" data-bs-toggle="tooltip" title="Eliminar" data-id_reserva="' + reserva.id_reserva + '"><i class="bi bi-trash3"></i></button>' +
+                        botonEliminar +
                         '</span>' +
                         '</div>';
             });
@@ -1033,6 +1080,50 @@
             ocultarAvisoFecha();
             idClienteInactivoEnEdicion = null;
             jQuery('#aviso-cliente-inactivo').removeClass('visible');
+            bloquearCamposPorComisionPagada(null);
+        }
+
+        var TITULO_ELIMINAR_PAGADA = 'No se puede eliminar: ya forma parte de un pago de comisión';
+
+        // Campos que no se pueden cambiar en una cita con la comisión ya pagada
+        // (además del estado, que cambiarEstado() también rechaza).
+        var SELECTORES_FIJOS_COMISION_PAGADA = '#id_recurso, #id_empleado, #fecha_reserva, #hora_inicio, #estado_reserva';
+
+        // Valores guardados de esos campos cuando la reserva abierta tiene la
+        // comisión pagada (null si no). Un campo deshabilitado NO viaja en
+        // serializeObject(), así que al guardar se mandan explícitos desde aquí:
+        // el servidor los recibe iguales a los guardados y no los toma como cambio.
+        var valoresFijosComisionPagada = null;
+
+        function bloquearCamposPorComisionPagada(datos) {
+            var pagada = !!(datos && datos.comision_pagada === true);
+
+            valoresFijosComisionPagada = pagada
+                ? {
+                    id_recurso: datos.id_recurso,
+                    id_empleado: datos.id_empleado ? datos.id_empleado : '',
+                    fecha_reserva: datos.fecha_reserva,
+                    hora_inicio: datos.hora_inicio,
+                    estado_reserva: datos.estado_reserva
+                }
+                : null;
+
+            jQuery(SELECTORES_FIJOS_COMISION_PAGADA).prop('disabled', pagada);
+            jQuery('#aviso-comision-pagada').toggleClass('visible', pagada);
+        }
+
+        /**
+         * Con la comisión pagada el servicio y el empleado van bloqueados con su
+         * valor guardado: si ya están dados de baja no aparecen en el desplegable
+         * (que solo trae activos), así que se agrega su opción para que el campo
+         * no quede vacío. .text() inserta el nombre seguro.
+         */
+        function asegurarOpcion(selector, valor, nombre) {
+            var select = jQuery(selector);
+
+            if (valor && select.find('option[value="' + valor + '"]').length === 0) {
+                select.append(jQuery('<option>').val(valor).text(nombre || 'Sin nombre'));
+            }
         }
 
         // Cliente dado de baja de la reserva abierta en edición (null si no lo
@@ -1170,9 +1261,16 @@
                 idClienteInactivoEnEdicion = clienteInactivo ? datos.id_cliente : null;
                 jQuery('#aviso-cliente-inactivo').toggleClass('visible', clienteInactivo);
 
+                if (datos.comision_pagada === true) {
+                    asegurarOpcion('#id_recurso', datos.id_recurso, datos.nombre_recurso);
+                    asegurarOpcion('#id_empleado', datos.id_empleado, datos.nombre_empleado);
+                }
+
                 jQuery('#id_cliente').val(datos.id_cliente);
                 jQuery('#id_recurso').val(datos.id_recurso);
                 jQuery('#id_empleado').val(datos.id_empleado ? datos.id_empleado : '');
+
+                bloquearCamposPorComisionPagada(datos);
 
                 aplicarMinimoFecha();
                 validarFechaFormulario();
@@ -1241,6 +1339,12 @@
             }
 
             var datos = getDataJson('contenedor-form-reserva');
+
+            // Comisión pagada: los campos bloqueados no viajan en el serialize,
+            // se mandan explícitos con su valor guardado.
+            if (modoFormularioReserva === 'editar' && valoresFijosComisionPagada) {
+                jQuery.extend(datos, valoresFijosComisionPagada);
+            }
 
             var url = modoFormularioReserva === 'crear' ? 'request/reserva/crear' : 'request/reserva/editar';
 
@@ -1591,6 +1695,9 @@
                 id_cliente: props.id_cliente,
                 nombre_cliente: partesTitulo.cliente,
                 estado_cliente: props.estado_cliente,
+                comision_pagada: props.comision_pagada === true,
+                nombre_recurso: partesTitulo.servicio,
+                nombre_empleado: props.nombre_empleado,
                 id_recurso: props.id_recurso,
                 id_empleado: props.id_empleado,
                 fecha_reserva: formatearFechaISO(evento.start),
@@ -1613,6 +1720,12 @@
             }
 
             marcarChipActivo(props.estado_reserva);
+
+            // Comisión pagada: la papelera del panel se deshabilita con su motivo
+            // a la vista (el servidor igual rechaza la eliminación).
+            jQuery('#btn-detalle-eliminar')
+                .prop('disabled', reservaEnPanel.comision_pagada)
+                .attr('title', reservaEnPanel.comision_pagada ? TITULO_ELIMINAR_PAGADA : '');
 
             jQuery('#panel-detalle-evento').addClass('visible');
             posicionarPanelDetalle(info.jsEvent);

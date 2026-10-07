@@ -34,6 +34,14 @@ class ReservaController extends Controller
     // Estados que un empleado puede aplicar sobre sus propias citas.
     const ESTADOS_EMPLEADO = ['confirmada', 'completada'];
 
+    // Una cita con la comisión ya pagada (id_pago_comision) es parte de una
+    // liquidación confirmada: ver SvcReserva::CAMPOS_FIJOS_CON_COMISION_PAGADA.
+    const MENSAJE_ESTADO_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado y no se puede modificar.';
+
+    const MENSAJE_ELIMINAR_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado y no se puede eliminar.';
+
+    const MENSAJE_EDITAR_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado: no se puede cambiar el servicio, el empleado, la fecha ni la hora (las notas y el cliente sí). Si hay un error, debe resolverse desde Comisiones.';
+
     public function __construct()
     {
         parent::__construct();
@@ -293,10 +301,10 @@ class ReservaController extends Controller
             'notas' => $datos['notas'] ?? null,
         ];
 
-        $resultado = $this->svcReserva->editar($datos['id_reserva'], $info, $tenantId);
+        $resultado = $this->svcReserva->editar($datos['id_reserva'], $info, $tenantId, session('id_usuario'));
 
-        if (! $resultado) {
-            $this->agregarErrorNoDisponible('la reserva', 'RES-EDIT');
+        if ($resultado !== SvcReserva::CAMBIO_HECHO) {
+            $this->errorDeCambioDeEstado($resultado, 'la reserva', 'RES-EDIT', self::MENSAJE_EDITAR_PAGADA);
 
             return $this->sendResponse();
         }
@@ -348,11 +356,15 @@ class ReservaController extends Controller
         return $this->sendResponse();
     }
 
-    /** Traduce un resultado de SvcReserva::cambiarEstado() que no fue CAMBIO_HECHO. */
-    private function errorDeCambioDeEstado(string $resultado, string $registro, string $codigo): void
+    /**
+     * Traduce un resultado de SvcReserva::cambiarEstado(), editar() o
+     * eliminar() que no fue CAMBIO_HECHO. Cada operación trae su propio
+     * mensaje para la comisión pagada; el resto de los casos es común.
+     */
+    private function errorDeCambioDeEstado(string $resultado, string $registro, string $codigo, string $mensajeComisionPagada = self::MENSAJE_ESTADO_PAGADA): void
     {
         if ($resultado === SvcReserva::CAMBIO_COMISION_PAGADA) {
-            $this->agregarError('Esta cita ya forma parte de un pago de comisión confirmado y no se puede modificar.');
+            $this->agregarError($mensajeComisionPagada);
 
             return;
         }
@@ -416,10 +428,10 @@ class ReservaController extends Controller
 
         $datos = $this->getRequestData();
 
-        $resultado = $this->svcReserva->eliminar($datos['id_reserva'], $tenantId);
+        $resultado = $this->svcReserva->eliminar($datos['id_reserva'], $tenantId, session('id_usuario'));
 
-        if (! $resultado) {
-            $this->agregarErrorNoDisponible('la reserva', 'RES-ELIM');
+        if ($resultado !== SvcReserva::CAMBIO_HECHO) {
+            $this->errorDeCambioDeEstado($resultado, 'la reserva', 'RES-ELIM', self::MENSAJE_ELIMINAR_PAGADA);
 
             return $this->sendResponse();
         }
@@ -566,6 +578,7 @@ class ReservaController extends Controller
                     'telefono_cliente' => $reserva['telefono_cliente'],
                     'id_cliente' => $reserva['id_cliente'],
                     'estado_cliente' => $reserva['estado_cliente'],
+                    'comision_pagada' => $reserva['comision_pagada'],
                     'id_recurso' => $reserva['id_recurso'],
                     'id_empleado' => $reserva['id_empleado'],
                     'estado_reserva' => $reserva['estado_reserva'],

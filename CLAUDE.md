@@ -155,6 +155,7 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 - Prueba de mutación obligatoria: quitar a propósito el filtro de tenant, confirmar que la prueba falla, restaurar y confirmar que vuelve a pasar. Una prueba de seguridad que pasa a la primera se considera sospechosa hasta que se muta.
 - Si al revisar código existente se encuentra un endpoint sin filtro de tenant, reportarlo y corregirlo antes de continuar con la tarea.
 - Todo reporte final termina con una línea explícita: "Aislamiento entre negocios: verificado en [lista de pruebas], sin fugas". Si no se puede afirmar con evidencia, decirlo tal cual en vez de omitirlo.
+- Una reserva con id_pago_comision no se puede eliminar ni cambiar de servicio, empleado, fecha u hora, ni cambiar de estado. Todo camino nuevo que altere reservas debe respetar esta regla.
 
 ## Flujo de Git
 
