@@ -39,6 +39,12 @@ use Tests\TestCase;
  *       test_los_atributos_armados_a_mano_escapan_su_valor, que nombró
  *       "app/superadmin/negocios.blade.php:269: data-nombre=...". Restaurado:
  *       9 passed.
+ * M11 — Se volvió a leer el nombre del negocio con
+ *       jQuery(this).data('nombre') en vez de .attr() (superadmin/negocios,
+ *       sitio del modal de módulos): 11 tests, 10 passed, 1 FAILED —
+ *       test_las_claves_data_de_texto_libre_no_se_leen_con_data, que nombró
+ *       "app/superadmin/negocios.blade.php: .data('nombre')". Restaurado:
+ *       11 passed.
  * (M2, M3 y M4 se documentan en XssHttpTest.)
  */
 class XssGuardianTest extends TestCase
@@ -284,6 +290,60 @@ class XssGuardianTest extends TestCase
             [],
             $sinEscapar,
             "Atributo armado a mano sin escaparTexto(). Escápalo, o si de verdad nunca es texto de usuario, documéntalo en ATRIBUTOS_CONCATENADOS_PERMITIDOS:\n".implode("\n", $sinEscapar)
+        );
+    }
+
+    /**
+     * Claves de data-* que llevan texto escrito por una persona (un nombre,
+     * nunca un id ni un vocabulario fijo). jQuery .data() convierte un valor
+     * con forma de número ("123") a Number y uno con forma de JSON
+     * ('{"a":1}') a objeto: el aviso de "¿Suspender...?" o el de "Marcar como
+     * pagado" terminaba mostrando "[object Object]" en vez del nombre real.
+     * Por eso estas claves se leen con .attr('data-clave'), que siempre
+     * devuelve el string tal cual quedó escrito en el HTML.
+     */
+    const CLAVES_DATA_DE_TEXTO_LIBRE = ['nombre', 'nombre_empleado'];
+
+    public function test_las_claves_data_de_texto_libre_no_se_leen_con_data(): void
+    {
+        $encontradas = [];
+
+        foreach ($this->vistas() as $ruta => $contenido) {
+            foreach (self::CLAVES_DATA_DE_TEXTO_LIBRE as $clave) {
+                if (preg_match('/\.data\(\s*[\'"]'.preg_quote($clave, '/').'[\'"]\s*\)/', $contenido)) {
+                    $encontradas[] = "$ruta: .data('$clave')";
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $encontradas,
+            "Lee estas claves con .attr('data-clave'), no con .data(): un valor numérico o con forma de JSON se convertiría solo:\n".implode("\n", $encontradas)
+        );
+    }
+
+    /**
+     * escaparTexto() tiene que convertir su entrada a texto ANTES de escapar.
+     * Sin String(texto), pasarle un número rompería con "texto.replace is
+     * not a function" (los números no tienen .replace()). null/undefined
+     * deben dar cadena vacía, no "null"/"undefined" literales.
+     */
+    public function test_escapar_texto_convierte_su_entrada_a_string_de_forma_segura(): void
+    {
+        $utilidades = File::get(public_path('js/utilidades.js'));
+        $cuerpo = substr($utilidades, strpos($utilidades, 'function escaparTexto('));
+        $cuerpo = substr($cuerpo, 0, strpos($cuerpo, "\n}") + 2);
+
+        $this->assertStringContainsString(
+            'texto === null || texto === undefined',
+            $cuerpo,
+            'escaparTexto() debe devolver cadena vacía para null/undefined'
+        );
+        $this->assertStringContainsString(
+            'String(texto)',
+            $cuerpo,
+            'escaparTexto() debe convertir su entrada con String() antes de escapar (para que un número no rompa con .replace is not a function)'
         );
     }
 }

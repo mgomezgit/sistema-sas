@@ -762,7 +762,10 @@
         jQuery('#resumen-empleados').on('click', '.btn-marcar-pagado', function () {
             var boton = jQuery(this);
             var idEmpleado = boton.data('id_empleado');
-            var nombreEmpleado = boton.data('nombre_empleado');
+            // .attr() y no .data(): un nombre con forma numerica ("123") o de
+            // JSON (\'{"a":1}\') haria que jQuery lo convirtiera a numero u
+            // objeto en vez de dejarlo como texto.
+            var nombreEmpleado = boton.attr('data-nombre_empleado');
             var total = boton.data('total');
 
             if (!rangoAplicado) {

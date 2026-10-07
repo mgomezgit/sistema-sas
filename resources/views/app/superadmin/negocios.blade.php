@@ -296,7 +296,10 @@
         jQuery('#tabla-negocios').on('click', '.btn-suspender-negocio, .btn-reactivar-negocio', function () {
             var boton = jQuery(this);
             var idNegocio = boton.data('id_negocio');
-            var nombreNegocio = boton.data('nombre');
+            // .attr() y no .data(): un negocio llamado "123" o '{"a":1}' haria
+            // que jQuery lo convirtiera a numero u objeto en vez de dejarlo
+            // como texto, y el aviso de abajo mostraria "[object Object]".
+            var nombreNegocio = boton.attr('data-nombre');
             var suspendiendo = boton.hasClass('btn-suspender-negocio');
 
             // OJO: "title" de SweetAlert2 SÍ interpreta HTML (a diferencia de
@@ -383,7 +386,8 @@
 
         jQuery('#tabla-negocios').on('click', '.btn-modulos-negocio', function () {
             idNegocioEnModalModulos = jQuery(this).data('id_negocio');
-            var nombreNegocio = jQuery(this).data('nombre');
+            // Mismo motivo que en el aviso de Suspender: .attr(), no .data().
+            var nombreNegocio = jQuery(this).attr('data-nombre');
 
             // .text() y no .html(): el nombre del negocio es texto del cliente.
             jQuery('#modal-modulos-subtitulo').text(nombreNegocio);
