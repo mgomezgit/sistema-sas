@@ -233,4 +233,64 @@ class ComisionController extends Controller
 
         return $this->sendResponse();
     }
+
+    /**
+     * Anula un pago marcado por error. El tenant_id sale SIEMPRE de la sesión;
+     * uno que venga en el cuerpo se ignora. Un pago de otro negocio responde
+     * igual que uno inexistente, para no revelar que existe.
+     */
+    public function anularPago(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        if ($tenantId === null) {
+            $this->agregarError('Las comisiones se gestionan desde la cuenta de cada negocio. Inicia sesión con el usuario del negocio correspondiente.');
+
+            return $this->sendResponse();
+        }
+
+        $this->setRequestValidationRules([
+            'id_pago' => 'required|integer',
+            'motivo' => 'required|string|min:5|max:200',
+        ], [
+            'motivo.required' => 'Escribe el motivo de la anulación.',
+            'motivo.min' => 'El motivo debe tener al menos 5 caracteres.',
+            'motivo.max' => 'El motivo no puede pasar de 200 caracteres.',
+        ]);
+
+        if (! $this->validateRequestRules()) {
+            return $this->sendResponse();
+        }
+
+        $datos = $this->getRequestData();
+
+        $resultado = $this->svcComision->anularPago(
+            (int) $datos['id_pago'],
+            $tenantId,
+            session('id_usuario'),
+            trim($datos['motivo'])
+        );
+
+        if ($resultado === SvcComision::ANULACION_YA_ANULADO) {
+            $this->agregarError('Este pago ya estaba anulado. Recarga el historial para ver su estado actual.');
+
+            return $this->sendResponse();
+        }
+
+        if ($resultado === SvcComision::ANULACION_NO_EXISTE) {
+            $this->agregarErrorNoDisponible('el pago de comisión', 'COM-PAGO-ANULAR');
+
+            return $this->sendResponse();
+        }
+
+        if ($resultado !== SvcComision::ANULACION_HECHA) {
+            $this->agregarErrorSistema('COM-PAGO-ANULAR-ERR');
+
+            return $this->sendResponse();
+        }
+
+        $this->respSinError();
+
+        return $this->sendResponse();
+    }
 }

@@ -36,11 +36,13 @@ class ReservaController extends Controller
 
     // Una cita con la comisión ya pagada (id_pago_comision) es parte de una
     // liquidación confirmada: ver SvcReserva::CAMPOS_FIJOS_CON_COMISION_PAGADA.
-    const MENSAJE_ESTADO_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado y no se puede modificar.';
+    // La única salida es anular el pago (SvcComision::anularPago), y los
+    // mensajes lo dicen para que el admin sepa dónde hacerlo.
+    const MENSAJE_ESTADO_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado y no se puede modificar. Si el pago se marcó por error, puedes anularlo desde Comisiones, pestaña Historial de pagos.';
 
-    const MENSAJE_ELIMINAR_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado y no se puede eliminar.';
+    const MENSAJE_ELIMINAR_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado y no se puede eliminar. Si el pago se marcó por error, puedes anularlo desde Comisiones, pestaña Historial de pagos.';
 
-    const MENSAJE_EDITAR_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado: no se puede cambiar el servicio, el empleado, la fecha ni la hora (las notas y el cliente sí). Si hay un error, debe resolverse desde Comisiones.';
+    const MENSAJE_EDITAR_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado: no se puede cambiar el servicio, el empleado, la fecha ni la hora (las notas y el cliente sí). Si el pago se marcó por error, puedes anularlo desde Comisiones, pestaña Historial de pagos.';
 
     public function __construct()
     {

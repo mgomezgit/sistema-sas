@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Models\ComisionTarifa;
 use App\Models\PagoComision;
 use App\Models\Reserva;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -30,6 +31,16 @@ class SvcComision
      * Solo estas citas generan comisión: las que realmente se prestaron.
      */
     const ESTADO_RESERVA_COMISIONABLE = 'completada';
+
+    /* Resultados posibles de anularPago(). No es un bool porque el Controller
+       necesita saber POR QUÉ no se hizo, para dar el mensaje justo. */
+    const ANULACION_HECHA = 'anulado';
+
+    const ANULACION_NO_EXISTE = 'no_existe';
+
+    const ANULACION_YA_ANULADO = 'ya_anulado';
+
+    const ANULACION_ERROR = 'error';
 
     /**
      * Informe de comisiones pendientes de pago del periodo.
@@ -292,11 +303,26 @@ class SvcComision
         }
     }
 
+    /**
+     * Historial de pagos del negocio, vigentes y anulados.
+     *
+     * De la anulación se devuelve el NOMBRE de quien anuló ("Sistema" si no
+     * quedó registrado), nunca su id; y cuántas citas liberó, nunca la lista.
+     * cantidad_citas son las que el pago tiene ligadas hoy (las que volverían
+     * al informe si se anula). Ningún total se calcula aquí: un pago anulado
+     * no se suma en ningún lado.
+     */
     public function listarHistorialPagos($tenantId, $idEmpleado = null)
     {
         try {
             $query = PagoComision::from('pagos_comisiones as p')
                 ->join('empleados as e', 'e.id_empleado', '=', 'p.id_empleado')
+                // Acotado al mismo negocio: aunque anulado_por apuntara a una
+                // cuenta de otro negocio, su nombre no saldría de aquí.
+                ->leftJoin('usuarios as ua', function ($join) {
+                    $join->on('ua.id_usuario', '=', 'p.anulado_por')
+                        ->on('ua.tenant_id', '=', 'p.tenant_id');
+                })
                 ->select(
                     'p.id_pago_comision',
                     'p.id_empleado',
@@ -305,7 +331,12 @@ class SvcComision
                     'p.fecha_fin',
                     'p.monto_total',
                     'p.fecha_pago',
-                    'p.estado'
+                    'p.estado',
+                    'p.anulado_en',
+                    'p.motivo_anulacion',
+                    'p.reservas_liberadas',
+                    'ua.nombre as nombre_anulado_por',
+                    DB::raw('(SELECT COUNT(*) FROM reservas r WHERE r.id_pago_comision = p.id_pago_comision AND r.tenant_id = p.tenant_id) as cantidad_citas')
                 )
                 ->where('p.tenant_id', $tenantId)
                 ->where('p.estado', 1);
@@ -316,11 +347,113 @@ class SvcComision
 
             return $query->orderByDesc('p.fecha_pago')
                 ->get()
-                ->toArray() ?? [];
+                ->map(function ($fila) {
+                    $anulado = $fila->anulado_en !== null;
+                    $liberadas = $anulado ? count(json_decode((string) $fila->reservas_liberadas, true) ?: []) : 0;
+
+                    return [
+                        'id_pago_comision' => (int) $fila->id_pago_comision,
+                        'id_empleado' => (int) $fila->id_empleado,
+                        'nombre_empleado' => $fila->nombre_empleado,
+                        'fecha_inicio' => $fila->fecha_inicio,
+                        'fecha_fin' => $fila->fecha_fin,
+                        'monto_total' => $fila->monto_total,
+                        'fecha_pago' => $fila->fecha_pago,
+                        'estado' => (int) $fila->estado,
+                        'cantidad_citas' => (int) $fila->cantidad_citas,
+                        'anulado' => $anulado,
+                        'anulado_en' => $fila->anulado_en,
+                        'anulado_por' => $anulado ? ($fila->nombre_anulado_por ?? 'Sistema') : null,
+                        'motivo_anulacion' => $fila->motivo_anulacion,
+                        'citas_liberadas' => $liberadas,
+                    ];
+                })
+                ->all();
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
             return [];
+        }
+    }
+
+    /**
+     * Anula un pago marcado por error. El pago NUNCA se borra ni cambia su
+     * monto_total: queda con anulado_en, anulado_por y motivo_anulacion. Sus
+     * citas quedan libres (id_pago_comision = null), vuelven al informe como
+     * pendientes y se pueden volver a liquidar; sus ids quedan guardados en
+     * reservas_liberadas. No se toca estado_reserva ni historial_estados_reserva.
+     *
+     * Todo en UNA transacción, con bloqueo de fila del pago y de sus reservas:
+     * dos anulaciones simultáneas no pueden pasar las dos el chequeo de "ya
+     * anulado", y una cita no puede cambiar de pago mientras se libera.
+     *
+     * Un pago de otro negocio responde igual que uno inexistente.
+     *
+     * @return string Una de las constantes ANULACION_*.
+     */
+    public function anularPago($idPago, $tenantId, $idUsuario, $motivo): string
+    {
+        try {
+            $resultado = DB::transaction(function () use ($idPago, $tenantId, $idUsuario, $motivo) {
+                $pago = PagoComision::select('id_pago_comision', 'anulado_en')
+                    ->where('id_pago_comision', $idPago)
+                    ->where('tenant_id', $tenantId)
+                    ->where('estado', 1)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($pago === null) {
+                    return self::ANULACION_NO_EXISTE;
+                }
+
+                if ($pago->anulado_en !== null) {
+                    return self::ANULACION_YA_ANULADO;
+                }
+
+                $idsReservas = Reserva::where('tenant_id', $tenantId)
+                    ->where('id_pago_comision', $idPago)
+                    ->orderBy('id_reserva')
+                    ->lockForUpdate()
+                    ->pluck('id_reserva')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                Reserva::where('tenant_id', $tenantId)
+                    ->where('id_pago_comision', $idPago)
+                    ->update(['id_pago_comision' => null]);
+
+                PagoComision::where('id_pago_comision', $idPago)
+                    ->where('tenant_id', $tenantId)
+                    ->update([
+                        'anulado_en' => Carbon::now()->format('Y-m-d H:i:s'),
+                        'anulado_por' => $idUsuario,
+                        'motivo_anulacion' => $motivo,
+                        'reservas_liberadas' => json_encode($idsReservas),
+                    ]);
+
+                return $idsReservas;
+            });
+
+            if (is_string($resultado)) {
+                return $resultado;
+            }
+
+            Log::channel('database')->info(sprintf(
+                'ANULACION DE PAGO DE COMISION: el usuario %s anulo el pago %d del negocio %d el %s; reservas liberadas: %d (%s); motivo: %s',
+                $idUsuario ?? 'sistema',
+                $idPago,
+                $tenantId,
+                Carbon::now()->format('Y-m-d H:i:s'),
+                count($resultado),
+                implode(', ', $resultado),
+                json_encode($motivo, JSON_UNESCAPED_UNICODE)
+            ));
+
+            return self::ANULACION_HECHA;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return self::ANULACION_ERROR;
         }
     }
 }

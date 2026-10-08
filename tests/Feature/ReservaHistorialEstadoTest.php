@@ -53,7 +53,7 @@ class ReservaHistorialEstadoTest extends TestCase
 {
     use RefreshDatabase;
 
-    const MENSAJE_COMISION_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado y no se puede modificar.';
+    const MENSAJE_COMISION_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado y no se puede modificar. Si el pago se marcó por error, puedes anularlo desde Comisiones, pestaña Historial de pagos.';
 
     private int $negocioA;
 

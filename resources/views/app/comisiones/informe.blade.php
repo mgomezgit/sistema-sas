@@ -187,6 +187,20 @@
             font-size: 0.78rem;
             margin-top: 0.3rem;
         }
+
+        /* Quién, cuándo y por qué se anuló un pago, bajo su badge. */
+        .detalle-anulacion {
+            color: var(--text-secondary);
+            font-size: 0.76rem;
+            margin-top: 0.3rem;
+            max-width: 18rem;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .fila-pago-anulado td {
+            color: var(--text-muted);
+        }
     </style>
 @endsection
 
@@ -334,7 +348,8 @@
         {{-- ================= PESTAÑA 3: HISTORIAL DE PAGOS ================= --}}
         <div class="tab-pane fade" id="panel-historial" role="tabpanel" aria-labelledby="tab-historial">
             <p class="subtitulo-pagina mb-3">
-                Registro de los periodos ya liquidados. Es solo consulta: un pago marcado no se deshace desde aquí.
+                Registro de los periodos ya liquidados. Si un pago se marcó por error, puedes anularlo: queda en el
+                historial como anulado y sus citas vuelven al informe como pendientes.
             </p>
 
             <div class="card-elevada card-tabla">
@@ -347,6 +362,8 @@
                                 <th>Rango de fechas</th>
                                 <th>Monto total</th>
                                 <th>Fecha de pago</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -1115,10 +1132,132 @@
                             return formatearPrecio(data);
                         }
                     },
-                    { data: 'fecha_pago', render: renderTextoSeguro }
-                ]
+                    { data: 'fecha_pago', render: renderTextoSeguro },
+                    {
+                        data: null,
+                        render: function (fila) {
+                            if (!fila.anulado) {
+                                return '<span class="badge-estado-activo"><i class="bi bi-check-circle-fill"></i> Vigente</span>';
+                            }
+
+                            // Motivo y nombre los escribió una persona: van escapados.
+                            return '<span class="badge-estado-inactivo"><i class="bi bi-x-circle-fill"></i> Anulado</span>' +
+                                '<div class="detalle-anulacion">' +
+                                '<strong>Motivo:</strong> ' + escaparTexto(fila.motivo_anulacion) + '<br>' +
+                                'Por ' + escaparTexto(fila.anulado_por) + ' el ' + escaparTexto(fila.anulado_en) + '<br>' +
+                                escaparTexto(textoCitasLiberadas(fila.citas_liberadas)) +
+                                '</div>';
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        render: function (fila) {
+                            // Un pago anulado ya no tiene acciones: queda como registro.
+                            if (fila.anulado) {
+                                return '';
+                            }
+
+                            return '<button type="button" class="btn-accion-icono btn-accion-eliminar btn-anular-pago" data-bs-toggle="tooltip" title="Anular pago"' +
+                                ' data-id_pago_comision="' + fila.id_pago_comision + '"><i class="bi bi-arrow-counterclockwise"></i></button>';
+                        }
+                    }
+                ],
+                createdRow: function (tr, fila) {
+                    if (fila.anulado) {
+                        jQuery(tr).addClass('fila-pago-anulado');
+                    }
+                }
             });
+
+            tablaHistorial.on('draw', function () {
+                inicializarTooltips();
+            });
+
+            inicializarTooltips();
         }
+
+        function textoCitasLiberadas(cantidad) {
+            cantidad = parseInt(cantidad, 10) || 0;
+
+            return cantidad === 1 ? '1 cita volvió al informe' : cantidad + ' citas volvieron al informe';
+        }
+
+        var MOTIVO_ANULACION_MIN = 5;
+        var MOTIVO_ANULACION_MAX = 200;
+
+        jQuery('#tabla-historial').on('click', '.btn-anular-pago', function () {
+            // Los datos de la fila salen de DataTables, no de atributos data-*:
+            // el nombre del empleado llega tal cual, sin conversiones de jQuery.
+            var fila = tablaHistorial.row(jQuery(this).closest('tr')).data();
+
+            if (!fila) {
+                return;
+            }
+
+            var citas = parseInt(fila.cantidad_citas, 10) || 0;
+            var textoCitas = citas === 1
+                ? 'La cita de este pago volverá al informe como pendiente'
+                : 'Las ' + citas + ' citas de este pago volverán al informe como pendientes';
+
+            Swal.fire(opcionesSwal({
+                title: '¿Anular este pago?',
+                html: 'Se anulará el pago de <strong>' + escaparTexto(fila.nombre_empleado) + '</strong>' +
+                    ' por <strong>' + formatearPrecio(fila.monto_total) + '</strong>' +
+                    ' (del ' + escaparTexto(fila.fecha_inicio) + ' al ' + escaparTexto(fila.fecha_fin) + ').<br><br>' +
+                    escaparTexto(textoCitas) + ' y se podrán volver a liquidar. ' +
+                    'El pago no se borra: queda en el historial como anulado, con el motivo que escribas.',
+                icon: 'warning',
+                input: 'textarea',
+                inputLabel: 'Motivo de la anulación',
+                inputPlaceholder: 'Ej.: se marcó el periodo equivocado',
+                inputAttributes: { maxlength: MOTIVO_ANULACION_MAX },
+                inputValidator: function (valor) {
+                    var motivo = (valor || '').trim();
+
+                    if (motivo.length < MOTIVO_ANULACION_MIN) {
+                        return 'Escribe el motivo (al menos ' + MOTIVO_ANULACION_MIN + ' caracteres).';
+                    }
+
+                    if (motivo.length > MOTIVO_ANULACION_MAX) {
+                        return 'El motivo no puede pasar de ' + MOTIVO_ANULACION_MAX + ' caracteres.';
+                    }
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Sí, anular pago',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: colorVariable('--danger')
+            })).then(function (resultado) {
+                if (!resultado.isConfirmed) {
+                    return;
+                }
+
+                var cuerpo = {
+                    id_pago: fila.id_pago_comision,
+                    motivo: resultado.value.trim()
+                };
+
+                axiosSipleInterno('POST', 'request/comisiones/pagos/anular', {}, cuerpo, true, function (respuesta) {
+                    if (respuesta.error != 0) {
+                        notificarUsuario(respuesta.mensaje, 'error');
+
+                        // Si ya estaba anulado o no existe, la tabla estaba vieja.
+                        cargarHistorial();
+                        return;
+                    }
+
+                    notificarUsuario('Pago anulado. Sus citas volvieron al informe como pendientes.', 'success');
+
+                    // Sin recargar la página: el historial muestra el pago como
+                    // anulado y el informe vuelve a contar esas citas.
+                    cargarHistorial();
+
+                    if (rangoAplicado) {
+                        cargarInforme();
+                    }
+                });
+            });
+        });
 
         /* ================= ARRANQUE ================= */
 

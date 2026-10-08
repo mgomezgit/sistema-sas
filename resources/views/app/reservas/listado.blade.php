@@ -709,7 +709,7 @@
 
                         <div id="aviso-comision-pagada" class="aviso-comision-pagada">
                             <i class="bi bi-lock-fill"></i>
-                            <span>Esta cita ya forma parte de un pago de comisión. Solo puedes editar las notas y el cliente.</span>
+                            <span>Esta cita ya forma parte de un pago de comisión. Solo puedes editar las notas y el cliente. Si el pago se marcó por error, puedes anularlo desde Comisiones, pestaña Historial de pagos.</span>
                         </div>
 
                         <div class="tarjeta-seccion-form">
@@ -1083,7 +1083,7 @@
             bloquearCamposPorComisionPagada(null);
         }
 
-        var TITULO_ELIMINAR_PAGADA = 'No se puede eliminar: ya forma parte de un pago de comisión';
+        var TITULO_ELIMINAR_PAGADA = 'No se puede eliminar: ya forma parte de un pago de comisión. Si el pago fue un error, anúlalo desde Comisiones, pestaña Historial de pagos';
 
         // Campos que no se pueden cambiar en una cita con la comisión ya pagada
         // (además del estado, que cambiarEstado() también rechaza).

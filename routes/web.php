@@ -129,6 +129,7 @@ Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->
         Route::post('comisiones/tarifas/guardar', [App\Http\Controllers\Request\ComisionController::class, 'guardarTarifa']);
         Route::post('comisiones/tarifas/eliminar', [App\Http\Controllers\Request\ComisionController::class, 'eliminarTarifa']);
         Route::get('comisiones/historial-pagos', [App\Http\Controllers\Request\ComisionController::class, 'historialPagos']);
+        Route::post('comisiones/pagos/anular', [App\Http\Controllers\Request\ComisionController::class, 'anularPago']);
     });
 
     Route::post('banner/crear', [App\Http\Controllers\Request\BannerPromocionalController::class, 'crear']);

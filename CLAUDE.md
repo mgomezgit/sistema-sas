@@ -35,7 +35,7 @@ Backend completo primero, frontend después. No mezclar módulos ni adelantar fr
 - namespace App\Service, clase Svc + Entidad (ej. SvcCliente).
 - Cada método envuelto en try/catch; en el catch: Log::channel("database")->info($e); y retorno del valor vacío correspondiente (false, [], null).
 - listar()/listarById(): select() explícito, NUNCA select *; retornan siempre ->toArray() ?? [].
-- crear($info): retorna el ID insertado o false. editar($id, $info, ...): retorna bool.
+- crear($info): retorna el ID insertado o false. editar($id, $info, ...): retorna bool. Excepción documentada: SvcReserva::editar() retorna constantes de resultado (igual que cambiarEstado() y eliminar()), porque el Controller necesita distinguir por qué no se hizo el cambio.
 - Joins: query builder de Eloquent, alias cortos, AS explícito.
 - Toda la lógica de negocio vive aquí, nunca en el controller.
 - Incrementos/decrementos: increment()/decrement() o expresión SQL — NUNCA leer-y-reescribir (condición de carrera).
@@ -155,7 +155,7 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 - Prueba de mutación obligatoria: quitar a propósito el filtro de tenant, confirmar que la prueba falla, restaurar y confirmar que vuelve a pasar. Una prueba de seguridad que pasa a la primera se considera sospechosa hasta que se muta.
 - Si al revisar código existente se encuentra un endpoint sin filtro de tenant, reportarlo y corregirlo antes de continuar con la tarea.
 - Todo reporte final termina con una línea explícita: "Aislamiento entre negocios: verificado en [lista de pruebas], sin fugas". Si no se puede afirmar con evidencia, decirlo tal cual en vez de omitirlo.
-- Una reserva con id_pago_comision no se puede eliminar ni cambiar de servicio, empleado, fecha u hora, ni cambiar de estado. Todo camino nuevo que altere reservas debe respetar esta regla.
+- Una reserva con id_pago_comision no se puede eliminar ni cambiar de servicio, empleado, fecha u hora, ni cambiar de estado. Todo camino nuevo que altere reservas debe respetar esta regla. La única forma de liberarla es anular el pago con SvcComision::anularPago.
 
 ## Flujo de Git
 
