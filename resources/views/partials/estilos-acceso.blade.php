@@ -13,6 +13,10 @@
             --text-primary: #f4f4f5;
             --text-secondary: #9a9aa5;
             --text-muted: #5c5c66;
+            /* Estados que usan los toast (partials.estilos-toast). */
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #e11d2e;
             --radius-card: 16px;
             --radius-sm: 10px;
             --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);

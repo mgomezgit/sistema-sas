@@ -2966,6 +2966,9 @@
         }
     </style>
 
+    {{-- Avisos tipo toast (notificarUsuario). --}}
+    @include('partials.estilos-toast')
+
     @yield('estilos')
 </head>
 @php

@@ -22,6 +22,18 @@
             --card: rgba(255, 255, 255, 0.05);
             --border: rgba(255, 255, 255, 0.1);
             --radius-sm: 10px;
+            /* Variables que usan los toast (partials.estilos-toast): esta
+               pantalla tiene su propio vocabulario, así que se publican aquí,
+               en el bloque de tema. */
+            --bg-card: #17171c;
+            --bg-body: #0a0a0a;
+            --border-color: #2a2a32;
+            --text-primary: #f4f4f5;
+            --text-secondary: #a3a3a3;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #e11d2e;
+            --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25);
         }
 
         body {
@@ -248,6 +260,8 @@
             top: -9999px;
         }
     </style>
+
+    @include('partials.estilos-toast')
 </head>
 <body>
 

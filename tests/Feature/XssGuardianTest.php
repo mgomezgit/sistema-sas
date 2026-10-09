@@ -164,18 +164,8 @@ class XssGuardianTest extends TestCase
         $this->assertSame(1, substr_count(File::get(public_path('js/utilidades.js')), 'function escaparTexto('));
     }
 
-    /**
-     * notificarUsuario pinta con Swal.fire(title, html, icon): las dos
-     * posiciones interpretan HTML, así que debe escapar el mensaje.
-     */
-    public function test_notificar_usuario_escapa_su_mensaje(): void
-    {
-        $utilidades = File::get(public_path('js/utilidades.js'));
-        $cuerpo = substr($utilidades, strpos($utilidades, 'async function notificarUsuario'));
-
-        $this->assertStringContainsString('Mensaje = escaparTexto(Mensaje)', $cuerpo);
-        $this->assertStringContainsString('escaparTexto(Mensaje[i])', $cuerpo);
-    }
+    // notificarUsuario() ya no pasa por SweetAlert: muestra un toast que inserta
+    // el texto solo con textContent. Su guardián vive en ToastGuardianTest.
 
     /**
      * badgeEstadoReserva() es una sola copia (antes había 4 idénticas en
