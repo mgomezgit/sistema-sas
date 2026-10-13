@@ -134,7 +134,8 @@ function toastObtenerContenedor() {
     }
 
     // Debajo de la barra superior flotante (sin taparla ni a sus campanas).
-    var barra = document.getElementById("topbar");
+    // (#navbar-landing: la barra fija de la landing pública.)
+    var barra = document.querySelector("#topbar, #navbar-landing");
     var arriba = 16;
 
     if (barra) {

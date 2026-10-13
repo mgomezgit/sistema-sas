@@ -51,7 +51,6 @@
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios@1.7.7/dist/axios.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
         const UrlGlobal = "{{ url('/') }}/";
@@ -61,15 +60,7 @@
     <script>
         // Aviso de bienvenida cuando se llega desde el registro público.
         @if (request()->query('registrado') == '1')
-            Swal.fire({
-                title: 'Cuenta creada correctamente',
-                text: 'Inicia sesión para continuar.',
-                icon: 'success',
-                background: '#17171c',
-                color: '#f4f4f5',
-                confirmButtonColor: '#e11d2e',
-                confirmButtonText: 'Entendido'
-            });
+            notificarUsuario('Cuenta creada correctamente. Inicia sesión para continuar.', 'success');
         @endif
 
         // Motivo por el que se cerró la sesión (por ejemplo, negocio suspendido).

@@ -22,6 +22,18 @@
             --muted: #a3a3a3;
             --card: rgba(255, 255, 255, 0.05);
             --border: rgba(255, 255, 255, 0.1);
+            /* Variables que usan los toast (partials.estilos-toast): la landing
+               tiene su propio vocabulario, así que se publican aquí, en su
+               bloque de tema (negro y rojo fijos). */
+            --bg-card: #17171c;
+            --bg-body: #0a0a0a;
+            --border-color: #2a2a32;
+            --text-primary: #f4f4f5;
+            --text-secondary: #a3a3a3;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #e11d2e;
+            --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25);
         }
 
         * { scroll-behavior: smooth; }
@@ -614,6 +626,8 @@
             #panel-spa { padding: 1.7rem; }
         }
     </style>
+
+    @include('partials.estilos-toast')
 </head>
 <body>
 
@@ -987,7 +1001,12 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios@1.7.7/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        const UrlGlobal = "{{ url('/') }}/";
+    </script>
+    {{-- Aporta el aviso tipo toast. El resto de utilidades.js no hace nada al cargar. --}}
+    <script src="{{ asset('js/utilidades.js') }}"></script>
 
     <script>
         // Navbar: fondo sólido al pasar los 50px de scroll.
@@ -1076,27 +1095,11 @@
             var mensaje = jQuery('#contacto-mensaje').val().trim();
 
             if (nombre === '' || email === '' || mensaje === '') {
-                Swal.fire({
-                    title: 'Faltan datos',
-                    text: 'Completa tu nombre, tu correo y el mensaje para poder responderte.',
-                    icon: 'warning',
-                    background: '#0d0d0d',
-                    color: '#ffffff',
-                    confirmButtonColor: '#e11d2e',
-                    confirmButtonText: 'Entendido'
-                });
+                notificarUsuario('Faltan datos: completa tu nombre, tu correo y el mensaje para poder responderte.', 'warning');
                 return;
             }
 
-            Swal.fire({
-                title: '¡Gracias por escribirnos!',
-                text: 'Recibimos tus datos y te contactaremos muy pronto.',
-                icon: 'success',
-                background: '#0d0d0d',
-                color: '#ffffff',
-                confirmButtonColor: '#e11d2e',
-                confirmButtonText: 'Cerrar'
-            });
+            notificarUsuario('¡Gracias por escribirnos! Recibimos tus datos y te contactaremos muy pronto.', 'success');
 
             jQuery('#contacto-nombre').val('');
             jQuery('#contacto-email').val('');

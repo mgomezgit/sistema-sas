@@ -33,6 +33,16 @@ use Tests\TestCase;
  *      (nombró el archivo y la llamada).
  * T6 — z-index del contenedor en 1000 (bajo los modales): 9 tests, 8 passed,
  *      1 FAILED — la misma de estilos ("debe quedar por encima de modales").
+ *
+ * Al convertir login y landing se sumaron 2 pruebas (11 en total). Mutaciones
+ * (una a una, restaurando cada vez: 11 passed):
+ * S1 — un Swal.fire({ title, icon }) informativo agregado a clientes/listado:
+ *      11 tests, 10 passed, 1 FAILED — test_ningun_swal_fire_es_informativo
+ *      (nombró app/clientes/listado.blade.php:352).
+ * S2 — la landing sin @include('partials.estilos-toast'): 11 tests, 10 passed,
+ *      1 FAILED — test_login_y_landing_cargan_el_toast...
+ * S3 — el login vuelve a Swal.fire: 11 tests, 9 passed, 2 FAILED — el
+ *      guardián de Swal informativos y el de login/landing.
  */
 class ToastGuardianTest extends TestCase
 {
@@ -192,6 +202,95 @@ class ToastGuardianTest extends TestCase
 
         $this->assertGreaterThan(80, $llamadas, 'El guardián no está viendo las llamadas reales');
         $this->assertSame([], $sospechosos, "Llamadas a notificarUsuario() con texto escapado o HTML:\n".implode("\n", $sospechosos));
+    }
+
+    /**
+     * Vistas con un Swal.fire informativo permitido, con su motivo. Hoy VACÍA:
+     * la landing también pasó a toast (carga el mismo parcial y utilidades.js).
+     * Formato: 'ruta relativa a resources/views' => 'motivo'.
+     */
+    const SWAL_INFORMATIVO_PERMITIDO = [];
+
+    /** Texto de la llamada Swal.fire( ... ) hasta su paréntesis de cierre. */
+    private function llamadaCompleta(string $contenido, int $posicionApertura): string
+    {
+        $nivel = 0;
+        $largo = strlen($contenido);
+
+        for ($i = $posicionApertura; $i < $largo; $i++) {
+            if ($contenido[$i] === '(') {
+                $nivel++;
+            } elseif ($contenido[$i] === ')') {
+                $nivel--;
+
+                if ($nivel === 0) {
+                    return substr($contenido, $posicionApertura, $i - $posicionApertura + 1);
+                }
+            }
+        }
+
+        return substr($contenido, $posicionApertura);
+    }
+
+    /**
+     * Todo Swal.fire de las vistas tiene que ser una confirmación o decisión:
+     * con showCancelButton, showDenyButton, input o preConfirm. Un aviso
+     * informativo va por notificarUsuario() (toast).
+     */
+    public function test_ningun_swal_fire_es_informativo(): void
+    {
+        $informativos = [];
+        $revisados = 0;
+
+        foreach (File::allFiles(resource_path('views')) as $archivo) {
+            if (! str_ends_with($archivo->getFilename(), '.blade.php')) {
+                continue;
+            }
+
+            $ruta = str_replace('\\', '/', $archivo->getRelativePathname());
+            $contenido = File::get($archivo->getPathname());
+
+            preg_match_all('/Swal\.fire\s*\(/', $contenido, $coincidencias, PREG_OFFSET_CAPTURE);
+
+            foreach ($coincidencias[0] as [$texto, $posicion]) {
+                $revisados++;
+                $llamada = $this->llamadaCompleta($contenido, $posicion + strlen($texto) - 1);
+
+                if (preg_match('/showCancelButton|showDenyButton|\binput\s*:|preConfirm/', $llamada)) {
+                    continue;
+                }
+
+                if (isset(self::SWAL_INFORMATIVO_PERMITIDO[$ruta])) {
+                    continue;
+                }
+
+                $linea = substr_count(substr($contenido, 0, $posicion), "\n") + 1;
+                $informativos[] = "$ruta:$linea";
+            }
+        }
+
+        $this->assertGreaterThan(10, $revisados, 'El guardián no está viendo los Swal.fire reales');
+        $this->assertSame([], $informativos, "Swal.fire informativo (sin showCancelButton, showDenyButton, input ni preConfirm). Usa notificarUsuario():\n".implode("\n", $informativos));
+    }
+
+    /** Login y landing muestran sus avisos con el toast: cargan el parcial de estilos y utilidades.js. */
+    public function test_login_y_landing_cargan_el_toast_y_ya_no_usan_sweetalert(): void
+    {
+        foreach (['login', 'landing'] as $vista) {
+            $contenido = File::get(resource_path("views/$vista.blade.php"));
+
+            $this->assertStringContainsString("@include('partials.estilos-toast')", $contenido, "$vista debe cargar los estilos del toast");
+            $this->assertStringContainsString("asset('js/utilidades.js')", $contenido, "$vista debe cargar utilidades.js");
+            $this->assertStringContainsString('notificarUsuario(', $contenido);
+            $this->assertStringNotContainsString('Swal', $contenido, "$vista ya no usa SweetAlert");
+            $this->assertStringNotContainsString('sweetalert2', $contenido);
+        }
+
+        // La landing tiene su propio vocabulario de color: publica las variables del toast en su tema.
+        $landing = File::get(resource_path('views/landing.blade.php'));
+        foreach (['--success:', '--warning:', '--danger:', '--bg-card:', '--border-color:', '--text-primary:', '--text-secondary:', '--shadow-card:', '--accent:'] as $variable) {
+            $this->assertStringContainsString($variable, $landing, "landing no define $variable");
+        }
     }
 
     /** Las confirmaciones (decisiones) siguen en SweetAlert: solo el aviso informativo pasó a toast. */
