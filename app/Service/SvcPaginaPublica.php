@@ -40,6 +40,22 @@ class SvcPaginaPublica
     }
 
     /**
+     * Lo mismo que resolverPorSlug(), pero desde el id: para quien ya tiene
+     * el tenant resuelto (el chatbot arma su contexto con estos mismos
+     * métodos de lista blanca). Un negocio dado de baja tampoco sale.
+     */
+    public function resolverPorId(int $tenantId): ?Negocio
+    {
+        try {
+            return Negocio::where('id_negocio', $tenantId)->where('estado', 1)->first();
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return null;
+        }
+    }
+
+    /**
      * Contacto, horario y personalización visual. modo_tema y color_acento no
      * los usa el diseño fijo de esta página, pero se conservan porque ya
      * eran parte de la lista blanca de este endpoint y PaginaPublicaTest los

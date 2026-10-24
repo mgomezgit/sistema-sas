@@ -122,6 +122,15 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 - Las reservas creadas desde ahí son SOLICITUDES, no citas confirmadas: nacen con estado = 'pendiente', id_empleado = null, origen = 'publico'. NO disparan el correo de "reserva confirmada" al cliente (ese correo vive únicamente en ReservaController::crear(), no en el Service — ver crearSolicitudPublica() para el patrón correcto de crear sin ese efecto secundario). El admin las confirma y asigna empleado desde el modal de edición normal, que sí dispara el correo al cambiar el estado.
 - Throttle + campo honeypot en el endpoint de agendar. CSRF excluido solo en esa ruta (no hay sesión que proteger; el throttle+honeypot son la protección real).
 
+## Chatbot de la página pública (módulo de pago "chatbot")
+
+- Versión 1: SOLO responde preguntas. El agente (App\Ai\Agents\AsistenteNegocio, SDK laravel/ai) NO tiene herramientas ni acciones: no agenda, no cancela, no lee nada por su cuenta. Cualquier cambio que le dé herramientas o acciones requiere una revisión de seguridad aparte antes de construirse.
+- El contexto que recibe el modelo sale ÚNICAMENTE de SvcPaginaPublica (la misma lista blanca de la página pública), vía SvcChatbot::construirContexto(). Nada que la página pública no muestre llega al modelo. El texto escrito por el negocio va en un bloque delimitado y marcado como DATOS.
+- El historial vive SOLO en la caché del servidor, bajo una clave con el tenant y un id aleatorio. Nunca se acepta historial enviado por el cliente, ni se usa la memoria de conversación del SDK (sus migraciones no se publican). Lo único permanente son los contadores de chatbot_uso.
+- La respuesta se pinta como TEXTO PLANO (textContent), nunca como HTML.
+- Límite mensual por negocio, tope global de la plataforma y limitador por IP se comprueban ANTES de llamar a la IA. La respuesta pública nunca revela uso, límites ni restantes.
+- Nunca una clave de API en el repositorio, en logs ni en reportes: vive solo en .env (OPENAI_API_KEY). Los fallos del proveedor se registran sin el texto de la excepción ni el mensaje del visitante.
+
 ## Seguridad y autenticación
 
 - Sesión manual de Laravel (session()), NUNCA Auth:: nativo ni middleware auth.

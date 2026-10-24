@@ -49,6 +49,14 @@ Route::prefix('publico/{slug}')->middleware('throttle:60,1')->group(function () 
 
     // Única escritura de la zona pública: deja una solicitud pendiente.
     Route::post('agendar', [App\Http\Controllers\Publico\PublicoController::class, 'agendar']);
+
+    // Chatbot (módulo de pago): solo responde preguntas, no escribe nada del
+    // visitante. El mensaje lleva además su propio limitador por IP
+    // ("chatbot-mensaje" en AppServiceProvider), porque cada mensaje cuesta
+    // una llamada de pago al proveedor de IA.
+    Route::get('chatbot/estado', [App\Http\Controllers\Publico\PublicoController::class, 'chatbotEstado']);
+    Route::post('chatbot/mensaje', [App\Http\Controllers\Publico\PublicoController::class, 'chatbotMensaje'])
+        ->middleware('throttle:chatbot-mensaje');
 });
 
 // El login es la única ruta de request/* que se llama sin sesión (junto al

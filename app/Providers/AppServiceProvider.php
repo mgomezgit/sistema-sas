@@ -65,5 +65,34 @@ class AppServiceProvider extends ServiceProvider
                     ]);
                 });
         });
+
+        /*
+         * Mensajes al chatbot de la página pública, por IP: un límite por
+         * minuto y otro por hora (config/chatbot.php). Cada mensaje es una
+         * llamada de pago al proveedor de IA, así que este límite protege
+         * el saldo además del límite mensual del negocio.
+         *
+         * A diferencia de los de arriba, responde con un 429 real, pero en el
+         * formato de siempre: el widget del chatbot lo distingue por el
+         * código y muestra el mensaje.
+         */
+        RateLimiter::for('chatbot-mensaje', function (Request $request) {
+            $respuesta = function () {
+                return response()->json([
+                    'error' => 1,
+                    'mensaje' => 'Enviaste muchos mensajes seguidos. Espera un momento e inténtalo de nuevo.',
+                    'data' => [],
+                ], 429);
+            };
+
+            return [
+                Limit::perMinute((int) config('chatbot.mensajes_por_minuto_ip'))
+                    ->by('minuto:'.$request->ip())
+                    ->response($respuesta),
+                Limit::perHour((int) config('chatbot.mensajes_por_hora_ip'))
+                    ->by('hora:'.$request->ip())
+                    ->response($respuesta),
+            ];
+        });
     }
 }

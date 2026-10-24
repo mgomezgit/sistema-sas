@@ -30,6 +30,7 @@ class Negocio extends Model
         'hora_apertura',
         'hora_cierre',
         'politica_cancelacion',
+        'chatbot_limite_mensual',
         'tema_personalizado',
         'tour_completado',
         'bienvenida_vista',

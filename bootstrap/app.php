@@ -40,9 +40,15 @@ return Application::configure(basePath: dirname(__DIR__))
          *
          * Va acotado a esta ruta: el resto de la aplicación, backoffice
          * incluido, sigue con CSRF como siempre.
+         *
+         * El mensaje al chatbot recibe el mismo trato por la misma razón: no
+         * hay sesión que suplantar, no escribe nada del visitante, y lo
+         * protegen su limitador por IP ("chatbot-mensaje"), el tope de
+         * mensajes por conversación y los límites mensuales del módulo.
          */
         $middleware->validateCsrfTokens(except: [
             'publico/*/agendar',
+            'publico/*/chatbot/mensaje',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -489,16 +489,19 @@ class ModuloPagoTest extends TestCase
      */
     public function test_listar_modulos_por_negocio_incluye_los_nunca_activados(): void
     {
-        $modulos = $this->svc()->listarModulosPorNegocio($this->negocioA);
+        // Un renglón por módulo del catálogo (comisiones y chatbot), aunque
+        // el negocio no haya activado ninguno.
+        $modulos = array_column($this->svc()->listarModulosPorNegocio($this->negocioA), null, 'clave');
 
-        $this->assertCount(1, $modulos);
-        $this->assertSame('comisiones', $modulos[0]['clave']);
-        $this->assertSame(0, (int) $modulos[0]['activo']);
+        $this->assertEqualsCanonicalizing(['comisiones', 'chatbot'], array_keys($modulos));
+        $this->assertSame(0, (int) $modulos['comisiones']['activo']);
+        $this->assertSame(0, (int) $modulos['chatbot']['activo'], 'El chatbot nace apagado');
 
         $this->svc()->activarModulo($this->negocioA, 'comisiones', 'test');
 
-        $modulos = $this->svc()->listarModulosPorNegocio($this->negocioA);
-        $this->assertSame(1, (int) $modulos[0]['activo']);
+        $modulos = array_column($this->svc()->listarModulosPorNegocio($this->negocioA), null, 'clave');
+        $this->assertSame(1, (int) $modulos['comisiones']['activo']);
+        $this->assertSame(0, (int) $modulos['chatbot']['activo'], 'Activar uno no activa otro');
     }
 
     public function test_listar_negocios_con_modulos_resume_todos_los_negocios(): void
@@ -507,16 +510,19 @@ class ModuloPagoTest extends TestCase
 
         $resumen = $this->svc()->listarNegociosConModulos();
 
-        // Un negocio por módulo del catálogo: 2 negocios x 1 módulo.
-        $this->assertCount(2, $resumen);
+        // Un renglón por negocio y módulo del catálogo: 2 negocios x 2
+        // módulos (comisiones y chatbot).
+        $this->assertCount(4, $resumen);
 
         $porNegocio = [];
 
         foreach ($resumen as $fila) {
-            $porNegocio[$fila['id_negocio']] = (int) $fila['activo'];
+            $porNegocio[$fila['id_negocio']][$fila['clave']] = (int) $fila['activo'];
         }
 
-        $this->assertSame(1, $porNegocio[$this->negocioA]);
-        $this->assertSame(0, $porNegocio[$this->negocioB]);
+        $this->assertSame(1, $porNegocio[$this->negocioA]['comisiones']);
+        $this->assertSame(0, $porNegocio[$this->negocioB]['comisiones']);
+        $this->assertSame(0, $porNegocio[$this->negocioA]['chatbot'], 'El chatbot nace apagado');
+        $this->assertSame(0, $porNegocio[$this->negocioB]['chatbot']);
     }
 }

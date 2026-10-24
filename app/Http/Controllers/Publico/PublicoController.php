@@ -7,6 +7,7 @@ use App\Mail\NuevaSolicitudPublica;
 use App\Models\Cliente;
 use App\Models\Negocio;
 use App\Models\Usuario;
+use App\Service\SvcChatbot;
 use App\Service\SvcPaginaPublica;
 use App\Service\SvcReserva;
 use Illuminate\Http\JsonResponse;
@@ -254,6 +255,66 @@ class PublicoController extends Controller
 
         $this->respSinError();
         $this->setDataResponse($this->svcPaginaPublica->equipo($negocio->id_negocio), 'equipo');
+
+        return $this->sendResponse();
+    }
+
+    /**
+     * ¿Se muestra el chatbot en la página de este negocio?
+     *
+     * Solo un booleano: nunca el uso, el límite, el tope ni lo que queda. Un
+     * negocio con el módulo apagado y uno que agotó su límite se ven igual.
+     */
+    public function chatbotEstado(string $slug): JsonResponse
+    {
+        $negocio = $this->negocioPorSlug($slug);
+
+        $this->respSinError();
+        $this->setDataResponse((new SvcChatbot)->disponible($negocio->id_negocio), 'disponible');
+
+        return $this->sendResponse();
+    }
+
+    /**
+     * Un mensaje del visitante al chatbot. Solo responde preguntas: no
+     * agenda, no guarda nada del visitante, no tiene herramientas.
+     *
+     * El tenant sale del slug; un tenant_id en el cuerpo se ignora. El
+     * historial NO viaja en la petición: solo un conversacion_id opaco, que
+     * apunta a la caché del servidor de ESTE negocio. Si el chatbot no está
+     * disponible, se responde el texto fijo sin llamar a la IA.
+     */
+    public function chatbotMensaje(string $slug): JsonResponse
+    {
+        $negocio = $this->negocioPorSlug($slug);
+
+        $this->setRequestValidationRules([
+            'mensaje' => 'required|string|max:'.(int) config('chatbot.longitud_maxima_mensaje'),
+            'conversacion_id' => 'nullable|string|max:64',
+        ], [
+            'mensaje.required' => 'Escribe tu pregunta.',
+            'mensaje.string' => 'Escribe tu pregunta como texto.',
+            'mensaje.max' => 'Tu mensaje es muy largo. Resúmelo un poco, por favor.',
+            'conversacion_id.string' => 'La conversación no es válida.',
+            'conversacion_id.max' => 'La conversación no es válida.',
+        ]);
+
+        if (! $this->validateRequestRules()) {
+            return $this->sendResponse();
+        }
+
+        $datos = $this->getRequestData();
+
+        $resultado = (new SvcChatbot)->responder(
+            $negocio->id_negocio,
+            $datos['conversacion_id'] ?? null,
+            $datos['mensaje']
+        );
+
+        $this->respSinError();
+        $this->setDataResponse($resultado['respuesta'], 'respuesta');
+        $this->setDataResponse($resultado['conversacion_id'], 'conversacion_id');
+        $this->setDataResponse($resultado['derivar_whatsapp'], 'derivar_whatsapp');
 
         return $this->sendResponse();
     }
