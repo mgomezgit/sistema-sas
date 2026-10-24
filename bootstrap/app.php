@@ -45,10 +45,16 @@ return Application::configure(basePath: dirname(__DIR__))
          * hay sesión que suplantar, no escribe nada del visitante, y lo
          * protegen su limitador por IP ("chatbot-mensaje"), el tope de
          * mensajes por conversación y los límites mensuales del módulo.
+         *
+         * Y "terminar conversación" también: solo olvida el historial de una
+         * conversación identificada por un id aleatorio de 40 caracteres que
+         * quien lo envía ya tiene, responde siempre lo mismo y lo protege su
+         * limitador por IP ("chatbot-terminar").
          */
         $middleware->validateCsrfTokens(except: [
             'publico/*/agendar',
             'publico/*/chatbot/mensaje',
+            'publico/*/chatbot/terminar',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

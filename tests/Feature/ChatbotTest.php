@@ -6,6 +6,7 @@ use App\Ai\Agents\AsistenteNegocio;
 use App\Service\SvcChatbot;
 use App\Service\SvcModulo;
 use GuzzleHttp\Psr7\Response as Psr7Response;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -81,6 +82,31 @@ use Tests\TestCase;
  *      test_un_conversacion_id_de_a_en_el_slug_de_b_es_una_conversacion_nueva.
  *
  * Tras restaurar cada una: 38 passed.
+ *
+ * AJUSTE DE VENCIMIENTO / TERMINAR / LIMPIEZA (52 tests). Mutaciones:
+ *
+ *   A. terminar() sin comprobar el negocio (borra la clave de la conversación
+ *      en TODOS los negocios, no solo en el del slug).
+ *      Resultado: 51 passed, 1 FAILED —
+ *      test_terminar_con_el_id_de_a_en_el_slug_de_b_no_borra_la_conversacion_de_a.
+ *      (Un primer intento con sed rompió el código con un error 500 y habría
+ *      "demostrado" otra cosa; se rehízo con un reemplazo exacto.)
+ *   B. Sin renovación del plazo (Cache::add en vez de Cache::put al guardar
+ *      el turno: ni el historial ni el vencimiento se actualizan).
+ *      Resultado: 49 passed, 3 FAILED —
+ *      test_cada_mensaje_renueva_el_plazo_de_inactividad (la de los 14
+ *      minutos) y, de rebote, test_el_historial_nunca_supera_el_maximo_de_turnos
+ *      y test_una_conversacion_tiene_un_tope_de_mensajes.
+ *   C. La limpieza borra también las filas vigentes (sin el where de
+ *      expiración sobre la tabla cache).
+ *      Resultado: 50 passed, 2 FAILED —
+ *      test_el_comando_borra_solo_las_filas_vencidas_y_deja_las_vigentes y
+ *      test_el_comando_es_idempotente.
+ *   D. (Extra) terminar sin su limitador (->middleware('throttle:chatbot-terminar')).
+ *      Resultado: 49 passed, 3 FAILED — el guardián de rutas, el de la
+ *      petición 21 y el de cupo propio.
+ *
+ * Tras restaurar cada una: 52 passed.
  */
 class ChatbotTest extends TestCase
 {
@@ -108,7 +134,8 @@ class ChatbotTest extends TestCase
             'chatbot.longitud_maxima_mensaje' => 500,
             'chatbot.max_turnos_recordados' => 6,
             'chatbot.max_mensajes_por_conversacion' => 20,
-            'chatbot.vida_conversacion_minutos' => 30,
+            'chatbot.vida_conversacion_minutos' => 15,
+            'chatbot.terminar_por_minuto_ip' => 20,
             'chatbot.espera_bloqueo_segundos' => 0,
             'chatbot.proveedor' => 'openai',
             'chatbot.modelo' => 'gpt-6-luna',
@@ -553,8 +580,8 @@ class ChatbotTest extends TestCase
         $nuevo = $this->mensaje('spa-aurora', 'Hola', ['conversacion_id' => $inventado])->json('data.conversacion_id');
         $this->assertNotSame($inventado, $nuevo);
 
-        // Vence a los 30 minutos.
-        Carbon::setTestNow(Carbon::now()->addMinutes(31));
+        // Vence a los 15 minutos de inactividad (antes eran 30).
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
         $this->travelTo(Carbon::now());
         $otro = $this->mensaje('spa-aurora', 'Sigo aqui?', ['conversacion_id' => $nuevo])->json('data.conversacion_id');
         $this->assertNotSame($nuevo, $otro);
@@ -914,9 +941,9 @@ class ChatbotTest extends TestCase
     /* ================= GUARDIÁN DE RUTAS ================= */
 
     /**
-     * Las rutas del chatbot son exactamente dos, públicas (sin sesión), con
-     * el throttle del grupo, y el mensaje con su limitador propio. Si alguien
-     * agrega otra ruta de chatbot (o le quita el limitador al mensaje), esta
+     * Las rutas del chatbot son exactamente tres, públicas (sin sesión), con
+     * el throttle del grupo, y mensaje y terminar con su limitador propio. Si
+     * alguien agrega otra ruta de chatbot (o le quita un limitador), esta
      * prueba lo obliga a pasar por aquí.
      */
     public function test_guardian_de_rutas_del_chatbot(): void
@@ -926,7 +953,11 @@ class ChatbotTest extends TestCase
             ->mapWithKeys(fn ($r) => [implode('|', $r->methods()).' '.$r->uri() => $r->gatherMiddleware()]);
 
         $this->assertEqualsCanonicalizing(
-            ['GET|HEAD publico/{slug}/chatbot/estado', 'POST publico/{slug}/chatbot/mensaje'],
+            [
+                'GET|HEAD publico/{slug}/chatbot/estado',
+                'POST publico/{slug}/chatbot/mensaje',
+                'POST publico/{slug}/chatbot/terminar',
+            ],
             $rutas->keys()->all()
         );
 
@@ -936,5 +967,299 @@ class ChatbotTest extends TestCase
         }
 
         $this->assertContains('throttle:chatbot-mensaje', $rutas['POST publico/{slug}/chatbot/mensaje']);
+        $this->assertContains('throttle:chatbot-terminar', $rutas['POST publico/{slug}/chatbot/terminar']);
+    }
+
+    /* ================= VENCIMIENTO POR INACTIVIDAD ================= */
+
+    public function test_la_vida_de_la_conversacion_por_defecto_es_de_15_minutos(): void
+    {
+        $this->assertSame(15, (require base_path('config/chatbot.php'))['vida_conversacion_minutos']);
+    }
+
+    /**
+     * Cada turno guardado renueva el plazo COMPLETO: no cuenta desde que se
+     * creó la conversación sino desde el último mensaje.
+     */
+    public function test_cada_mensaje_renueva_el_plazo_de_inactividad(): void
+    {
+        config(['chatbot.mensajes_por_minuto_ip' => 100]);
+        $this->fakeResponde();
+
+        $id = $this->mensaje('spa-aurora', 'Primero')->json('data.conversacion_id');
+
+        // 14 minutos después del último mensaje: sigue viva y el asistente recibe el historial.
+        Carbon::setTestNow(Carbon::now()->addMinutes(14));
+        $this->mensaje('spa-aurora', 'Segundo', ['conversacion_id' => $id])->assertJsonPath('data.conversacion_id', $id);
+
+        // Otros 14 (28 desde el inicio, más que los 15): sigue viva porque el
+        // segundo mensaje extendió el plazo otros 15.
+        Carbon::setTestNow(Carbon::now()->addMinutes(14));
+        $this->mensaje('spa-aurora', 'Tercero', ['conversacion_id' => $id])->assertJsonPath('data.conversacion_id', $id);
+
+        $prompts = $this->promptsRecibidos();
+        $this->assertSame([], $prompts[0]->messages);
+        $this->assertCount(2, $prompts[1]->messages, 'A los 14 minutos conserva el historial');
+        $this->assertCount(4, $prompts[2]->messages, 'A los 28 desde el inicio, el segundo mensaje extendió el plazo');
+
+        // 16 minutos sin actividad: el historial ya no existe y es una conversación nueva.
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+        $nueva = $this->mensaje('spa-aurora', 'Cuarto', ['conversacion_id' => $id])->json('data.conversacion_id');
+
+        $this->assertNotSame($id, $nueva);
+        $this->assertSame([], $this->promptsRecibidos()[3]->messages);
+    }
+
+    /* ================= TERMINAR CONVERSACIÓN ================= */
+
+    private function terminar(string $slug, mixed $conversacionId, string $ip = '10.0.0.1')
+    {
+        return $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->postJson('publico/'.$slug.'/chatbot/terminar', ['conversacion_id' => $conversacionId]);
+    }
+
+    public function test_despues_de_terminar_el_siguiente_mensaje_llega_a_la_ia_sin_historial(): void
+    {
+        $this->fakeResponde();
+
+        $id = $this->mensaje('spa-aurora', 'Primera pregunta')->json('data.conversacion_id');
+        $this->mensaje('spa-aurora', 'Segunda', ['conversacion_id' => $id]);
+        $this->assertCount(2, $this->promptsRecibidos()[1]->messages, 'Antes de terminar sí hay historial');
+
+        $this->terminar('spa-aurora', $id)->assertOk();
+
+        $despues = $this->mensaje('spa-aurora', 'Tercera', ['conversacion_id' => $id]);
+        $despues->assertJsonPath('error', 0);
+        $this->assertNotSame($id, $despues->json('data.conversacion_id'));
+
+        $prompts = $this->promptsRecibidos();
+        $this->assertCount(3, $prompts);
+        $this->assertSame([], $prompts[2]->messages, 'Tras terminar no queda historial');
+    }
+
+    public function test_terminar_no_llama_a_la_ia_ni_toca_el_contador_de_uso(): void
+    {
+        $this->fakeResponde();
+        $id = $this->mensaje('spa-aurora', 'Hola')->json('data.conversacion_id');
+        $antes = $this->uso($this->negocioA);
+
+        $this->terminar('spa-aurora', $id)->assertOk();
+        $this->terminar('spa-aurora', $id)->assertOk();
+        $this->terminar('spa-aurora', str_repeat('z', 40))->assertOk();
+
+        $this->assertSame($antes, $this->uso($this->negocioA));
+        AsistenteNegocio::assertPromptedTimes(1);
+    }
+
+    /**
+     * La respuesta es la misma byte a byte: no revela si la conversación
+     * existía, si era de este negocio o de otro, ni si el id tenía formato válido.
+     */
+    public function test_la_respuesta_de_terminar_es_identica_para_cualquier_caso(): void
+    {
+        $this->fakeResponde();
+        $propia = $this->mensaje('casa-brisa', 'Hola')->json('data.conversacion_id');
+        $deOtroNegocio = $this->mensaje('spa-aurora', 'Hola')->json('data.conversacion_id');
+
+        $respuestas = [
+            'propia' => $this->terminar('casa-brisa', $propia),
+            'inexistente' => $this->terminar('casa-brisa', str_repeat('b', 40)),
+            'de otro negocio' => $this->terminar('casa-brisa', $deOtroNegocio),
+            'formato invalido' => $this->terminar('casa-brisa', 'corto'),
+            'sin id' => $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.1'])->postJson('publico/casa-brisa/chatbot/terminar', []),
+            'id no texto' => $this->terminar('casa-brisa', ['x']),
+        ];
+
+        $referencia = $respuestas['propia']->getContent();
+        $this->assertSame('{"error":0,"mensaje":"","data":[]}', $referencia);
+
+        foreach ($respuestas as $caso => $respuesta) {
+            $respuesta->assertOk();
+            $this->assertSame($referencia, $respuesta->getContent(), 'Respuesta distinta en el caso: '.$caso);
+        }
+    }
+
+    /**
+     * AISLAMIENTO: el id de A enviado al slug de B no borra la conversación de A.
+     */
+    public function test_terminar_con_el_id_de_a_en_el_slug_de_b_no_borra_la_conversacion_de_a(): void
+    {
+        $this->fakeResponde();
+        $idA = $this->mensaje('spa-aurora', 'Pregunta de A')->json('data.conversacion_id');
+
+        $this->terminar('casa-brisa', $idA)->assertOk()->assertExactJson(['error' => 0, 'mensaje' => '', 'data' => []]);
+
+        // A conserva su historial.
+        $this->mensaje('spa-aurora', 'Sigo en A', ['conversacion_id' => $idA])->assertJsonPath('data.conversacion_id', $idA);
+        $this->assertCount(2, $this->promptsRecibidos()[1]->messages, 'La conversación de A debe seguir intacta');
+
+        // Y terminar en el slug correcto sí la borra.
+        $this->terminar('spa-aurora', $idA)->assertOk();
+        $this->mensaje('spa-aurora', 'Ya no hay historial', ['conversacion_id' => $idA]);
+        $this->assertSame([], $this->promptsRecibidos()[2]->messages);
+    }
+
+    public function test_terminar_con_slug_inexistente_o_negocio_suspendido_da_404(): void
+    {
+        DB::table('negocios')->where('id_negocio', $this->negocioB)->update(['estado' => 0]);
+
+        $this->terminar('no-existe', str_repeat('a', 40))->assertNotFound();
+        $this->terminar('casa-brisa', str_repeat('a', 40))->assertNotFound();
+    }
+
+    public function test_el_peticion_21_de_terminar_por_minuto_recibe_429_y_otra_ip_no_comparte_el_limite(): void
+    {
+        for ($i = 1; $i <= 20; $i++) {
+            $this->terminar('spa-aurora', str_repeat('a', 40), '10.7.7.7')->assertOk();
+        }
+
+        $this->terminar('spa-aurora', str_repeat('a', 40), '10.7.7.7')
+            ->assertStatus(429)
+            ->assertExactJson([
+                'error' => 1,
+                'mensaje' => 'Hiciste muchas peticiones seguidas. Espera un momento e inténtalo de nuevo.',
+                'data' => [],
+            ]);
+
+        $this->terminar('spa-aurora', str_repeat('a', 40), '10.8.8.8')->assertOk();
+    }
+
+    /**
+     * Terminar tiene su propio cupo por IP: agotarlo no le quita a la misma
+     * IP el de mensajes, ni al revés.
+     */
+    public function test_el_limitador_de_terminar_no_comparte_cupo_con_el_de_mensajes(): void
+    {
+        $this->fakeResponde();
+        config(['chatbot.terminar_por_minuto_ip' => 2]);
+
+        $this->terminar('spa-aurora', str_repeat('a', 40), '10.9.9.9')->assertOk();
+        $this->terminar('spa-aurora', str_repeat('a', 40), '10.9.9.9')->assertOk();
+        $this->terminar('spa-aurora', str_repeat('a', 40), '10.9.9.9')->assertStatus(429);
+
+        $this->mensaje('spa-aurora', 'Hola', [], '10.9.9.9')->assertOk()->assertJsonPath('error', 0);
+    }
+
+    public function test_un_payload_xss_en_conversacion_id_no_rompe_nada_ni_se_devuelve(): void
+    {
+        $this->fakeResponde();
+        $id = $this->mensaje('spa-aurora', 'Hola')->json('data.conversacion_id');
+        $payload = '<img src=x onerror=alert(1)>';
+
+        $respuesta = $this->terminar('spa-aurora', $payload);
+
+        $respuesta->assertOk()->assertExactJson(['error' => 0, 'mensaje' => '', 'data' => []]);
+        $this->assertStringNotContainsString('onerror', $respuesta->getContent());
+        $this->assertStringNotContainsString('<img', $respuesta->getContent());
+
+        // La conversación real no se tocó.
+        $this->mensaje('spa-aurora', 'Sigo', ['conversacion_id' => $id])->assertJsonPath('data.conversacion_id', $id);
+        $this->assertCount(2, $this->promptsRecibidos()[1]->messages);
+    }
+
+    /* ================= LIMPIEZA DE LA CACHÉ VENCIDA ================= */
+
+    /** Inserta una fila en la tabla de caché (o de bloqueos) con la expiración dada. */
+    private function filaCache(string $tabla, string $clave, int $expiracion): void
+    {
+        $fila = ['key' => $clave, 'expiration' => $expiracion];
+
+        DB::table($tabla)->insert($tabla === 'cache'
+            ? $fila + ['value' => 's:1:"x";']
+            : $fila + ['owner' => 'prueba']);
+    }
+
+    private function conteoDeOtrasTablas(): array
+    {
+        $conteos = [];
+
+        foreach (DB::select("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'") as $tabla) {
+            if (! in_array($tabla->name, ['cache', 'cache_locks'], true)) {
+                $conteos[$tabla->name] = DB::table($tabla->name)->count();
+            }
+        }
+
+        return $conteos;
+    }
+
+    public function test_el_comando_borra_solo_las_filas_vencidas_y_deja_las_vigentes(): void
+    {
+        $ahora = Carbon::now()->getTimestamp();
+
+        $this->filaCache('cache', 'plataforma-reservas-cache-chatbot:conversacion:1:vencida', $ahora - 60);
+        $this->filaCache('cache', 'plataforma-reservas-cache-limitador-vencido', $ahora - 1);
+        $this->filaCache('cache', 'plataforma-reservas-cache-limitador-vencido:timer', $ahora - 1);
+        $this->filaCache('cache', 'plataforma-reservas-cache-chatbot:conversacion:1:viva', $ahora + 600);
+        $this->filaCache('cache', 'plataforma-reservas-cache-limitador-vivo', $ahora + 30);
+        $this->filaCache('cache', 'plataforma-reservas-cache-limitador-vivo:timer', $ahora + 30);
+        $this->filaCache('cache_locks', 'plataforma-reservas-cache-lock-vencido', $ahora - 10);
+        $this->filaCache('cache_locks', 'plataforma-reservas-cache-lock-vivo', $ahora + 10);
+
+        $otras = $this->conteoDeOtrasTablas();
+
+        $this->artisan('chatbot:limpiar-cache-vencida')
+            ->expectsOutput('Filas vencidas borradas de cache: 3')
+            ->expectsOutput('Filas vencidas borradas de cache_locks: 1')
+            ->assertExitCode(0);
+
+        $this->assertEqualsCanonicalizing([
+            'plataforma-reservas-cache-chatbot:conversacion:1:viva',
+            'plataforma-reservas-cache-limitador-vivo',
+            'plataforma-reservas-cache-limitador-vivo:timer',
+        ], DB::table('cache')->pluck('key')->all());
+        $this->assertSame(['plataforma-reservas-cache-lock-vivo'], DB::table('cache_locks')->pluck('key')->all());
+
+        $this->assertSame($otras, $this->conteoDeOtrasTablas(), 'No debe tocar ninguna otra tabla');
+    }
+
+    public function test_el_comando_es_idempotente(): void
+    {
+        $ahora = Carbon::now()->getTimestamp();
+        $this->filaCache('cache', 'plataforma-reservas-cache-vencida', $ahora - 5);
+        $this->filaCache('cache', 'plataforma-reservas-cache-viva', $ahora + 5);
+
+        $this->artisan('chatbot:limpiar-cache-vencida')->expectsOutput('Filas vencidas borradas de cache: 1')->assertExitCode(0);
+        $this->artisan('chatbot:limpiar-cache-vencida')
+            ->expectsOutput('Filas vencidas borradas de cache: 0')
+            ->expectsOutput('Filas vencidas borradas de cache_locks: 0')
+            ->assertExitCode(0);
+
+        $this->assertSame(['plataforma-reservas-cache-viva'], DB::table('cache')->pluck('key')->all());
+    }
+
+    /**
+     * El camino real: una conversación abandonada que venció SIGUE en la
+     * tabla de caché (la caché database no la borra sola) hasta que corre el
+     * comando. Usa el almacén database de verdad.
+     */
+    public function test_una_conversacion_abandonada_sigue_en_la_tabla_hasta_que_corre_el_comando(): void
+    {
+        $almacen = Cache::store('database');
+        $almacen->put('chatbot:conversacion:1:abandonada', ['turnos' => [['role' => 'user', 'content' => 'texto del visitante']]], Carbon::now()->addMinutes(15));
+
+        Carbon::setTestNow(Carbon::now()->addMinutes(16));
+
+        $this->assertSame(1, DB::table('cache')->where('key', 'like', '%abandonada%')->count(), 'La caché database no la borra sola');
+
+        $this->artisan('chatbot:limpiar-cache-vencida')->assertExitCode(0);
+
+        $this->assertSame(0, DB::table('cache')->where('key', 'like', '%abandonada%')->count());
+    }
+
+    public function test_el_comando_esta_programado_cada_hora_fuera_de_los_otros_horarios(): void
+    {
+        $eventos = collect(app(Schedule::class)->events());
+
+        $evento = $eventos->first(fn ($e) => str_contains($e->command ?? '', 'chatbot:limpiar-cache-vencida'));
+
+        $this->assertNotNull($evento, 'El comando no está en el Scheduler');
+        $this->assertSame('17 * * * *', $evento->expression);
+
+        // El minuto 17 no coincide con ningún otro comando programado en punto.
+        foreach ($eventos as $otro) {
+            if ($otro !== $evento) {
+                $this->assertStringStartsNotWith('17 ', $otro->expression, 'Choca con '.$otro->command);
+            }
+        }
     }
 }

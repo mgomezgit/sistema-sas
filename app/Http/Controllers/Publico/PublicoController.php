@@ -318,4 +318,28 @@ class PublicoController extends Controller
 
         return $this->sendResponse();
     }
+
+    /**
+     * El visitante termina su conversación ("Nueva conversación"): el
+     * servidor olvida el historial de inmediato.
+     *
+     * Responde SIEMPRE lo mismo ({error:0,mensaje:"",data:[]}): exista la
+     * conversación o no, sea de este negocio o de otro, o el id ni siquiera
+     * tenga el formato que genera el servidor. Desde fuera no se puede
+     * averiguar nada. Solo borra la conversación de ESTE negocio (el tenant
+     * sale del slug). No llama a la IA, no suma al contador de uso ni gasta
+     * el límite mensual. Nunca devuelve ni refleja el conversacion_id.
+     */
+    public function chatbotTerminar(string $slug): JsonResponse
+    {
+        $negocio = $this->negocioPorSlug($slug);
+
+        $datos = $this->getRequestData();
+
+        (new SvcChatbot)->terminar($negocio->id_negocio, $datos['conversacion_id'] ?? null);
+
+        $this->respSinError();
+
+        return $this->sendResponse();
+    }
 }

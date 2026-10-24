@@ -39,3 +39,12 @@ Schedule::command('productos:enviar-resumen-stock-bajo')->twiceDaily(8, 18);
 | Prueba manual: "php artisan auth:limpiar-pendientes-vencidos".
 */
 Schedule::command('auth:limpiar-pendientes-vencidos')->dailyAt('03:00');
+
+/*
+| Limpieza de la caché vencida: la caché tipo database solo borra una fila
+| cuando alguien lee esa misma clave, así que las conversaciones abandonadas
+| del chatbot se quedarían guardadas. Cada hora, en el minuto 17 para no
+| coincidir con los comandos de las 03:00, 08:00 y 18:00.
+| Prueba manual: "php artisan chatbot:limpiar-cache-vencida".
+*/
+Schedule::command('chatbot:limpiar-cache-vencida')->hourlyAt(17);

@@ -94,5 +94,23 @@ class AppServiceProvider extends ServiceProvider
                     ->response($respuesta),
             ];
         });
+
+        /*
+         * "Terminar conversación" del chatbot, por IP. No cuesta una llamada
+         * de pago, pero es público y escribe en la caché. Tiene su propia
+         * clave ('terminar:') para no gastar el cupo de mensajes de la misma
+         * IP. Mismo formato de error 429 que el limitador de mensajes.
+         */
+        RateLimiter::for('chatbot-terminar', function (Request $request) {
+            return Limit::perMinute((int) config('chatbot.terminar_por_minuto_ip'))
+                ->by('terminar:'.$request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'error' => 1,
+                        'mensaje' => 'Hiciste muchas peticiones seguidas. Espera un momento e inténtalo de nuevo.',
+                        'data' => [],
+                    ], 429);
+                });
+        });
     }
 }

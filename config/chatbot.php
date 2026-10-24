@@ -31,8 +31,12 @@ return [
     // por WhatsApp (además del límite por IP de la ruta).
     'max_mensajes_por_conversacion' => (int) env('CHATBOT_MAX_MENSAJES_CONVERSACION', 20),
 
-    // Minutos que vive una conversación en la caché del servidor.
-    'vida_conversacion_minutos' => (int) env('CHATBOT_VIDA_CONVERSACION', 30),
+    // Minutos de INACTIVIDAD tras los que el servidor olvida una conversación.
+    // El plazo se renueva completo con cada mensaje guardado, y el visitante
+    // puede terminarla antes (publico/{slug}/chatbot/terminar). Una limpieza
+    // horaria (chatbot:limpiar-cache-vencida) borra de la caché las filas ya
+    // vencidas, para que los mensajes no queden guardados más de lo previsto.
+    'vida_conversacion_minutos' => (int) env('CHATBOT_VIDA_CONVERSACION', 15),
 
     // Tope de tokens de salida por respuesta.
     'tokens_max_salida' => (int) env('CHATBOT_TOKENS_MAX_SALIDA', 300),
@@ -58,4 +62,8 @@ return [
     // Límites por IP de la ruta del mensaje.
     'mensajes_por_minuto_ip' => (int) env('CHATBOT_MENSAJES_MINUTO_IP', 6),
     'mensajes_por_hora_ip' => (int) env('CHATBOT_MENSAJES_HORA_IP', 40),
+
+    // Límite por IP del endpoint "terminar conversación" (no cuesta nada, pero
+    // es público y escribe en la caché).
+    'terminar_por_minuto_ip' => (int) env('CHATBOT_TERMINAR_MINUTO_IP', 20),
 ];

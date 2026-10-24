@@ -57,6 +57,9 @@ Route::prefix('publico/{slug}')->middleware('throttle:60,1')->group(function () 
     Route::get('chatbot/estado', [App\Http\Controllers\Publico\PublicoController::class, 'chatbotEstado']);
     Route::post('chatbot/mensaje', [App\Http\Controllers\Publico\PublicoController::class, 'chatbotMensaje'])
         ->middleware('throttle:chatbot-mensaje');
+    // El visitante termina su conversación: el servidor olvida el historial.
+    Route::post('chatbot/terminar', [App\Http\Controllers\Publico\PublicoController::class, 'chatbotTerminar'])
+        ->middleware('throttle:chatbot-terminar');
 });
 
 // El login es la única ruta de request/* que se llama sin sesión (junto al

@@ -8,6 +8,7 @@ use App\Models\Negocio;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -429,6 +430,63 @@ class SvcChatbot
             );
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
+        }
+    }
+
+    /**
+     * El visitante termina su conversación: el servidor olvida el historial
+     * de inmediato.
+     *
+     * Solo borra la conversación de ESTE negocio: la clave lleva el tenant,
+     * así que un id de otro negocio apunta a una clave que no existe y no
+     * borra nada. No devuelve nada a propósito: quien llama responde lo mismo
+     * exista la conversación o no. Un id con formato distinto al que genera
+     * el servidor no toca la caché. No llama a la IA ni toca los contadores.
+     */
+    public function terminar($tenantId, $conversacionId): void
+    {
+        try {
+            if (empty($tenantId) || ! is_string($conversacionId) || ! preg_match('/^[A-Za-z0-9]{40}$/', $conversacionId)) {
+                return;
+            }
+
+            Cache::forget($this->claveCache($tenantId, $conversacionId));
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+        }
+    }
+
+    /**
+     * ⚠️ PROCESO DE SISTEMA (comando del Scheduler, sin sesión ni tenant): la
+     * tabla de caché y la de bloqueos no son datos de ningún negocio.
+     *
+     * La caché tipo database solo borra una fila vencida cuando alguien lee
+     * esa misma clave (y los bloqueos, por sorteo del 2 %). Una conversación
+     * abandonada nunca se vuelve a leer, así que su texto se quedaría ahí.
+     * Esto borra SOLO las filas con expiración anterior a ahora, de ambas
+     * tablas. Devuelve cuántas borró de cada una, o false si falló.
+     *
+     * @return array{cache: int, locks: int}|false
+     */
+    public function limpiarCacheVencida(): array|false
+    {
+        try {
+            $ahora = Carbon::now()->getTimestamp();
+            $almacen = config('cache.stores.database', []);
+            $conexion = DB::connection($almacen['connection'] ?? null);
+
+            return [
+                'cache' => $conexion->table($almacen['table'] ?? 'cache')
+                    ->where('expiration', '<', $ahora)
+                    ->delete(),
+                'locks' => $conexion->table($almacen['lock_table'] ?? 'cache_locks')
+                    ->where('expiration', '<', $ahora)
+                    ->delete(),
+            ];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
         }
     }
 
