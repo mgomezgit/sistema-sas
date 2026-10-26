@@ -143,6 +143,14 @@ Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->
         Route::post('comisiones/pagos/anular', [App\Http\Controllers\Request\ComisionController::class, 'anularPago']);
     });
 
+    // Asistente creativo: módulo de pago, solo del admin del negocio. Solo
+    // PROPONE textos (no guarda nada en banners ni servicios). Generar además
+    // tiene su propio limitador por usuario (ver AppServiceProvider).
+    Route::middleware('verificar.modulo:ia')->group(function () {
+        Route::get('ia/estado', [App\Http\Controllers\Request\IaController::class, 'estado']);
+        Route::post('ia/generar', [App\Http\Controllers\Request\IaController::class, 'generar'])->middleware('throttle:ia-generar');
+    });
+
     Route::post('banner/crear', [App\Http\Controllers\Request\BannerPromocionalController::class, 'crear']);
     Route::post('banner/editar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'editar']);
     Route::post('banner/eliminar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'eliminar']);

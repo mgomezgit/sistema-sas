@@ -133,6 +133,15 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 - Límite mensual por negocio, tope global de la plataforma y limitador por IP se comprueban ANTES de llamar a la IA. La respuesta pública nunca revela uso, límites ni restantes.
 - Nunca una clave de API en el repositorio, en logs ni en reportes: vive solo en .env (OPENAI_API_KEY). Los fallos del proveedor se registran sin el texto de la excepción ni el mensaje del visitante.
 
+## Asistente creativo (módulo de pago "ia")
+
+- La IA SOLO PROPONE: devuelve opciones de texto (banner, frase, descripción de servicio) y nunca guarda ni publica nada. SvcIA no escribe en banners, servicios ni ninguna tabla de contenido; el admin decide qué copiar y dónde. El agente (App\Ai\Agents\RedactorCreativo) no tiene herramientas ni memoria.
+- El texto generado se trata como texto escrito por una persona: el servidor lo limpia a texto plano (sin HTML, URLs, menciones ni emojis) y el frontend lo pinta como texto (textContent/.text() o escaparTexto()), nunca como HTML.
+- Ningún dato de clientas sale hacia la IA. Recibe solo nombre y rubro del negocio, el tema que escribe el admin y, para descripciones, nombre/categoría/duración de UN servicio activo de ESE negocio (sin precio). Todo dato escrito por personas va en el bloque <DATOS> del mensaje, nunca en el system prompt.
+- El módulo 'ia' nace APAGADO y lo activa el super admin por negocio. Límite mensual por negocio (negocios.ia_limite_mensual o config('ia.limite_mensual')) y tope global de la plataforma, ambos comprobados y reservados ANTES de llamar a la IA; un fallo del proveedor o una salida sin opciones válidas no gasta cupo. Limitador por usuario en request/ia/generar.
+- El historial (ia_actividad) guarda SOLO metadatos: quién, cuándo, tipo, tono, estado y tokens. Nunca el texto generado ni el tema.
+- Cualquier cambio que le dé al asistente acciones o herramientas (guardar, publicar, leer datos por su cuenta) requiere una revisión de seguridad aparte antes de construirse.
+
 ## Seguridad y autenticación
 
 - Sesión manual de Laravel (session()), NUNCA Auth:: nativo ni middleware auth.

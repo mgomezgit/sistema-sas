@@ -112,5 +112,35 @@ class AppServiceProvider extends ServiceProvider
                     ], 429);
                 });
         });
+
+        /*
+         * Generaciones del asistente creativo, por USUARIO (no por IP: es una
+         * ruta con sesión, y dos admins detrás de la misma conexión no deben
+         * compartir cupo). Un límite por minuto y otro por hora
+         * (config/ia.php). Cada generación es una llamada de pago, así que
+         * esto protege el saldo además del límite mensual del negocio. Sin
+         * sesión (que de todos modos rebota en sesion.activa) cae a la IP.
+         */
+        RateLimiter::for('ia-generar', function (Request $request) {
+            $idUsuario = session('id_usuario');
+            $clave = $idUsuario !== null ? 'usuario:'.$idUsuario : 'ip:'.$request->ip();
+
+            $respuesta = function () {
+                return response()->json([
+                    'error' => 1,
+                    'mensaje' => 'Pediste muchas propuestas seguidas. Espera un momento e inténtalo de nuevo.',
+                    'data' => [],
+                ], 429);
+            };
+
+            return [
+                Limit::perMinute((int) config('ia.generaciones_por_minuto_usuario'))
+                    ->by('ia-minuto:'.$clave)
+                    ->response($respuesta),
+                Limit::perHour((int) config('ia.generaciones_por_hora_usuario'))
+                    ->by('ia-hora:'.$clave)
+                    ->response($respuesta),
+            ];
+        });
     }
 }
