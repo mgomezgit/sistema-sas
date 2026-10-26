@@ -98,6 +98,40 @@
             font-size: 0.8rem;
             margin-top: 0.15rem;
         }
+
+        /* Uso y límite del chatbot, debajo de su interruptor. */
+        .bloque-chatbot-uso {
+            padding: 0.9rem 1rem 1rem;
+            margin: 0 0 0.85rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: color-mix(in srgb, var(--accent) 6%, transparent);
+        }
+
+        .bloque-chatbot-uso .uso-chatbot-texto {
+            color: var(--text-primary);
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
+
+        .bloque-chatbot-uso .etiqueta-chatbot-bloqueado {
+            display: inline-block;
+            margin-left: 0.5rem;
+            padding: 0.1rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            border: 1px solid var(--danger);
+            background: var(--danger-soft);
+        }
+
+        .bloque-chatbot-uso .ayuda-chatbot {
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            margin-top: 0.35rem;
+            line-height: 1.4;
+        }
     </style>
 @endsection
 
@@ -367,10 +401,139 @@
                         '<span class="pista-interruptor"></span>' +
                     '</label>' +
                 '</div>';
+
+                // Chatbot activo: debajo de su interruptor van el uso del mes
+                // y el límite. Se arma aparte (cargarBloqueChatbot) con
+                // createElement/textContent. Inactivo: no se muestra nada.
+                if (modulo.clave === 'chatbot' && activo) {
+                    html += '<div class="bloque-chatbot-uso" id="bloque-chatbot-uso">' +
+                        '<div class="panel-campana-cargando">Cargando...</div>' +
+                    '</div>';
+                }
             });
 
             lista.html(html);
+
+            if (document.getElementById('bloque-chatbot-uso')) {
+                cargarBloqueChatbot();
+            }
         }
+
+        /* ---------- Chatbot: uso del mes y límite mensual ---------- */
+
+        function formatoNumero(valor) {
+            return Number(valor || 0).toLocaleString('es-CO');
+        }
+
+        function crearElemento(etiqueta, clase, texto) {
+            var elemento = document.createElement(etiqueta);
+
+            if (clase) {
+                elemento.className = clase;
+            }
+
+            if (texto !== undefined) {
+                elemento.textContent = texto;
+            }
+
+            return elemento;
+        }
+
+        function cargarBloqueChatbot() {
+            var idPedido = idNegocioEnModalModulos;
+
+            // Con silenciarError el callback no corre si falla; se usa el valor devuelto.
+            axiosSipleInterno('GET', 'request/superadmin/chatbot/uso', { id_negocio: idPedido }, {}, false, undefined, { silenciarError: true }).then(function (respuesta) {
+                // Si mientras tanto se abrió otro negocio, esta respuesta ya no aplica.
+                if (idPedido !== idNegocioEnModalModulos || !document.getElementById('bloque-chatbot-uso')) {
+                    return;
+                }
+
+                if (!respuesta || respuesta.error != 0 || !respuesta.data || !respuesta.data.negocios || respuesta.data.negocios.length === 0) {
+                    pintarBloqueChatbot(null, null);
+
+                    return;
+                }
+
+                pintarBloqueChatbot(respuesta.data.negocios[0], respuesta.data.limite_por_defecto);
+            });
+        }
+
+        // Todo texto con textContent: nunca como HTML.
+        function pintarBloqueChatbot(fila, limitePorDefecto) {
+            var bloque = document.getElementById('bloque-chatbot-uso');
+
+            while (bloque.firstChild) {
+                bloque.removeChild(bloque.firstChild);
+            }
+
+            if (fila === null) {
+                bloque.appendChild(crearElemento('div', 'sin-modulos-fila', 'No pudimos leer el uso del chatbot. Cierra y vuelve a abrir esta ventana.'));
+
+                return;
+            }
+
+            var uso = crearElemento('div', 'uso-chatbot-texto',
+                'Uso este mes: ' + formatoNumero(fila.mensajes) + ' mensajes de ' + formatoNumero(fila.limite_efectivo) +
+                ' (' + formatoNumero(fila.tokens_entrada) + ' tokens de entrada / ' + formatoNumero(fila.tokens_salida) + ' de salida)');
+
+            if (fila.limite_efectivo === 0) {
+                uso.appendChild(crearElemento('span', 'etiqueta-chatbot-bloqueado', 'Bloqueado'));
+            }
+
+            bloque.appendChild(uso);
+
+            var campo = crearElemento('div', 'campo-flotante sin-icono mt-3');
+            var entrada = crearElemento('input');
+            entrada.type = 'number';
+            entrada.id = 'limite-chatbot';
+            entrada.min = '0';
+            entrada.max = '10000';
+            entrada.step = '1';
+            entrada.placeholder = ' ';
+            entrada.setAttribute('inputmode', 'numeric');
+            entrada.value = fila.limite_propio === null ? '' : String(fila.limite_propio);
+
+            var etiqueta = crearElemento('label', null, 'Límite mensual');
+            etiqueta.setAttribute('for', 'limite-chatbot');
+
+            campo.appendChild(entrada);
+            campo.appendChild(etiqueta);
+            bloque.appendChild(campo);
+
+            bloque.appendChild(crearElemento('div', 'ayuda-chatbot',
+                'Vacío = valor por defecto (' + formatoNumero(limitePorDefecto) + ' al mes). 0 = el chatbot queda bloqueado para este negocio. Máximo 10.000.'));
+
+            var boton = crearElemento('button', 'btn-guardar-moderno mt-3');
+            boton.type = 'button';
+            boton.id = 'btn-guardar-limite-chatbot';
+            boton.appendChild(crearElemento('i', 'bi bi-check2 icono-guardar'));
+            boton.appendChild(crearElemento('span', null, 'Guardar'));
+            bloque.appendChild(boton);
+        }
+
+        jQuery('#lista-modulos-negocio').on('click', '#btn-guardar-limite-chatbot', function () {
+            var boton = jQuery(this);
+            var valor = document.getElementById('limite-chatbot').value.trim();
+
+            // Vacío = sin límite propio (null). Lo demás lo valida el servidor.
+            boton.addClass('ocupado').prop('disabled', true);
+
+            axiosSipleInterno('POST', 'request/superadmin/chatbot/limite', {}, {
+                id_negocio: idNegocioEnModalModulos,
+                limite: valor === '' ? null : valor
+            }, false, function (respuesta) {
+                boton.removeClass('ocupado').prop('disabled', false);
+
+                if (respuesta && respuesta.error == 0) {
+                    notificarUsuario('Límite del chatbot guardado', 'success');
+                    // Se refresca el bloque sin cerrar el modal.
+                    cargarBloqueChatbot();
+                } else if (respuesta) {
+                    notificarUsuario(respuesta.mensaje, 'error');
+                }
+            });
+        });
 
         function cargarModulosDelNegocio(idNegocio) {
             jQuery('#lista-modulos-negocio').html('<div class="panel-campana-cargando">Cargando...</div>');
@@ -424,6 +587,11 @@
                     // La tabla de fondo puede haber cambiado su columna de
                     // módulos activos: se refresca sin cerrar el modal.
                     cargarNegocios();
+
+                    // El bloque de uso del chatbot aparece o desaparece con su interruptor.
+                    if (clave === 'chatbot') {
+                        cargarModulosDelNegocio(idNegocioEnModalModulos);
+                    }
                 } else {
                     // El servidor lo rechazó: el interruptor vuelve a su
                     // posición anterior en vez de quedarse mostrando un

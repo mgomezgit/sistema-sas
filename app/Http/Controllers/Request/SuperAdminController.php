@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
+use App\Service\SvcChatbot;
 use App\Service\SvcModulo;
 use App\Service\SvcSuperAdmin;
 use Illuminate\Http\JsonResponse;
@@ -178,6 +179,111 @@ class SuperAdminController extends Controller
             $this->quienActua(),
             now()->format('Y-m-d H:i:s')
         ));
+
+        $this->respSinError();
+
+        return $this->sendResponse();
+    }
+
+    /* ================= CHATBOT: USO Y LÍMITE ================= */
+
+    const MENSAJE_MES_INVALIDO = 'El mes no es válido. Usa el formato AAAA-MM de un mes que ya empezó, por ejemplo 2026-10.';
+
+    const MENSAJE_LIMITE_INVALIDO = 'El límite debe estar vacío (usa el valor por defecto) o ser un número entero entre 0 y 10000. Con 0 el chatbot queda bloqueado para ese negocio.';
+
+    /**
+     * Uso del mes (el actual, o uno anterior con ?mes=AAAA-MM) de todos los
+     * negocios, o de uno solo con ?id_negocio. Solo números.
+     */
+    public function chatbotUso(): JsonResponse
+    {
+        $svcChatbot = new SvcChatbot;
+        $datos = $this->getRequestData();
+
+        $mes = $svcChatbot->normalizarMes($datos['mes'] ?? null);
+
+        if ($mes === null) {
+            $this->agregarError(self::MENSAJE_MES_INVALIDO);
+
+            return $this->sendResponse();
+        }
+
+        $idNegocio = null;
+
+        if (isset($datos['id_negocio'])) {
+            $this->setRequestValidationRules($this->reglaNegocio(), $this->mensajesValidacion());
+
+            if (! $this->validateRequestRules()) {
+                return $this->sendResponse();
+            }
+
+            $idNegocio = (int) $datos['id_negocio'];
+        }
+
+        $this->respSinError();
+        $this->setDataResponse([
+            'mes' => $mes,
+            // Sin límite propio (null) rige el valor por defecto: la misma regla de SvcChatbot.
+            'limite_por_defecto' => SvcChatbot::limiteEfectivo(null),
+            'negocios' => $this->svcSuperAdmin->usoChatbotDeTodosLosNegocios($mes, $idNegocio),
+        ]);
+
+        return $this->sendResponse();
+    }
+
+    /** Números agregados de la plataforma para la tarjeta del dashboard. */
+    public function chatbotResumen(): JsonResponse
+    {
+        $this->respSinError();
+        $this->setDataResponse($this->svcSuperAdmin->resumenChatbot((new SvcChatbot)->mesActual()), 'resumen');
+
+        return $this->sendResponse();
+    }
+
+    /**
+     * Fija o quita el límite mensual propio del chatbot de un negocio.
+     *
+     * Validación estricta: el negocio tiene que existir, y "limite" tiene que
+     * estar presente y ser vacío/null (usa el valor por defecto) o un entero
+     * de 0 a 10000. Nada más: ni negativos, ni decimales, ni texto, ni
+     * booleanos ni arreglos. Rechazado = no se toca nada.
+     */
+    public function chatbotLimite(): JsonResponse
+    {
+        $this->setRequestValidationRules($this->reglaNegocio(), $this->mensajesValidacion());
+
+        if (! $this->validateRequestRules()) {
+            return $this->sendResponse();
+        }
+
+        $datos = $this->getRequestData();
+
+        if (! array_key_exists('limite', $datos)) {
+            $this->agregarError(self::MENSAJE_LIMITE_INVALIDO);
+
+            return $this->sendResponse();
+        }
+
+        $valor = $datos['limite'];
+        $limite = null;
+
+        if ($valor !== null && $valor !== '') {
+            $esEntero = is_int($valor) || (is_string($valor) && preg_match('/^\d{1,5}$/', $valor) === 1);
+
+            if (! $esEntero || (int) $valor > SvcChatbot::LIMITE_MAXIMO_PROPIO || (int) $valor < 0) {
+                $this->agregarError(self::MENSAJE_LIMITE_INVALIDO);
+
+                return $this->sendResponse();
+            }
+
+            $limite = (int) $valor;
+        }
+
+        if (! $this->svcSuperAdmin->cambiarLimiteChatbot((int) $datos['id_negocio'], $limite, $this->quienActua())) {
+            $this->agregarErrorNoDisponible('el negocio', 'SA-CHATBOT-LIMITE');
+
+            return $this->sendResponse();
+        }
 
         $this->respSinError();
 

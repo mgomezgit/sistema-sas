@@ -180,13 +180,75 @@ class SvcChatbot
     public function limiteMensual($tenantId): int
     {
         try {
-            $propio = Negocio::where('id_negocio', $tenantId)->value('chatbot_limite_mensual');
-
-            return $propio !== null ? (int) $propio : (int) config('chatbot.limite_mensual');
+            return self::limiteEfectivo(Negocio::where('id_negocio', $tenantId)->value('chatbot_limite_mensual'));
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
             return 0;
+        }
+    }
+
+    /** Límite máximo que el super admin puede fijar a un negocio. */
+    const LIMITE_MAXIMO_PROPIO = 10000;
+
+    /**
+     * La ÚNICA regla del límite mensual: el propio del negocio si lo tiene
+     * (null = no tiene), y si no, el de config. Un 0 propio es un límite
+     * válido: el negocio queda bloqueado (disponible() da false). La usan
+     * disponible(), reservarCupo() y la pantalla del super admin: así lo que
+     * se muestra es exactamente lo que se aplica.
+     */
+    public static function limiteEfectivo($limitePropio): int
+    {
+        return $limitePropio !== null ? (int) $limitePropio : (int) config('chatbot.limite_mensual');
+    }
+
+    /**
+     * Mes YYYY-MM validado estrictamente: null o vacío = el actual; uno
+     * futuro, mal formado o inexistente (2026-13) = null. Un mes pasado es
+     * válido (historial).
+     */
+    public function normalizarMes($mes): ?string
+    {
+        if ($mes === null || $mes === '') {
+            return $this->mesActual();
+        }
+
+        if (! is_string($mes) || ! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $mes) || $mes > $this->mesActual()) {
+            return null;
+        }
+
+        return $mes;
+    }
+
+    /**
+     * Uso de UN negocio en un mes: solo números. Un negocio sin fila de uso
+     * devuelve ceros, no un error. Lista blanca de campos explícita.
+     */
+    public function usoDelMes($tenantId, ?string $mes = null): array
+    {
+        try {
+            $mes = $this->normalizarMes($mes) ?? $this->mesActual();
+
+            $uso = ChatbotUso::select('mensajes', 'tokens_entrada', 'tokens_salida')
+                ->where('tenant_id', $tenantId)
+                ->where('mes', $mes)
+                ->first();
+
+            $propio = Negocio::where('id_negocio', $tenantId)->value('chatbot_limite_mensual');
+
+            return [
+                'mes' => $mes,
+                'mensajes' => (int) ($uso->mensajes ?? 0),
+                'tokens_entrada' => (int) ($uso->tokens_entrada ?? 0),
+                'tokens_salida' => (int) ($uso->tokens_salida ?? 0),
+                'limite_efectivo' => self::limiteEfectivo($propio),
+                'limite_propio' => $propio !== null ? (int) $propio : null,
+            ];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
         }
     }
 

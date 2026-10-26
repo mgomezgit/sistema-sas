@@ -174,6 +174,12 @@ Route::prefix('request/superadmin')->middleware(['sesion.activa', 'solo.superadm
     Route::get('modulos-de-negocio', [App\Http\Controllers\Request\SuperAdminController::class, 'modulosDeNegocio']);
     Route::post('activar-modulo', [App\Http\Controllers\Request\SuperAdminController::class, 'activarModulo']);
     Route::post('desactivar-modulo', [App\Http\Controllers\Request\SuperAdminController::class, 'desactivarModulo']);
+
+    // Chatbot: uso del mes por negocio, resumen de la plataforma y límite
+    // mensual propio de cada negocio. Solo números, nunca conversaciones.
+    Route::get('chatbot/uso', [App\Http\Controllers\Request\SuperAdminController::class, 'chatbotUso']);
+    Route::get('chatbot/resumen', [App\Http\Controllers\Request\SuperAdminController::class, 'chatbotResumen']);
+    Route::post('chatbot/limite', [App\Http\Controllers\Request\SuperAdminController::class, 'chatbotLimite']);
 });
 
 Route::prefix('backoffice/superadmin')->middleware(['sesion.activa', 'solo.superadmin'])->group(function () {

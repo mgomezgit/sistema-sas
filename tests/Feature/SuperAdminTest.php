@@ -143,6 +143,9 @@ class SuperAdminTest extends TestCase
             ['GET', 'request/superadmin/modulos-de-negocio', ['id_negocio' => $this->negocioA]],
             ['POST', 'request/superadmin/activar-modulo', ['id_negocio' => $this->negocioA, 'clave_modulo' => 'comisiones']],
             ['POST', 'request/superadmin/desactivar-modulo', ['id_negocio' => $this->negocioA, 'clave_modulo' => 'comisiones']],
+            ['GET', 'request/superadmin/chatbot/uso', []],
+            ['GET', 'request/superadmin/chatbot/resumen', []],
+            ['POST', 'request/superadmin/chatbot/limite', ['id_negocio' => $this->negocioA, 'limite' => 7]],
         ];
     }
 
@@ -165,6 +168,7 @@ class SuperAdminTest extends TestCase
     {
         return [
             'negocios' => DB::table('negocios')->orderBy('id_negocio')->pluck('estado', 'id_negocio')->all(),
+            'limites_chatbot' => DB::table('negocios')->orderBy('id_negocio')->pluck('chatbot_limite_mensual', 'id_negocio')->all(),
             'negocio_modulos' => DB::table('negocio_modulos')->orderBy('id_negocio_modulo')->get()->map(fn ($f) => (array) $f)->all(),
         ];
     }
@@ -235,7 +239,11 @@ class SuperAdminTest extends TestCase
 
             $delPanel++;
 
-            if (! in_array('solo.superadmin', $ruta->gatherMiddleware(), true)) {
+            // Se descuentan los excluidos: ->withoutMiddleware('solo.superadmin') deja
+            // el nombre en gatherMiddleware() aunque la ruta ya no lo ejecute.
+            $efectivos = array_diff($ruta->gatherMiddleware(), $ruta->excludedMiddleware());
+
+            if (! in_array('solo.superadmin', $efectivos, true)) {
                 $sinProteccion[] = implode('|', $ruta->methods()).' '.$uri;
             }
         }

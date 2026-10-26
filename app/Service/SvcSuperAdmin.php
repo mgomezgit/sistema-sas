@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Models\ChatbotUso;
 use App\Models\ModuloPlataforma;
 use App\Models\Negocio;
 use App\Models\NegocioModulo;
@@ -155,6 +156,135 @@ class SvcSuperAdmin
             Log::channel('database')->info($e);
 
             return [];
+        }
+    }
+
+    /* ================= CHATBOT: USO Y LÍMITE MENSUAL ================= */
+
+    /**
+     * Uso del chatbot de cada negocio en un mes: SOLO números (mensajes y
+     * tokens) más el límite que se aplica. Nunca contenido de conversaciones
+     * (no se guarda), ni dinero (depende del proveedor y del modelo), ni
+     * ningún dato operativo del negocio. Lista blanca de campos explícita.
+     *
+     * $mes ya viene validado (SvcChatbot::normalizarMes). $idNegocio opcional:
+     * con él, la lista trae solo ese negocio (el modal de un negocio).
+     * Un negocio sin fila de uso sale con ceros.
+     */
+    public function usoChatbotDeTodosLosNegocios(string $mes, ?int $idNegocio = null): array
+    {
+        try {
+            $query = Negocio::from('negocios as n')
+                ->leftJoin('chatbot_uso as cu', function ($join) use ($mes) {
+                    $join->on('cu.tenant_id', '=', 'n.id_negocio')
+                        ->where('cu.mes', '=', $mes);
+                })
+                ->select(
+                    'n.id_negocio',
+                    'n.nombre_negocio',
+                    'n.chatbot_limite_mensual as limite_propio',
+                    'cu.mensajes',
+                    'cu.tokens_entrada',
+                    'cu.tokens_salida',
+                    DB::raw('(SELECT COUNT(*) FROM negocio_modulos nm JOIN modulos_plataforma mp ON mp.id_modulo = nm.id_modulo WHERE nm.tenant_id = n.id_negocio AND nm.activo = 1 AND mp.estado = 1 AND mp.clave = \''.SvcChatbot::CLAVE_MODULO.'\') AS modulo_activo')
+                );
+
+            if ($idNegocio !== null) {
+                $query->where('n.id_negocio', $idNegocio);
+            }
+
+            return $query->orderBy('n.nombre_negocio')
+                ->get()
+                ->map(fn ($fila) => [
+                    'id_negocio' => (int) $fila->id_negocio,
+                    'nombre_negocio' => $fila->nombre_negocio,
+                    'modulo_activo' => (int) $fila->modulo_activo > 0,
+                    'mensajes' => (int) $fila->mensajes,
+                    'tokens_entrada' => (int) $fila->tokens_entrada,
+                    'tokens_salida' => (int) $fila->tokens_salida,
+                    // La MISMA regla que aplica SvcChatbot::disponible().
+                    'limite_efectivo' => SvcChatbot::limiteEfectivo($fila->limite_propio),
+                    'limite_propio' => $fila->limite_propio !== null ? (int) $fila->limite_propio : null,
+                ])
+                ->all();
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
+    /**
+     * Resumen del chatbot para la tarjeta del dashboard: números agregados de
+     * la plataforma. Los mensajes del mes salen del mismo método que usa el
+     * tope global (SvcChatbot::mensajesGlobalesDelMes): una sola regla.
+     */
+    public function resumenChatbot(string $mes): array
+    {
+        try {
+            $svc = new SvcChatbot;
+
+            $tokens = ChatbotUso::select(
+                DB::raw('COALESCE(SUM(tokens_entrada), 0) AS tokens_entrada'),
+                DB::raw('COALESCE(SUM(tokens_salida), 0) AS tokens_salida')
+            )->where('mes', $mes)->first();
+
+            $negociosConModulo = NegocioModulo::from('negocio_modulos as nm')
+                ->join('modulos_plataforma as mp', 'mp.id_modulo', '=', 'nm.id_modulo')
+                ->where('mp.clave', SvcChatbot::CLAVE_MODULO)
+                ->where('mp.estado', 1)
+                ->where('nm.activo', 1)
+                ->count();
+
+            return [
+                'mes' => $mes,
+                'habilitado' => (bool) config('chatbot.habilitado'),
+                'mensajes_del_mes' => $svc->mensajesGlobalesDelMes($mes),
+                'tope_global_mensual' => (int) config('chatbot.tope_global_mensual'),
+                'tokens_entrada' => (int) ($tokens->tokens_entrada ?? 0),
+                'tokens_salida' => (int) ($tokens->tokens_salida ?? 0),
+                'negocios_con_modulo' => $negociosConModulo,
+            ];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return [];
+        }
+    }
+
+    /**
+     * Fija (o quita, con null) el límite mensual propio del chatbot de un
+     * negocio. Solo toca negocios.chatbot_limite_mensual: los contadores de
+     * chatbot_uso y su historial no cambian. $limite ya viene validado (null
+     * o entero 0..LIMITE_MAXIMO_PROPIO). Devuelve false si el negocio no existe.
+     */
+    public function cambiarLimiteChatbot($idNegocio, ?int $limite, string $usuario): bool
+    {
+        try {
+            $anterior = Negocio::where('id_negocio', $idNegocio)->first(['chatbot_limite_mensual']);
+
+            if ($anterior === null) {
+                return false;
+            }
+
+            Negocio::where('id_negocio', $idNegocio)->update(['chatbot_limite_mensual' => $limite]);
+
+            $texto = fn ($valor) => $valor === null ? 'por defecto' : (string) $valor;
+
+            Log::channel('database')->info(sprintf(
+                'SUPERADMIN: limite mensual del chatbot del negocio %d cambiado de %s a %s por %s el %s',
+                $idNegocio,
+                $texto($anterior->chatbot_limite_mensual),
+                $texto($limite),
+                $usuario,
+                now()->format('Y-m-d H:i:s')
+            ));
+
+            return true;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
         }
     }
 

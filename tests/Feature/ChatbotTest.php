@@ -949,7 +949,9 @@ class ChatbotTest extends TestCase
     public function test_guardian_de_rutas_del_chatbot(): void
     {
         $rutas = collect(Route::getRoutes()->getRoutes())
-            ->filter(fn ($r) => str_contains($r->uri(), 'chatbot'))
+            // Las rutas del panel del super admin (request/superadmin/chatbot/*) tienen
+            // su propio guardián, que exige solo.superadmin: ChatbotSuperAdminTest.
+            ->filter(fn ($r) => str_contains($r->uri(), 'chatbot') && ! str_starts_with($r->uri(), 'request/superadmin/chatbot'))
             ->mapWithKeys(fn ($r) => [implode('|', $r->methods()).' '.$r->uri() => $r->gatherMiddleware()]);
 
         $this->assertEqualsCanonicalizing(
