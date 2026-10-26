@@ -2,6 +2,11 @@
 
 @section('titulo', $negocio['nombre_negocio'])
 
+{{-- Estilos del chat del asistente virtual (junto a los de la página). --}}
+@section('estilos')
+    @include('publico.partials.chatbot-estilos')
+@endsection
+
 @php
     // Todo lo que se calcula aquí es solo PRESENTACIÓN de datos que ya
     // llegaron filtrados y en su lista blanca desde SvcPaginaPublica; no se
@@ -333,6 +338,9 @@
         </div>
     </div>
 </div>
+
+{{-- ================= CHAT DEL ASISTENTE VIRTUAL ================= --}}
+@include('publico.partials.chatbot')
 @endsection
 
 @section('scripts')

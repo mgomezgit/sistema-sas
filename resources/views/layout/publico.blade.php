@@ -31,6 +31,13 @@
             --on-accent: #ffffff;
             --on-bezel: #efe9e2;
             --danger-publico: #b3392f;
+            /* Dos ajustes de contraste (chat del asistente): --accent con letra
+               blanca pequeña no llega a 4,5:1 (da 3,8:1) ni --text-secondary
+               sobre blanco (da 3,9:1). Con estos dos sí (5,6:1 y 5,4:1). */
+            --oro-fuerte: #9a5360;
+            --apagado: #6f655d;
+            /* Oro suave: derivado del oro, sin hexadecimal nuevo. */
+            --oro-suave: color-mix(in srgb, var(--accent) 18%, var(--bg-card));
         }
 
         * { box-sizing: border-box; }
