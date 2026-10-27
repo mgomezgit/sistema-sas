@@ -33,6 +33,22 @@
         background: color-mix(in srgb, var(--accent) 22%, transparent);
     }
 
+    .ia-btn-abrir[disabled] {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .ia-bloqueo {
+        margin: 0.4rem 0 0;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: color-mix(in srgb, var(--text-secondary) 65%, var(--text-primary));
+    }
+
+    .ia-bloqueo[hidden] {
+        display: none;
+    }
+
     .ia-panel {
         margin-top: 0.75rem;
         padding: 1rem;

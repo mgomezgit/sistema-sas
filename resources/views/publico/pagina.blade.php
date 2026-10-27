@@ -222,14 +222,34 @@
             @endif
             <div class="grid-servicios">
                 @foreach ($serviciosDeCategoria as $servicio)
-                    <div class="tarjeta-servicio">
-                        <div class="globo-icono"><i class="bi bi-sparkle"></i></div>
-                        <div>
-                            <p class="servicio-nombre">{{ $servicio['nombre'] }}</p>
-                            <p class="servicio-duracion">{{ $servicio['duracion_minutos'] }} min</p>
+                    @if (filled($servicio['descripcion_publica'] ?? null))
+                        {{-- Con descripción: un boton nativo (Enter y Espacio gratis) que abre
+                             la región de abajo. La flecha es decorativa. Cerrada por defecto.
+                             La descripción la escribe el admin: siempre con llaves dobles escapadas. --}}
+                        <div class="tarjeta-servicio tarjeta-servicio-desplegable">
+                            <button type="button" class="servicio-cabecera" aria-expanded="false" aria-controls="descripcion-servicio-{{ $servicio['id_recurso'] }}">
+                                <span class="globo-icono"><i class="bi bi-sparkle" aria-hidden="true"></i></span>
+                                <span class="servicio-textos">
+                                    <span class="servicio-nombre">{{ $servicio['nombre'] }}</span>
+                                    <span class="servicio-duracion">{{ $servicio['duracion_minutos'] }} min</span>
+                                </span>
+                                <span class="servicio-precio">${{ number_format($servicio['precio'], 0, ',', '.') }}</span>
+                                <i class="bi bi-chevron-down servicio-flecha" aria-hidden="true"></i>
+                            </button>
+                            <div class="servicio-descripcion" id="descripcion-servicio-{{ $servicio['id_recurso'] }}" role="region" aria-label="Descripción de {{ $servicio['nombre'] }}" hidden>
+                                <p>{{ $servicio['descripcion_publica'] }}</p>
+                            </div>
                         </div>
-                        <div class="servicio-precio">${{ number_format($servicio['precio'], 0, ',', '.') }}</div>
-                    </div>
+                    @else
+                        <div class="tarjeta-servicio">
+                            <div class="globo-icono"><i class="bi bi-sparkle"></i></div>
+                            <div>
+                                <p class="servicio-nombre">{{ $servicio['nombre'] }}</p>
+                                <p class="servicio-duracion">{{ $servicio['duracion_minutos'] }} min</p>
+                            </div>
+                            <div class="servicio-precio">${{ number_format($servicio['precio'], 0, ',', '.') }}</div>
+                        </div>
+                    @endif
                 @endforeach
             </div>
         @empty
@@ -368,6 +388,16 @@
 
             jQuery('.banner-grande').attr('hidden', true);
             jQuery('.banner-grande[data-indice="' + indice + '"]').removeAttr('hidden');
+        });
+
+        /* ---------- Descripción desplegable de los servicios ----------
+           Cada tarjeta se abre y se cierra sola (pueden quedar varias abiertas). */
+        jQuery('.servicio-cabecera').on('click', function () {
+            var boton = jQuery(this);
+            var abrir = boton.attr('aria-expanded') !== 'true';
+
+            boton.attr('aria-expanded', abrir ? 'true' : 'false');
+            jQuery('#' + boton.attr('aria-controls')).prop('hidden', !abrir);
         });
 
         /* ---------- Scroll suave desde la barra y el hero ---------- */

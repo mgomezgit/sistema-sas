@@ -97,11 +97,14 @@ class SvcPaginaPublica
      * cuál se pide: crearSolicitudPublica() ya vuelve a comprobar que ese id
      * sea de este mismo tenant y esté activo antes de crear nada, así que
      * exponerlo no abre ninguna puerta que el backend no cierre.
+     *
+     * descripcion_publica es el texto que el admin escribió PARA la web
+     * (nullable). La columna "descripcion" es una nota interna y NUNCA sale.
      */
     public function servicios(int $tenantId): array
     {
         try {
-            return RecursoReservable::select('id_recurso', 'nombre', 'categoria', 'duracion_minutos', 'precio')
+            return RecursoReservable::select('id_recurso', 'nombre', 'categoria', 'descripcion_publica', 'duracion_minutos', 'precio')
                 ->where('tenant_id', $tenantId)
                 ->where('estado', 1)
                 ->orderBy('categoria')
@@ -112,6 +115,7 @@ class SvcPaginaPublica
                         'id_recurso' => (int) $recurso->id_recurso,
                         'nombre' => $recurso->nombre,
                         'categoria' => $recurso->categoria,
+                        'descripcion_publica' => $recurso->descripcion_publica,
                         'duracion_minutos' => (int) $recurso->duracion_minutos,
                         'precio' => (float) $recurso->precio,
                     ];

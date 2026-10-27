@@ -42,11 +42,31 @@
         }
 
         .ayuda-campo {
-            color: var(--text-muted);
+            color: color-mix(in srgb, var(--text-secondary) 65%, var(--text-primary));
             font-size: 0.78rem;
             margin-top: 0.3rem;
         }
+
+        /* La etiqueta flotante del kit (--text-muted, o el acento al flotar) no llega a
+           4,5:1 en modo claro: en estos dos campos va siempre con un tono más oscuro. */
+        #modal-recurso .campo-flotante.etiqueta-contraste > label {
+            color: color-mix(in srgb, var(--text-secondary) 65%, var(--text-primary));
+        }
+
+        #modal-recurso .modal-footer .btn,
+        #btn-guardar-recurso {
+            min-height: 44px;
+        }
+
+        .contador-descripcion-publica {
+            display: block;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
     </style>
+    @if ($iaActiva)
+        @include('app.configuracion.partials.ia-generar-estilos')
+    @endif
 @endsection
 
 @section('content')
@@ -117,11 +137,34 @@
                                 <label for="nombre">Nombre</label>
                             </div>
 
-                            <div class="campo-flotante mt-3">
+                            <div class="campo-flotante etiqueta-contraste mt-3">
                                 <i class="bi bi-text-left"></i>
                                 <textarea id="descripcion" name="descripcion" rows="2" placeholder=" "></textarea>
-                                <label for="descripcion">Descripción</label>
+                                <label for="descripcion">Nota interna</label>
                             </div>
+                            <div class="ayuda-campo">No se muestra en tu página.</div>
+
+                            <div class="campo-flotante etiqueta-contraste mt-3">
+                                <i class="bi bi-card-text"></i>
+                                <textarea id="descripcion_publica" name="descripcion_publica" rows="3" maxlength="200" placeholder=" " aria-describedby="ayuda-descripcion-publica"></textarea>
+                                <label for="descripcion_publica">Descripción pública (opcional)</label>
+                            </div>
+                            <div class="ayuda-campo" id="ayuda-descripcion-publica">
+                                Se muestra en tu página cuando la clienta toca el servicio.
+                                <span class="contador-descripcion-publica" id="contador-descripcion-publica">0/200</span>
+                            </div>
+
+                            {{-- Solo se renderiza con el módulo 'ia' activo (ni oculto con CSS sin él).
+                                 Solo PROPONE: rellena la descripción pública y no guarda nada. --}}
+                            @if ($iaActiva)
+                                @include('app.configuracion.partials.ia-generar', [
+                                    'iaTipo' => 'descripcion_servicio',
+                                    'iaCampoTitulo' => '',
+                                    'iaCampoTexto' => '#descripcion_publica',
+                                    'iaCampoRecurso' => '#id_recurso',
+                                    'iaEnlacePerfil' => url('backoffice/configuracion'),
+                                ])
+                            @endif
                         </div>
 
                         <div class="tarjeta-seccion-form">
@@ -192,7 +235,11 @@
 @endsection
 
 @section('scripts')
+    @if ($iaActiva)
+        @include('app.configuracion.partials.ia-generar-js')
+    @endif
     <script>
+        var MAXIMO_DESCRIPCION_PUBLICA = 200;
         var modoFormularioRecurso = 'crear';
         var tablaRecursos;
 
@@ -327,11 +374,29 @@
             establecerEstadoRecurso(jQuery(this).is(':checked'));
         });
 
+        function actualizarContadorDescripcionPublica() {
+            jQuery('#contador-descripcion-publica').text(jQuery('#descripcion_publica').val().length + '/' + MAXIMO_DESCRIPCION_PUBLICA);
+        }
+
+        jQuery('#descripcion_publica').on('input', actualizarContadorDescripcionPublica);
+
+        {{-- Con el módulo 'ia' apagado esta función no hace nada: el JS del botón ni siquiera se renderiza. --}}
+        function bloquearGenerarIa(motivo) {
+            @if ($iaActiva)
+                // Solo sirve para un servicio existente y activo: la IA lee sus datos desde el servidor.
+                // motivo '' lo desbloquea.
+                jQuery('.ia-generar[data-ia-tipo="descripcion_servicio"]').trigger('ia-bloquear', [motivo]);
+            @endif
+        }
+
         function limpiarFormularioRecurso() {
             jQuery('#id_recurso').val('');
             jQuery('#categoria').val('');
             jQuery('#nombre').val('');
             jQuery('#descripcion').val('');
+            jQuery('#descripcion_publica').val('');
+            actualizarContadorDescripcionPublica();
+            bloquearGenerarIa('Guarda el servicio primero para generar la descripción');
             // La duración arranca en su propio mínimo (15) y no en 0: un servicio
             // de 0 minutos no significa nada, así que no tiene sentido ofrecerlo
             // como punto de partida del contador.
@@ -364,6 +429,9 @@
             jQuery('#categoria').val(fila.categoria);
             jQuery('#nombre').val(fila.nombre);
             jQuery('#descripcion').val(fila.descripcion);
+            jQuery('#descripcion_publica').val(fila.descripcion_publica);
+            actualizarContadorDescripcionPublica();
+            bloquearGenerarIa(fila.estado == 1 ? '' : 'Reactiva y guarda el servicio primero para generar la descripción');
             jQuery('#duracion_minutos').val(fila.duracion_minutos);
             jQuery('#precio').val(fila.precio);
             jQuery('#capacidad').val(fila.capacidad);
@@ -457,6 +525,7 @@
 
         jQuery(document).ready(function () {
             cargarRecursos();
+            actualizarContadorDescripcionPublica();
 
             iniciarGuiaSiCorresponde('recurso', function () {
                 iniciarTourContextual('recurso', [

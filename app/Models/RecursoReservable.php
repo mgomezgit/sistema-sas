@@ -23,6 +23,7 @@ class RecursoReservable extends Model
         'categoria',
         'nombre',
         'descripcion',
+        'descripcion_publica',
         'duracion_minutos',
         'precio',
         'capacidad',

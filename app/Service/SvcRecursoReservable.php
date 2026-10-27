@@ -7,6 +7,46 @@ use Illuminate\Support\Facades\Log;
 
 class SvcRecursoReservable
 {
+    /** Largo máximo de la descripción PÚBLICA del servicio. */
+    const LARGO_MAXIMO_DESCRIPCION_PUBLICA = 200;
+
+    /**
+     * Limpia la descripción pública: sin espacios de más (los repetidos se
+     * colapsan), sin caracteres de control ni invisibles, máximo 200 (si se
+     * pasa se rechaza, no se recorta) y vacía = null. Se guarda tal cual la
+     * escribió el admin: el escape se hace al pintar, nunca al guardar.
+     *
+     * Devuelve ['ok' => bool, 'valor' => ?string].
+     */
+    public static function normalizarDescripcionPublica($texto): array
+    {
+        if ($texto === null) {
+            return ['ok' => true, 'valor' => null];
+        }
+
+        if (! is_string($texto)) {
+            return ['ok' => false, 'valor' => null];
+        }
+
+        $limpio = preg_replace('/\s+/u', ' ', $texto);
+
+        if ($limpio === null) {
+            return ['ok' => false, 'valor' => null];
+        }
+
+        $limpio = trim($limpio);
+
+        if ($limpio === '') {
+            return ['ok' => true, 'valor' => null];
+        }
+
+        if (mb_strlen($limpio) > self::LARGO_MAXIMO_DESCRIPCION_PUBLICA || preg_match('/[\p{Cc}\p{Cf}]/u', $limpio) === 1) {
+            return ['ok' => false, 'valor' => null];
+        }
+
+        return ['ok' => true, 'valor' => $limpio];
+    }
+
     public function crear($info)
     {
         try {
@@ -74,6 +114,7 @@ class SvcRecursoReservable
                 'categoria',
                 'nombre',
                 'descripcion',
+                'descripcion_publica',
                 'duracion_minutos',
                 'precio',
                 'capacidad',
@@ -103,6 +144,7 @@ class SvcRecursoReservable
                 'categoria',
                 'nombre',
                 'descripcion',
+                'descripcion_publica',
                 'duracion_minutos',
                 'precio',
                 'capacidad',

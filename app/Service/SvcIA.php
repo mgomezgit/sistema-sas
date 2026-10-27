@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Log;
  *   uso (ia_actividad): nunca el texto generado ni el tema del admin.
  * - La IA recibe solo nombre y rubro del negocio, su perfil PRIVADO (especialidad
  *   y público, si el admin los escribió) y, para descripcion_servicio,
- *   nombre, categoría y duración de UN servicio activo de ESE negocio. Nada de
+ *   nombre y categoría de UN servicio activo de ESE negocio. Nada de
  *   clientas, empleados, correos, teléfonos ni precios.
  * - Nada de lo que devuelve la IA se confía: el JSON se valida de forma
  *   estricta y cada opción se limpia y se filtra.
@@ -418,7 +418,7 @@ class SvcIA
 
     /**
      * Un servicio ACTIVO de ESTE negocio, solo con los campos que puede ver la
-     * IA (sin precio, sin descripción interna). null si no existe, es de otro
+     * IA (sin duración, sin precio, sin descripción interna). null si no existe, es de otro
      * negocio o está inactivo: los tres casos son indistinguibles para quien
      * llama.
      */
@@ -429,7 +429,7 @@ class SvcIA
                 return null;
             }
 
-            $servicio = RecursoReservable::select('nombre', 'categoria', 'duracion_minutos')
+            $servicio = RecursoReservable::select('nombre', 'categoria')
                 ->where('id_recurso', (int) $idRecurso)
                 ->where('tenant_id', $tenantId)
                 ->where('estado', 1)
@@ -438,7 +438,6 @@ class SvcIA
             return $servicio === null ? null : [
                 'nombre' => (string) $servicio->nombre,
                 'categoria' => (string) ($servicio->categoria ?? ''),
-                'duracion_minutos' => (int) $servicio->duracion_minutos,
             ];
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
@@ -494,7 +493,7 @@ class SvcIA
         $tarea = match ($tipo) {
             'banner' => 'un banner promocional: cada opción con un "titulo" de hasta '.self::TIPOS['banner']['titulo'].' caracteres y un "texto" de hasta '.self::TIPOS['banner']['texto'].' caracteres',
             'frase' => 'una frase corta para la página o las redes del negocio: cada opción con un "texto" de hasta '.self::TIPOS['frase']['texto'].' caracteres',
-            default => 'la descripción del servicio que viene en los datos: cada opción con un "texto" de hasta '.self::TIPOS['descripcion_servicio']['texto'].' caracteres, sin precio',
+            default => 'la descripción del servicio que viene en los datos: cada opción con un "texto" de hasta '.self::TIPOS['descripcion_servicio']['texto'].' caracteres, sin mencionar la duración ni el precio',
         };
 
         $forma = $tipo === 'banner'

@@ -270,7 +270,7 @@ class PaginaPublicaTest extends TestCase
         // comprobar que sea de este mismo negocio antes de crear nada (ver
         // test_no_se_puede_pedir_cita_con_el_servicio_de_otro_negocio en
         // SolicitudPublicaTest), así que exponerlo no abre ninguna puerta.
-        $permitidos = ['id_recurso', 'nombre', 'categoria', 'duracion_minutos', 'precio'];
+        $permitidos = ['id_recurso', 'nombre', 'categoria', 'descripcion_publica', 'duracion_minutos', 'precio'];
 
         foreach ($servicios as $servicio) {
             $this->assertSame(

@@ -133,13 +133,32 @@
         /* ===== Servicios ===== */
         .titulo-categoria-servicio { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; margin: 28px 0 14px; max-width: 1100px; margin-left: auto; margin-right: auto; }
         .titulo-categoria-servicio:first-child { margin-top: 0; }
-        .grid-servicios { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; max-width: 1100px; margin: 0 auto; }
+        .grid-servicios { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 18px; max-width: 1100px; margin: 0 auto; align-items: start; }
         .tarjeta-servicio { display: flex; align-items: center; gap: 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 18px; transition: transform .2s, box-shadow .2s; }
         .tarjeta-servicio:hover { transform: translateY(-4px); box-shadow: 0 14px 28px rgba(0,0,0,.08); }
         .globo-icono { width: 42px; height: 42px; min-width: 42px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 10%, var(--bg-page)); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); color: var(--accent); display: flex; align-items: center; justify-content: center; }
         .servicio-nombre { font-size: 14.5px; font-weight: 600; margin: 0; }
         .servicio-duracion { font-size: 11.5px; color: var(--text-secondary); margin: 2px 0 0; }
         .servicio-precio { margin-left: auto; font-family: 'Fraunces', serif; font-weight: 600; color: var(--accent); font-size: 16px; white-space: nowrap; }
+        /* Un nombre largo ya no empuja el precio fuera de la tarjeta: el texto se acomoda en su columna. */
+        .tarjeta-servicio > div:not(.globo-icono):not(.servicio-precio) { min-width: 0; overflow-wrap: anywhere; }
+        /* Tarjeta con descripción desplegable (las demás quedan como siempre).
+           --apagado y --oro-fuerte: llegan a 4,5:1 sobre blanco. */
+        .tarjeta-servicio-desplegable { display: block; padding: 0; }
+        .servicio-cabecera { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 44px; padding: 18px; background: none; border: 0; border-radius: 10px; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+        .servicio-cabecera:focus-visible { outline: 2px solid var(--oro-fuerte); outline-offset: 2px; }
+        .servicio-textos { display: block; min-width: 0; overflow-wrap: anywhere; }
+        .servicio-textos .servicio-nombre, .servicio-textos .servicio-duracion { display: block; }
+        .servicio-flecha { flex: none; color: var(--oro-fuerte); font-size: 14px; }
+        .servicio-cabecera[aria-expanded="true"] .servicio-flecha { transform: rotate(180deg); }
+        .servicio-descripcion { padding: 0 18px 18px; }
+        .servicio-descripcion[hidden] { display: none; }
+        .servicio-descripcion p { font-size: 13.5px; line-height: 1.5; color: var(--apagado); white-space: normal; overflow-wrap: anywhere; }
+        @media (prefers-reduced-motion: no-preference) {
+            .servicio-flecha { transition: transform .2s; }
+            .servicio-descripcion:not([hidden]) { animation: servicio-abrir .2s ease-out; }
+            @keyframes servicio-abrir { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+        }
 
         /* ===== Equipo ===== */
         .grid-equipo { display: flex; justify-content: center; gap: 26px; max-width: 1000px; margin: 0 auto; flex-wrap: wrap; }

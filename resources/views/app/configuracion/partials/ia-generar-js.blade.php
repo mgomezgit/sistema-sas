@@ -33,6 +33,7 @@
             var tipo = raiz.attr('data-ia-tipo');
             var campoTitulo = raiz.attr('data-ia-campo-titulo') || '';
             var campoTexto = raiz.attr('data-ia-campo-texto');
+            var campoRecurso = raiz.attr('data-ia-campo-recurso') || '';
             var boton = raiz.find('.ia-btn-abrir');
             var panel = raiz.find('.ia-panel');
             var estadoEl = raiz.find('.ia-estado');
@@ -43,6 +44,7 @@
             var estadoCargado = false;
             var disponible = true;
             var ocupado = false;
+            var bloqueo = '';
 
             function mostrarMensaje(texto, informativo) {
                 var caja = jQuery('<div>').addClass('ia-mensaje' + (informativo ? ' ia-info' : '')).text(texto);
@@ -149,7 +151,25 @@
                 }
             }
 
+            // Bloqueo desde fuera (servicio nuevo o inactivo): botón desactivado y su pista.
+            // Texto siempre con .text(); '' lo desbloquea.
+            raiz.on('ia-bloquear', function (evento, motivo) {
+                bloqueo = motivo || '';
+
+                boton.prop('disabled', bloqueo !== '').attr('aria-disabled', bloqueo !== '' ? 'true' : 'false');
+                raiz.find('.ia-bloqueo').text(bloqueo).prop('hidden', bloqueo === '');
+
+                if (bloqueo !== '') {
+                    panel.prop('hidden', true);
+                    boton.attr('aria-expanded', 'false');
+                }
+            });
+
             boton.on('click', function () {
+                if (bloqueo !== '') {
+                    return;
+                }
+
                 var abrir = panel.prop('hidden');
 
                 panel.prop('hidden', !abrir);
@@ -165,11 +185,16 @@
             });
 
             botonGenerar.on('click', function () {
-                if (ocupado || !disponible) {
+                if (ocupado || !disponible || bloqueo !== '') {
                     return;
                 }
 
                 var cuerpo = { tipo: tipo, tono: raiz.find('.ia-tono').val() };
+
+                // Descripción de servicio: el servidor lee los datos del servicio por este id.
+                if (campoRecurso !== '') {
+                    cuerpo.id_recurso = parseInt(jQuery(campoRecurso).val(), 10);
+                }
                 var idea = jQuery.trim(raiz.find('.ia-idea').val());
 
                 if (idea !== '') {
@@ -240,6 +265,11 @@
             });
 
             jQuery(document).on('click', '.ia-perfil-enlace', function (evento) {
+                // Sin la tarjeta en esta pantalla (p. ej. Recursos), el enlace navega a Configuración.
+                if (!document.getElementById('tarjeta-perfil-ia')) {
+                    return;
+                }
+
                 evento.preventDefault();
                 irAlPerfil();
             });

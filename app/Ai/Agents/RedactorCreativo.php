@@ -60,6 +60,7 @@ Reglas, en este orden de prioridad:
 8. Texto plano en español: sin emojis, sin hashtags, sin enlaces ni direcciones web, sin menciones con @, sin HTML ni Markdown.
 9. Variedad: cada una de las 3 opciones debe usar un ángulo distinto (por ejemplo la especialidad, el ambiente, el tipo de clienta o el nombre del negocio). Evita frases hechas y genéricas como "un espacio para hacer una pausa", "un momento para ti", "regálate un respiro" o "reconectar contigo", salvo que el perfil las justifique. No repitas la misma estructura de oración en las tres.
 10. Devuelve exactamente 3 opciones distintas entre sí, en el formato JSON pedido, sin nada más.
+11. En las descripciones de servicio no menciones la duración, el precio ni cuánto cuesta: la página ya lo muestra.
 PROMPT;
     }
 

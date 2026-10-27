@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 
 class RecursoReservableController extends Controller
 {
+    const MENSAJE_DESCRIPCION_PUBLICA = 'La descripción pública puede tener hasta 200 caracteres y no puede llevar caracteres de control.';
+
     protected SvcRecursoReservable $svcRecursoReservable;
 
     public function __construct()
@@ -39,11 +41,20 @@ class RecursoReservableController extends Controller
 
         $datos = $this->getRequestData();
 
+        $descripcionPublica = SvcRecursoReservable::normalizarDescripcionPublica($datos['descripcion_publica'] ?? null);
+
+        if (! $descripcionPublica['ok']) {
+            $this->agregarError(self::MENSAJE_DESCRIPCION_PUBLICA);
+
+            return $this->sendResponse();
+        }
+
         $info = [
             'tenant_id' => $tenantId,
             'categoria' => $datos['categoria'] ?? null,
             'nombre' => $datos['nombre'],
             'descripcion' => $datos['descripcion'] ?? null,
+            'descripcion_publica' => $descripcionPublica['valor'],
             'duracion_minutos' => $datos['duracion_minutos'],
             'precio' => $datos['precio'],
             'capacidad' => $datos['capacidad'] ?? null,
@@ -90,6 +101,14 @@ class RecursoReservableController extends Controller
 
         $datos = $this->getRequestData();
 
+        $descripcionPublica = SvcRecursoReservable::normalizarDescripcionPublica($datos['descripcion_publica'] ?? null);
+
+        if (! $descripcionPublica['ok']) {
+            $this->agregarError(self::MENSAJE_DESCRIPCION_PUBLICA);
+
+            return $this->sendResponse();
+        }
+
         $info = [
             'categoria' => $datos['categoria'] ?? null,
             'nombre' => $datos['nombre'],
@@ -99,6 +118,11 @@ class RecursoReservableController extends Controller
             'capacidad' => $datos['capacidad'] ?? null,
             'estado' => (int) $datos['estado'],
         ];
+
+        // Sin la clave en la petición, la descripción pública no se toca.
+        if (array_key_exists('descripcion_publica', $datos)) {
+            $info['descripcion_publica'] = $descripcionPublica['valor'];
+        }
 
         $resultado = $this->svcRecursoReservable->editar($datos['id_recurso'], $info, $tenantId);
 

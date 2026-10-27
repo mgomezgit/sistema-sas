@@ -599,7 +599,7 @@ class IaTest extends TestCase
         }
 
         $datos = $this->datosDelPrompt();
-        $this->assertSame(['nombre' => 'Masaje Relajante Aurora', 'categoria' => 'Masajes', 'duracion_minutos' => 60], $datos['servicio']);
+        $this->assertSame(['nombre' => 'Masaje Relajante Aurora', 'categoria' => 'Masajes'], $datos['servicio']);
     }
 
     public function test_sin_tema_el_tema_va_vacio_y_con_tema_va_tal_cual(): void
@@ -936,7 +936,7 @@ class IaTest extends TestCase
             'tono' => 'elegante',
             'negocio' => ['nombre' => 'Spa Aurora', 'rubro' => 'spa'],
             'tema' => 'Nuevo aroma',
-            'servicio' => ['nombre' => 'Masaje Relajante Aurora', 'categoria' => 'Masajes', 'duracion_minutos' => 60],
+            'servicio' => ['nombre' => 'Masaje Relajante Aurora', 'categoria' => 'Masajes'],
         ], $this->datosDelPrompt());
     }
 
