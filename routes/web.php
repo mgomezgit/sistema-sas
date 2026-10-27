@@ -151,6 +151,7 @@ Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->
     Route::middleware('verificar.modulo:ia')->group(function () {
         Route::get('ia/estado', [App\Http\Controllers\Request\IaController::class, 'estado']);
         Route::post('ia/generar', [App\Http\Controllers\Request\IaController::class, 'generar'])->middleware('throttle:ia-generar');
+        Route::post('ia/perfil', [App\Http\Controllers\Request\IaController::class, 'perfil']);
     });
 
     Route::post('banner/crear', [App\Http\Controllers\Request\BannerPromocionalController::class, 'crear']);

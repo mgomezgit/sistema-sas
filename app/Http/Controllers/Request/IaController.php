@@ -105,4 +105,55 @@ class IaController extends Controller
 
         return $this->sendResponse();
     }
+
+    /**
+     * Guarda (o quita) el perfil PRIVADO del negocio. Los dos campos son
+     * opcionales; si ambos quedan vacíos se quita el perfil. El negocio sale
+     * SIEMPRE de la sesión: un tenant_id o id_negocio en el cuerpo no se lee.
+     * Se guarda tal cual lo escribió el admin (el escape se hace al pintar).
+     */
+    public function perfil(): JsonResponse
+    {
+        $tenantId = session('tenant_id');
+
+        if ($tenantId === null) {
+            $this->agregarError('El asistente creativo se usa desde la cuenta de cada negocio.');
+
+            return $this->sendResponse();
+        }
+
+        $datos = $this->getRequestData();
+        $especialidad = $datos['especialidad'] ?? null;
+        $publico = $datos['publico'] ?? null;
+
+        $esp = SvcIA::normalizarCampoPerfil($especialidad, SvcIA::LARGO_MAXIMO_ESPECIALIDAD);
+        $pub = SvcIA::normalizarCampoPerfil($publico, SvcIA::LARGO_MAXIMO_PUBLICO);
+
+        $errores = [];
+
+        if (! $esp['ok']) {
+            $errores[] = 'Lo que hace especial a tu negocio puede tener hasta '.SvcIA::LARGO_MAXIMO_ESPECIALIDAD.' caracteres y no puede llevar caracteres de control.';
+        }
+
+        if (! $pub['ok']) {
+            $errores[] = 'A quién le hablas puede tener hasta '.SvcIA::LARGO_MAXIMO_PUBLICO.' caracteres y no puede llevar caracteres de control.';
+        }
+
+        if ($errores !== []) {
+            $this->agregarError(implode(' ', $errores));
+
+            return $this->sendResponse();
+        }
+
+        if (! $this->svcIA->guardarPerfil($tenantId, $especialidad, $publico)) {
+            $this->agregarError('No se pudo guardar el perfil. Inténtalo de nuevo.');
+
+            return $this->sendResponse();
+        }
+
+        $this->respSinError();
+        $this->setDataResponse($this->svcIA->obtenerPerfil($tenantId), 'perfil');
+
+        return $this->sendResponse();
+    }
 }

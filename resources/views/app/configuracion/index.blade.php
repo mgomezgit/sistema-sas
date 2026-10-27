@@ -138,7 +138,7 @@
         /* ---------- Rejilla de banners ---------- */
         .rejilla-banners {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
             gap: 1rem;
         }
 
@@ -513,6 +513,11 @@
 
     {{-- ================= PESTAÑA 2: BANNERS ================= --}}
     <div class="tab-pane fade" id="panel-banners" role="tabpanel" aria-labelledby="tab-banners">
+        {{-- Perfil privado para el asistente creativo: solo con el módulo 'ia' activo. --}}
+        @if ($iaActiva)
+            @include('app.configuracion.partials.ia-perfil')
+        @endif
+
         {{-- Frase destacada: UNA por negocio, franja bajo el encabezado de la
              página pública. No depende del módulo "ia". Es un div y no un
              form: con un form de un solo campo de texto, Enter enviaría de
@@ -1418,5 +1423,6 @@
     {{-- Componente "Generar con IA": solo existe en la página con el módulo 'ia' activo. --}}
     @if ($iaActiva)
         @include('app.configuracion.partials.ia-generar-js')
+        @include('app.configuracion.partials.ia-perfil-js')
     @endif
 @endsection

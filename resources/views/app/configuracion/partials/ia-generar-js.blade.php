@@ -203,6 +203,30 @@
             });
         }
 
+        // Cambia la línea "Usando tu perfil" / "Completa tu perfil…" de TODOS los paneles.
+        function marcarPerfil(tiene) {
+            jQuery('.ia-perfil-usa').prop('hidden', !tiene);
+            jQuery('.ia-perfil-enlace').prop('hidden', tiene);
+        }
+
+        // El enlace lleva a la tarjeta del perfil; si estaba dentro del modal del banner, lo cierra antes.
+        function irAlPerfil() {
+            var tarjeta = document.getElementById('tarjeta-perfil-ia');
+            var abierto = jQuery('.modal.show').first();
+
+            function ir() {
+                tarjeta.scrollIntoView({ block: 'center' });
+                jQuery('#ia_especialidad').trigger('focus');
+            }
+
+            if (abierto.length > 0) {
+                abierto.one('hidden.bs.modal', ir);
+                bootstrap.Modal.getOrCreateInstance(abierto[0]).hide();
+            } else {
+                ir();
+            }
+        }
+
         // Deja el componente como nuevo (al cerrar el modal del banner).
         function reiniciar(raiz) {
             raiz.find('.ia-resultados').empty();
@@ -215,6 +239,11 @@
                 montar(jQuery(this));
             });
 
+            jQuery(document).on('click', '.ia-perfil-enlace', function (evento) {
+                evento.preventDefault();
+                irAlPerfil();
+            });
+
             jQuery(document).on('hidden.bs.modal', '.modal', function () {
                 jQuery(this).find('.ia-generar').each(function () {
                     reiniciar(jQuery(this));
@@ -222,6 +251,6 @@
             });
         });
 
-        return { reiniciar: reiniciar };
+        return { reiniciar: reiniciar, marcarPerfil: marcarPerfil };
     })();
 </script>

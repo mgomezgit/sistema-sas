@@ -32,6 +32,8 @@ class Negocio extends Model
         'politica_cancelacion',
         'frase_destacada',
         'frase_hasta',
+        'ia_especialidad',
+        'ia_publico',
         'chatbot_limite_mensual',
         'ia_limite_mensual',
         'tema_personalizado',

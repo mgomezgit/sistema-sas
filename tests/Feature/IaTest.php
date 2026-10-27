@@ -434,7 +434,7 @@ class IaTest extends TestCase
     /* ================= GUARDIÁN DE RUTAS ================= */
 
     /**
-     * Las rutas del asistente son exactamente dos y las dos llevan sesión,
+     * Las rutas del asistente son exactamente tres (estado, generar y perfil) y todas llevan sesión,
      * el bloqueo de empleados y el módulo; generar, además, su limitador.
      */
     public function test_guardian_de_rutas_del_asistente(): void
@@ -443,7 +443,7 @@ class IaTest extends TestCase
             ->filter(fn ($r) => str_starts_with($r->uri(), 'request/ia/') || $r->uri() === 'request/ia')
             ->mapWithKeys(fn ($r) => [implode('|', $r->methods()).' '.$r->uri() => array_diff($r->gatherMiddleware(), $r->excludedMiddleware())]);
 
-        $this->assertEqualsCanonicalizing(['GET|HEAD request/ia/estado', 'POST request/ia/generar'], $rutas->keys()->all());
+        $this->assertEqualsCanonicalizing(['GET|HEAD request/ia/estado', 'POST request/ia/generar', 'POST request/ia/perfil'], $rutas->keys()->all());
 
         foreach ($rutas as $ruta => $middleware) {
             foreach (['sesion.activa', 'restringir.empleado', 'verificar.modulo:ia'] as $requerido) {

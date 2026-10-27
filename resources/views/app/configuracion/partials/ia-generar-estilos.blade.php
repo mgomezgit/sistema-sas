@@ -52,6 +52,29 @@
         color: var(--text-primary);
     }
 
+    .ia-perfil-nota {
+        margin: 0 0 0.75rem;
+        font-size: 0.8rem;
+        color: var(--text-primary);
+    }
+
+    .ia-perfil-nota [hidden] {
+        display: none;
+    }
+
+    .ia-perfil-usa i {
+        color: var(--accent);
+    }
+
+    .ia-perfil-enlace {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        color: var(--text-primary);
+        font-weight: 600;
+        text-decoration: underline;
+    }
+
     .ia-estado:empty {
         display: none;
     }
@@ -175,5 +198,44 @@
         .ia-spinner {
             animation: none;
         }
+    }
+
+    /* ---------- Perfil para el asistente creativo ----------
+       Los textos secundarios del kit (--text-secondary / --text-muted) no
+       llegan a 4,5:1 en modo claro: aquí se oscurecen un poco, igual que
+       el contador de la frase. */
+    #tarjeta-perfil-ia .etiqueta-seccion-form,
+    #tarjeta-perfil-ia .ayuda-bloque,
+    #tarjeta-perfil-ia .ayuda-campo,
+    #tarjeta-perfil-ia .campo-flotante > label {
+        color: color-mix(in srgb, var(--text-secondary) 65%, var(--text-primary));
+    }
+
+    #tarjeta-perfil-ia #btn-quitar-perfil-ia:not([disabled]) {
+        color: var(--text-primary);
+        border-color: var(--accent);
+    }
+
+    /* El degradado blanco-sobre-acento del kit no llega a 4,5:1 con todos los
+       acentos (oro rosa 3,8; verde 3,3): texto del tema sobre un tinte del acento. */
+    #tarjeta-perfil-ia .btn-guardar-moderno:not(.exito) {
+        background: color-mix(in srgb, var(--accent) 28%, var(--bg-card));
+        border: 1.5px solid var(--accent);
+        color: var(--text-primary);
+    }
+
+    #tarjeta-perfil-ia .btn-guardar-moderno:not(.exito) .icono-guardar {
+        color: var(--accent);
+    }
+
+    #tarjeta-perfil-ia .btn-guardar-moderno.ocupado::before {
+        border-color: var(--text-primary);
+        border-top-color: transparent;
+    }
+
+    #tarjeta-perfil-ia .btn:focus-visible,
+    #tarjeta-perfil-ia .btn-guardar-moderno:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
     }
 </style>

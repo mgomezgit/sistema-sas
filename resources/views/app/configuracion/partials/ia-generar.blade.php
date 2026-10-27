@@ -26,6 +26,12 @@
     <div class="ia-panel" id="{{ $iaId }}-panel" hidden>
         <p class="ia-estado" aria-live="polite"></p>
 
+        {{-- Se actualiza sin recargar al guardar o quitar el perfil (IaGenerar.marcarPerfil). --}}
+        <p class="ia-perfil-nota">
+            <span class="ia-perfil-usa" @if (! $iaTienePerfil) hidden @endif><i class="bi bi-person-check" aria-hidden="true"></i> Usando tu perfil</span>
+            <a href="#tarjeta-perfil-ia" class="ia-perfil-enlace" @if ($iaTienePerfil) hidden @endif>Completa tu perfil para textos más personalizados</a>
+        </p>
+
         <div class="campo-flotante">
             <i class="bi bi-emoji-smile" aria-hidden="true"></i>
             <select class="ia-tono" id="{{ $iaId }}-tono">

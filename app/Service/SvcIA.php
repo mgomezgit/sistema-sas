@@ -23,7 +23,8 @@ use Illuminate\Support\Facades\Log;
  * - SOLO PROPONE: no escribe en banners, servicios ni ninguna otra tabla de
  *   contenido. Lo único que guarda son contadores (ia_uso) y METADATOS de cada
  *   uso (ia_actividad): nunca el texto generado ni el tema del admin.
- * - La IA recibe solo nombre y rubro del negocio y, para descripcion_servicio,
+ * - La IA recibe solo nombre y rubro del negocio, su perfil PRIVADO (especialidad
+ *   y público, si el admin los escribió) y, para descripcion_servicio,
  *   nombre, categoría y duración de UN servicio activo de ESE negocio. Nada de
  *   clientas, empleados, correos, teléfonos ni precios.
  * - Nada de lo que devuelve la IA se confía: el JSON se valida de forma
@@ -52,6 +53,11 @@ class SvcIA
     ];
 
     const LARGO_MAXIMO_TEMA = 200;
+
+    /** Perfil privado del negocio (negocios.ia_especialidad / ia_publico). */
+    const LARGO_MAXIMO_ESPECIALIDAD = 200;
+
+    const LARGO_MAXIMO_PUBLICO = 120;
 
     const NUMERO_OPCIONES = 3;
 
@@ -281,6 +287,133 @@ class SvcIA
         }
     }
 
+    /* ================= PERFIL PRIVADO DEL NEGOCIO ================= */
+
+    /**
+     * Valida y limpia un campo del perfil: opcional, espacios colapsados y
+     * recortados, sin caracteres de control y con un máximo (uno más se
+     * rechaza, no se recorta). Se guarda tal cual lo escribió el admin: el
+     * escape se hace al pintar, nunca al guardar.
+     *
+     * Devuelve ['ok' => bool, 'valor' => ?string]; valor null = campo vacío.
+     */
+    public static function normalizarCampoPerfil($texto, int $maximo): array
+    {
+        if ($texto === null) {
+            return ['ok' => true, 'valor' => null];
+        }
+
+        if (! is_string($texto)) {
+            return ['ok' => false, 'valor' => null];
+        }
+
+        $limpio = preg_replace('/\s+/u', ' ', $texto);
+
+        if ($limpio === null) {
+            return ['ok' => false, 'valor' => null];
+        }
+
+        $limpio = trim($limpio);
+
+        if ($limpio === '') {
+            return ['ok' => true, 'valor' => null];
+        }
+
+        if (mb_strlen($limpio) > $maximo || preg_match('/[\p{Cc}\p{Cf}]/u', $limpio) === 1) {
+            return ['ok' => false, 'valor' => null];
+        }
+
+        return ['ok' => true, 'valor' => $limpio];
+    }
+
+    /**
+     * El perfil del PROPIO negocio (para la pantalla de Configuración).
+     * Siempre las dos claves; '' cuando no hay valor.
+     */
+    public function obtenerPerfil($tenantId): array
+    {
+        $vacio = ['especialidad' => '', 'publico' => ''];
+
+        try {
+            if (empty($tenantId)) {
+                return $vacio;
+            }
+
+            $negocio = Negocio::select('ia_especialidad', 'ia_publico')->where('id_negocio', $tenantId)->first();
+
+            if ($negocio === null) {
+                return $vacio;
+            }
+
+            return [
+                'especialidad' => (string) ($negocio->ia_especialidad ?? ''),
+                'publico' => (string) ($negocio->ia_publico ?? ''),
+            ];
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return $vacio;
+        }
+    }
+
+    /**
+     * Guarda el perfil del negocio indicado (el controller pasa SIEMPRE el
+     * tenant de la sesión). Si los dos campos quedan vacíos equivale a
+     * quitarlo. false si algún campo no es válido o el negocio no existe.
+     */
+    public function guardarPerfil($tenantId, $especialidad, $publico): bool
+    {
+        try {
+            if (empty($tenantId)) {
+                return false;
+            }
+
+            $esp = self::normalizarCampoPerfil($especialidad, self::LARGO_MAXIMO_ESPECIALIDAD);
+            $pub = self::normalizarCampoPerfil($publico, self::LARGO_MAXIMO_PUBLICO);
+
+            if (! $esp['ok'] || ! $pub['ok']) {
+                return false;
+            }
+
+            if ($esp['valor'] === null && $pub['valor'] === null) {
+                return $this->quitarPerfil($tenantId);
+            }
+
+            if (! Negocio::where('id_negocio', $tenantId)->exists()) {
+                return false;
+            }
+
+            Negocio::where('id_negocio', $tenantId)->update([
+                'ia_especialidad' => $esp['valor'],
+                'ia_publico' => $pub['valor'],
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
+        }
+    }
+
+    /** Borra el perfil del negocio indicado. */
+    public function quitarPerfil($tenantId): bool
+    {
+        try {
+            if (empty($tenantId) || ! Negocio::where('id_negocio', $tenantId)->exists()) {
+                return false;
+            }
+
+            Negocio::where('id_negocio', $tenantId)->update(['ia_especialidad' => null, 'ia_publico' => null]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
+        }
+    }
+
     /* ================= DATOS PARA LA IA ================= */
 
     /**
@@ -320,7 +453,7 @@ class SvcIA
      */
     public function construirDatos($tenantId, string $tipo, string $tono, ?string $tema, ?array $servicio): array
     {
-        $negocio = Negocio::select('nombre_negocio', 'rubro')->where('id_negocio', $tenantId)->first();
+        $negocio = Negocio::select('nombre_negocio', 'rubro', 'ia_especialidad', 'ia_publico')->where('id_negocio', $tenantId)->first();
 
         $datos = [
             'tipo' => $tipo,
@@ -329,8 +462,20 @@ class SvcIA
                 'nombre' => (string) ($negocio->nombre_negocio ?? ''),
                 'rubro' => (string) ($negocio->rubro ?? ''),
             ],
-            'tema' => $tema ?? '',
         ];
+
+        // Perfil privado: solo las claves que tienen valor. Viaja únicamente
+        // aquí, dentro del bloque <DATOS>, y se trata como dato, nunca como orden.
+        $perfil = array_filter([
+            'especialidad' => (string) ($negocio->ia_especialidad ?? ''),
+            'publico' => (string) ($negocio->ia_publico ?? ''),
+        ], fn ($valor) => $valor !== '');
+
+        if ($perfil !== []) {
+            $datos['perfil'] = $perfil;
+        }
+
+        $datos['tema'] = $tema ?? '';
 
         if ($tipo === 'descripcion_servicio' && $servicio !== null) {
             $datos['servicio'] = $servicio;
