@@ -116,6 +116,8 @@ Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->
     Route::post('negocio/actualizar-tema', [App\Http\Controllers\Request\NegocioController::class, 'actualizarTema']);
     Route::get('negocio/configuracion', [App\Http\Controllers\Request\NegocioController::class, 'obtenerConfiguracion']);
     Route::post('negocio/actualizar-configuracion', [App\Http\Controllers\Request\NegocioController::class, 'actualizarConfiguracion']);
+    Route::post('negocio/guardar-frase', [App\Http\Controllers\Request\NegocioController::class, 'guardarFrase']);
+    Route::post('negocio/quitar-frase', [App\Http\Controllers\Request\NegocioController::class, 'quitarFrase']);
     Route::post('negocio/completar-onboarding', [App\Http\Controllers\Request\NegocioController::class, 'completarOnboarding']);
     Route::post('negocio/marcar-bienvenida', [App\Http\Controllers\Request\NegocioController::class, 'marcarBienvenidaVista']);
     Route::post('negocio/marcar-reportes-tour', [App\Http\Controllers\Request\NegocioController::class, 'marcarReportesTourVisto']);

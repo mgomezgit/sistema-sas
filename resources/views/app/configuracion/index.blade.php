@@ -298,7 +298,55 @@
             margin-top: 0.4rem;
             text-align: center;
         }
+
+        /* ---------- Frase destacada ---------- */
+        .contador-frase {
+            display: block;
+            text-align: right;
+            /* --text-secondary solo da 4,47:1 en modo claro: se oscurece un poco. */
+            color: color-mix(in srgb, var(--text-secondary) 65%, var(--text-primary));
+            font-size: 0.78rem;
+            margin-top: 0.3rem;
+        }
+
+        .estado-frase {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            min-height: 44px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .estado-frase i {
+            color: var(--text-secondary);
+        }
+
+        .estado-frase.vigente i {
+            color: var(--success);
+        }
+
+        .estado-frase.vencida i {
+            color: var(--warning);
+        }
+
+        .acciones-frase {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .acciones-frase .btn,
+        .acciones-frase .btn-guardar-moderno {
+            min-height: 44px;
+        }
     </style>
+    @if ($iaActiva)
+        @include('app.configuracion.partials.ia-generar-estilos')
+    @endif
 @endsection
 
 @section('content')
@@ -465,6 +513,49 @@
 
     {{-- ================= PESTAÑA 2: BANNERS ================= --}}
     <div class="tab-pane fade" id="panel-banners" role="tabpanel" aria-labelledby="tab-banners">
+        {{-- Frase destacada: UNA por negocio, franja bajo el encabezado de la
+             página pública. No depende del módulo "ia". Es un div y no un
+             form: con un form de un solo campo de texto, Enter enviaría de
+             forma nativa. --}}
+        <div class="card-elevada mb-4" id="tarjeta-frase-destacada">
+            <div class="tarjeta-seccion-form">
+                <div class="etiqueta-seccion-form">Frase destacada</div>
+
+                <p class="ayuda-bloque mb-3">
+                    Una frase corta en una franja bajo el encabezado de tu página pública. Úsala para un aviso o una promoción del momento.
+                </p>
+
+                <div class="campo-flotante">
+                    <i class="bi bi-chat-quote" aria-hidden="true"></i>
+                    <input type="text" id="frase_destacada" maxlength="140" placeholder=" " autocomplete="off">
+                    <label for="frase_destacada">Frase</label>
+                </div>
+                <span class="contador-frase" id="contador-frase" aria-hidden="true">0/140</span>
+
+                <div class="campo-flotante mt-2">
+                    <i class="bi bi-calendar-x" aria-hidden="true"></i>
+                    <input type="date" id="frase_fecha_hasta" placeholder=" ">
+                    <label for="frase_fecha_hasta">Se ve hasta (opcional)</label>
+                </div>
+                <div class="ayuda-campo">Si la dejas vacía, la frase se queda hasta que la quites.</div>
+
+                @if ($iaActiva)
+                    @include('app.configuracion.partials.ia-generar', ['iaTipo' => 'frase', 'iaCampoTitulo' => '', 'iaCampoTexto' => '#frase_destacada'])
+                @endif
+
+                <div class="acciones-frase">
+                    <button type="button" id="btn-guardar-frase" class="btn-guardar-moderno">
+                        <i class="bi bi-check2 icono-guardar"></i>
+                        <span id="texto-btn-guardar-frase">Guardar</span>
+                    </button>
+                    <button type="button" id="btn-quitar-frase" class="btn btn-outline-primary" disabled>
+                        <i class="bi bi-x-lg" aria-hidden="true"></i> Quitar
+                    </button>
+                    <span class="estado-frase" id="estado-frase" aria-live="polite"></span>
+                </div>
+            </div>
+        </div>
+
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
             <p class="subtitulo-pagina">
                 Imágenes que rotan en la cabecera de tu página pública. Puedes darles una vigencia para que aparezcan y se retiren solas.
@@ -535,6 +626,10 @@
                             </div>
 
                             <div class="ayuda-campo">Ambos son opcionales: una imagen sola también funciona.</div>
+
+                            @if ($iaActiva)
+                                @include('app.configuracion.partials.ia-generar', ['iaTipo' => 'banner', 'iaCampoTitulo' => '#titulo_banner', 'iaCampoTexto' => '#texto_banner'])
+                            @endif
                         </div>
 
                         <div class="tarjeta-seccion-form">
@@ -731,6 +826,8 @@
                 // la regla: NUNCA .html() con contenido escrito por el usuario.
                 jQuery('#politica_cancelacion').val(negocio.politica_cancelacion || '');
 
+                pintarFrase(negocio);
+
                 // dias_atencion viene como "1,2,3,4,5"
                 jQuery('.check-dia').prop('checked', false);
 
@@ -798,6 +895,136 @@
                     estadoBotonGuardarConfiguracion('normal');
                     avisarGuardado('Configuración guardada correctamente');
                 }, ESPERA_CONFIRMACION_GUARDADO);
+            });
+        });
+
+        /* ================= FRASE DESTACADA (pestaña Banners) ================= */
+
+        var fraseGuardada = false;
+
+        function actualizarContadorFrase() {
+            jQuery('#contador-frase').text(jQuery('#frase_destacada').val().length + '/140');
+        }
+
+        jQuery('#frase_destacada').on('input', actualizarContadorFrase);
+
+        // Todo con .val() / .text(): la frase es texto escrito por el admin (o
+        // propuesto por la IA), nunca HTML.
+        function pintarFrase(negocio) {
+            var texto = negocio.frase_destacada || '';
+            var estado = jQuery('#estado-frase');
+
+            fraseGuardada = texto !== '';
+            jQuery('#frase_destacada').val(texto);
+            jQuery('#frase_fecha_hasta').val(negocio.frase_hasta ? String(negocio.frase_hasta).substring(0, 10) : '');
+            actualizarContadorFrase();
+            jQuery('#btn-quitar-frase').prop('disabled', !fraseGuardada);
+
+            estado.removeClass('vigente vencida').empty();
+
+            if (!fraseGuardada) {
+                jQuery('<i>').addClass('bi bi-dash-circle').attr('aria-hidden', 'true').appendTo(estado);
+                estado.append(document.createTextNode('Sin frase'));
+
+                return;
+            }
+
+            if (negocio.frase_vigente) {
+                estado.addClass('vigente');
+                jQuery('<i>').addClass('bi bi-check-circle-fill').attr('aria-hidden', 'true').appendTo(estado);
+                estado.append(document.createTextNode('Se ve en tu página'));
+
+                return;
+            }
+
+            estado.addClass('vencida');
+            jQuery('<i>').addClass('bi bi-clock-history').attr('aria-hidden', 'true').appendTo(estado);
+            estado.append(document.createTextNode('Venció el ' + String(negocio.frase_hasta).substring(0, 10)));
+        }
+
+        function estadoBotonGuardarFrase(estado) {
+            var boton = jQuery('#btn-guardar-frase');
+
+            boton.removeClass('ocupado exito').prop('disabled', estado === 'ocupado');
+
+            if (estado === 'ocupado') {
+                boton.addClass('ocupado');
+                jQuery('#texto-btn-guardar-frase').text('Guardando');
+            } else if (estado === 'exito') {
+                boton.addClass('exito');
+                jQuery('#texto-btn-guardar-frase').text('Guardado');
+            } else {
+                jQuery('#texto-btn-guardar-frase').text('Guardar');
+            }
+        }
+
+        jQuery('#btn-guardar-frase').on('click', function () {
+            var frase = jQuery.trim(jQuery('#frase_destacada').val());
+
+            if (frase === '') {
+                notificarUsuario('Escribe la frase que quieres destacar.', 'error');
+                jQuery('#frase_destacada').trigger('focus');
+
+                return;
+            }
+
+            estadoBotonGuardarFrase('ocupado');
+
+            axiosSipleInterno('POST', 'request/negocio/guardar-frase', {}, {
+                frase: frase,
+                fecha_hasta: jQuery('#frase_fecha_hasta').val()
+            }, false, function (respuesta) {
+                if (!respuesta || respuesta.error != 0) {
+                    estadoBotonGuardarFrase('normal');
+
+                    if (respuesta) {
+                        notificarUsuario(Array.isArray(respuesta.mensaje) ? respuesta.mensaje.join(' ') : respuesta.mensaje, 'error');
+                    }
+
+                    return;
+                }
+
+                estadoBotonGuardarFrase('exito');
+                pintarFrase(respuesta.data.negocio);
+                notificarUsuario('Frase guardada correctamente', 'success');
+
+                setTimeout(function () {
+                    estadoBotonGuardarFrase('normal');
+                }, ESPERA_CONFIRMACION_GUARDADO);
+            }).then(function (resultado) {
+                // Falla de red: axiosSipleInterno ya avisó y no llamó al callback.
+                if (resultado === false) {
+                    estadoBotonGuardarFrase('normal');
+                }
+            });
+        });
+
+        jQuery('#btn-quitar-frase').on('click', function () {
+            Swal.fire({
+                title: '¿Quitar la frase destacada?',
+                text: 'La franja dejará de verse en tu página pública y se borrarán el texto y la fecha.',
+                icon: 'warning',
+                background: colorVariable('--bg-card'),
+                color: colorVariable('--text-primary'),
+                confirmButtonColor: colorVariable('--accent'),
+                showCancelButton: true,
+                confirmButtonText: 'Sí, quitar',
+                cancelButtonText: 'Cancelar'
+            }).then(function (resultado) {
+                if (!resultado.isConfirmed) {
+                    return;
+                }
+
+                axiosSipleInterno('POST', 'request/negocio/quitar-frase', {}, {}, true, function (respuesta) {
+                    if (respuesta.error != 0) {
+                        notificarUsuario(respuesta.mensaje, 'error');
+
+                        return;
+                    }
+
+                    pintarFrase(respuesta.data.negocio);
+                    notificarUsuario('Frase quitada', 'success');
+                });
             });
         });
 
@@ -1187,4 +1414,9 @@
             });
         });
     </script>
+
+    {{-- Componente "Generar con IA": solo existe en la página con el módulo 'ia' activo. --}}
+    @if ($iaActiva)
+        @include('app.configuracion.partials.ia-generar-js')
+    @endif
 @endsection

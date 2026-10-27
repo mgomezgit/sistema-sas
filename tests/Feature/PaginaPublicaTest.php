@@ -325,6 +325,7 @@ class PaginaPublicaTest extends TestCase
             'politica_cancelacion',
             'modo_tema',
             'color_acento',
+            'frase_destacada',
         ];
 
         $this->assertSame(

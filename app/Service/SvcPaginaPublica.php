@@ -73,7 +73,21 @@ class SvcPaginaPublica
             'politica_cancelacion' => $negocio->politica_cancelacion,
             'modo_tema' => $negocio->modo_tema,
             'color_acento' => $negocio->color_acento,
+            'frase_destacada' => $this->fraseVigente($negocio),
         ];
+    }
+
+    /**
+     * La frase destacada SOLO si está vigente: sin fecha de fin se ve siempre;
+     * con ella, hasta ese día inclusive (hoy <= frase_hasta). Vencida o sin
+     * frase devuelve null, y frase_hasta nunca sale: desde fuera no se sabe
+     * cuándo vence, solo si hoy se ve.
+     */
+    private function fraseVigente(Negocio $negocio): ?string
+    {
+        return SvcNegocio::fraseVigente($negocio->frase_destacada, $negocio->frase_hasta)
+            ? (string) $negocio->frase_destacada
+            : null;
     }
 
     /**

@@ -52,6 +52,77 @@ class NegocioController extends Controller
         return $this->sendResponse();
     }
 
+    /**
+     * Frase destacada (una por negocio, franja de la página pública). No
+     * depende del módulo "ia": la gestiona cualquier admin. El negocio sale
+     * SIEMPRE de la sesión; un tenant_id o id_negocio en el cuerpo no se lee.
+     */
+    public function guardarFrase(): JsonResponse
+    {
+        $error = $this->validarAccesoAdmin('configuración');
+
+        if ($error !== null) {
+            $this->agregarError($error);
+
+            return $this->sendResponse();
+        }
+
+        $datos = $this->getRequestData();
+        $texto = $datos['frase'] ?? null;
+        $hasta = $datos['fecha_hasta'] ?? null;
+
+        if (! is_string($texto) || trim($texto) === '') {
+            $this->agregarError('Escribe la frase que quieres destacar.');
+
+            return $this->sendResponse();
+        }
+
+        if (SvcNegocio::normalizarFrase($texto) === null) {
+            $this->agregarError('La frase debe tener entre 1 y '.SvcNegocio::FRASE_MAXIMO.' caracteres y no puede llevar caracteres de control.');
+
+            return $this->sendResponse();
+        }
+
+        if (! SvcNegocio::fechaHastaValida($hasta)) {
+            $this->agregarError('La fecha de fin debe ser una fecha válida (AAAA-MM-DD) y no puede ser anterior a hoy.');
+
+            return $this->sendResponse();
+        }
+
+        if (! $this->svcNegocio->guardarFrase(session('tenant_id'), $texto, $hasta)) {
+            $this->agregarError('No se pudo guardar la frase. Inténtalo de nuevo.');
+
+            return $this->sendResponse();
+        }
+
+        $this->respSinError();
+        $this->setDataResponse($this->svcNegocio->obtenerConfiguracion(session('tenant_id')), 'negocio');
+
+        return $this->sendResponse();
+    }
+
+    public function quitarFrase(): JsonResponse
+    {
+        $error = $this->validarAccesoAdmin('configuración');
+
+        if ($error !== null) {
+            $this->agregarError($error);
+
+            return $this->sendResponse();
+        }
+
+        if (! $this->svcNegocio->quitarFrase(session('tenant_id'))) {
+            $this->agregarError('No se pudo quitar la frase. Inténtalo de nuevo.');
+
+            return $this->sendResponse();
+        }
+
+        $this->respSinError();
+        $this->setDataResponse($this->svcNegocio->obtenerConfiguracion(session('tenant_id')), 'negocio');
+
+        return $this->sendResponse();
+    }
+
     public function actualizarConfiguracion(): JsonResponse
     {
         $error = $this->validarAccesoAdmin('configuración');

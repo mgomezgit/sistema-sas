@@ -103,12 +103,22 @@ class SvcNegocio
                 'dias_atencion',
                 'hora_apertura',
                 'hora_cierre',
-                'politica_cancelacion'
+                'politica_cancelacion',
+                'frase_destacada',
+                'frase_hasta'
             )
                 ->where('id_negocio', $tenantId)
                 ->first();
 
-            return $negocio ? $negocio->toArray() : [];
+            if (! $negocio) {
+                return [];
+            }
+
+            $config = $negocio->toArray();
+            // Solo para el panel (nunca público): si la frase se ve hoy.
+            $config['frase_vigente'] = self::fraseVigente($config['frase_destacada'], $config['frase_hasta']);
+
+            return $config;
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
 
@@ -179,6 +189,123 @@ class SvcNegocio
             }
 
             $query->update($campos);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
+        }
+    }
+
+    /* ================= FRASE DESTACADA ================= */
+
+    const FRASE_MAXIMO = 140;
+
+    /**
+     * Frase tal como se guarda: sin espacios en los extremos ni repetidos
+     * (los saltos de línea y tabulaciones cuentan como espacios). Devuelve
+     * null si no sirve: vacía, de más de 140 caracteres, con caracteres de
+     * control o con texto que no es UTF-8 válido.
+     *
+     * Se guarda tal cual la escribió el admin: el escape se hace al PINTAR
+     * (Blade {{ }}, textContent), nunca al guardar.
+     */
+    public static function normalizarFrase($texto): ?string
+    {
+        if (! is_string($texto)) {
+            return null;
+        }
+
+        $limpio = preg_replace('/\s+/u', ' ', $texto);
+
+        if ($limpio === null) {
+            return null;
+        }
+
+        $limpio = trim($limpio);
+
+        if ($limpio === '' || mb_strlen($limpio) > self::FRASE_MAXIMO || preg_match('/[\p{Cc}\p{Cf}]/u', $limpio) === 1) {
+            return null;
+        }
+
+        return $limpio;
+    }
+
+    /**
+     * Fecha de fin válida: vacía (sin vencimiento) o AAAA-MM-DD real y no
+     * anterior a hoy. Se compara contra Carbon::today(), no contra el reloj
+     * del validador de Laravel, para que el reloj congelado de las pruebas
+     * mande.
+     */
+    public static function fechaHastaValida($hasta): bool
+    {
+        if ($hasta === null || $hasta === '') {
+            return true;
+        }
+
+        if (! is_string($hasta) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $hasta) !== 1) {
+            return false;
+        }
+
+        $fecha = Carbon::createFromFormat('!Y-m-d', $hasta);
+
+        return $fecha !== false && $fecha->format('Y-m-d') === $hasta && $hasta >= Carbon::today()->format('Y-m-d');
+    }
+
+    /**
+     * ¿Se ve hoy la frase? Hay texto y, o no tiene fecha de fin, o hoy es ese
+     * día o antes (inclusive). ÚNICA regla de vigencia: la usan la página
+     * pública y el estado que muestra el panel, para que digan lo mismo.
+     */
+    public static function fraseVigente($frase, $hasta): bool
+    {
+        if ($frase === null || trim((string) $frase) === '') {
+            return false;
+        }
+
+        return $hasta === null || $hasta === '' || substr((string) $hasta, 0, 10) >= Carbon::today()->format('Y-m-d');
+    }
+
+    /**
+     * Guarda (o reemplaza) la frase destacada del negocio. El texto y la
+     * fecha se vuelven a validar aquí: el Service no confía en que el
+     * Controller lo haya hecho. $hasta vacío = sin vencimiento.
+     */
+    public function guardarFrase($tenantId, $texto, $hasta): bool
+    {
+        try {
+            $frase = self::normalizarFrase($texto);
+
+            if (empty($tenantId) || $frase === null || ! self::fechaHastaValida($hasta)) {
+                return false;
+            }
+
+            $afectados = Negocio::where('id_negocio', $tenantId)->update([
+                'frase_destacada' => $frase,
+                'frase_hasta' => ($hasta === null || $hasta === '') ? null : $hasta,
+            ]);
+
+            return $afectados === 1;
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            return false;
+        }
+    }
+
+    /** Borra el texto y la fecha de la frase destacada. */
+    public function quitarFrase($tenantId): bool
+    {
+        try {
+            if (empty($tenantId)) {
+                return false;
+            }
+
+            Negocio::where('id_negocio', $tenantId)->update([
+                'frase_destacada' => null,
+                'frase_hasta' => null,
+            ]);
 
             return true;
         } catch (\Exception $e) {

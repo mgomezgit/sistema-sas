@@ -142,6 +142,11 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 - El historial (ia_actividad) guarda SOLO metadatos: quién, cuándo, tipo, tono, estado y tokens. Nunca el texto generado ni el tema.
 - Cualquier cambio que le dé al asistente acciones o herramientas (guardar, publicar, leer datos por su cuenta) requiere una revisión de seguridad aparte antes de construirse.
 
+## Frase destacada y botón "Generar con IA"
+
+- Frase destacada: UN solo espacio por negocio (negocios.frase_destacada, hasta 140 caracteres, y frase_hasta opcional, inclusive). Se ve como una franja bajo el encabezado de la página pública y vence sola: SvcNegocio::fraseVigente() es la ÚNICA regla de vigencia (la usan la página pública y el estado del panel). NO depende del módulo 'ia': cualquier admin la gestiona (request/negocio/guardar-frase y quitar-frase, tenant siempre de la sesión). Se guarda tal cual la escribió el admin y se pinta SIEMPRE escapada ({{ }} en Blade, .val()/.text() en el panel); SvcPaginaPublica solo la expone si está vigente y nunca expone frase_hasta. No entra al contexto del chatbot.
+- El componente "Generar con IA" (partials app/configuracion/partials/ia-generar*.blade.php; el código JS existe una sola vez) solo PROPONE: rellena los campos del formulario y NUNCA guarda; el admin decide con Guardar. Solo se renderiza si el módulo 'ia' está activo para el negocio (con el módulo apagado no hay ni rastro, ni oculto por CSS). Todo texto de la IA o del servidor se pinta con textContent/.text()/.val(), jamás como HTML.
+
 ## Seguridad y autenticación
 
 - Sesión manual de Laravel (session()), NUNCA Auth:: nativo ni middleware auth.

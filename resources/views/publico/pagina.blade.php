@@ -93,6 +93,16 @@
         <button type="button" class="nav-cta" data-abrir-agendar>Agendar cita</button>
     </nav>
 
+    {{-- ================= FRASE DESTACADA =================
+         Solo si hay una frase VIGENTE (SvcPaginaPublica ya devolvió null si
+         venció): sin frase no se renderiza nada, ni un hueco. Texto del
+         negocio: siempre {{ }}. --}}
+    @if (! empty($negocio['frase_destacada']))
+        <div class="franja-frase" id="franja-frase-destacada">
+            <p>{{ $negocio['frase_destacada'] }}</p>
+        </div>
+    @endif
+
     {{-- ================= HERO ================= --}}
     <div class="hero">
         <div>

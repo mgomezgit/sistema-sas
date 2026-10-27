@@ -330,6 +330,7 @@ class ConfiguracionNegocioTest extends TestCase
             'nombre_negocio', 'telefono_contacto', 'whatsapp_numero',
             'dias_atencion', 'hora_apertura', 'hora_cierre',
             'politica_cancelacion', 'modo_tema', 'color_acento',
+            'frase_destacada',
         ];
         sort($permitidos);
         $clavesDevueltas = array_keys($negocio);

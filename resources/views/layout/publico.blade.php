@@ -66,6 +66,13 @@
         .nav-links { display: flex; gap: 28px; font-size: 12.5px; color: var(--text-secondary); font-weight: 600; letter-spacing: .02em; flex-wrap: wrap; }
         .nav-links a { color: inherit; text-decoration: none; cursor: pointer; }
         .nav-links a:hover { color: var(--accent); }
+
+        /* ===== Frase destacada (franja bajo la barra superior) =====
+           Solo se renderiza si el negocio tiene una frase vigente. Texto
+           --oro-fuerte sobre un fondo apenas teñido del acento: ~4,7:1. */
+        .franja-frase { position: relative; z-index: 2; background: color-mix(in srgb, var(--accent) 10%, var(--bg-page)); color: var(--oro-fuerte); text-align: center; padding: 11px 5vw; }
+        .franja-frase p { font-family: 'Fraunces', serif; font-size: 14.5px; font-weight: 500; line-height: 1.4; max-width: 900px; margin: 0 auto; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        @media (min-width: 861px) { .franja-frase p { -webkit-line-clamp: 2; line-clamp: 2; } }
         .btn-primario, .nav-cta {
             font-family: 'Work Sans', sans-serif; background: var(--accent); color: var(--on-accent); border: none;
             padding: 13px 26px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer;
