@@ -398,7 +398,37 @@ class ChatbotTest extends TestCase
 
         $this->assertSame($mensajeAgotado['respuesta'], $mensajeApagado['respuesta']);
         $this->assertSame(['respuesta', 'conversacion_id', 'derivar_whatsapp'], array_keys($mensajeAgotado));
-        $this->assertStringNotContainsString('77', $agotado.json_encode($mensajeAgotado));
+
+        // El estado no lleva ningún dato aleatorio: se puede buscar el 77 en todo su cuerpo.
+        $this->assertStringNotContainsString('77', $agotado);
+        $this->assertSame(['disponible'], array_keys(json_decode($agotado, true)['data']));
+
+        // La respuesta SÍ lleva un conversacion_id aleatorio de 40 caracteres que a veces
+        // contiene "77" por azar (≈1 de cada 100 corridas), así que NO se busca el número
+        // en todo el cuerpo: se comprueban los campos por su nombre y el único texto libre.
+        $this->assertSame(['respuesta', 'conversacion_id', 'derivar_whatsapp'], array_keys($mensajeAgotado));
+        $this->assertStringNotContainsString('77', $mensajeAgotado['respuesta']);
+        $this->assertSame([], $this->clavesDeUso($mensajeAgotado), 'La respuesta no puede traer ninguna clave de uso, límite ni restantes');
+        $this->assertSame([], $this->clavesDeUso(json_decode($agotado, true)['data']));
+    }
+
+    /** Claves (a cualquier profundidad) que delatarían el uso o los límites del negocio. */
+    private function clavesDeUso(array $datos): array
+    {
+        $halladas = [];
+        $recorrer = function (array $nivel) use (&$recorrer, &$halladas) {
+            foreach ($nivel as $clave => $valor) {
+                if (is_string($clave) && preg_match('/uso|limite|límite|restante|mensajes|tokens|cupo|tope/i', $clave)) {
+                    $halladas[] = $clave;
+                }
+                if (is_array($valor)) {
+                    $recorrer($valor);
+                }
+            }
+        };
+        $recorrer($datos);
+
+        return $halladas;
     }
 
     /* ================= CAMINO FELIZ Y CONTADORES ================= */
@@ -818,7 +848,12 @@ class ChatbotTest extends TestCase
         $respuesta = $this->mensaje('spa-aurora', $secreto);
 
         $this->assertRespuestaDerivada($respuesta);
-        $cuerpo = $respuesta->getContent();
+        // El conversacion_id es aleatorio (40 alfanuméricos): se excluye de la búsqueda de texto
+        // y se comprueba por su forma, para que el azar no pueda formar una palabra prohibida.
+        $datos = $respuesta->json('data');
+        $this->assertSame(['respuesta', 'conversacion_id', 'derivar_whatsapp'], array_keys($datos));
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{40}$/', $datos['conversacion_id']);
+        $cuerpo = json_encode([$respuesta->json('mensaje'), $datos['respuesta'], $datos['derivar_whatsapp']]);
         foreach ([self::CLAVE_FALSA, 'sk-', 'API key', 'insufficient', 'quota', 'openai', 'Exception', 'cURL'] as $prohibido) {
             $this->assertStringNotContainsStringIgnoringCase($prohibido, $cuerpo);
         }
