@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Empleado;
 use App\Models\Negocio;
+use App\Models\Rol;
 use App\Models\Usuario;
 use Closure;
 use Illuminate\Http\Request;
@@ -19,6 +20,8 @@ class VerificarSesion
 
     const MENSAJE_CLAVE_CAMBIADA = 'La clave de tu cuenta cambió. Inicia sesión de nuevo con la clave nueva.';
 
+    const MENSAJE_SESION_ANOMALA = 'Tu sesión no es válida. Inicia sesión de nuevo.';
+
     /**
      * Handle an incoming request.
      */
@@ -26,6 +29,16 @@ class VerificarSesion
     {
         if (session('app_sesion') !== self::CLAVE_SESION) {
             return $this->rechazar($request, 'Tu sesión terminó. Vuelve a iniciar sesión para continuar.', false);
+        }
+
+        // Defensa en profundidad: una sesión con rol super_admin Y negocio es
+        // anómala (la cuenta de plataforma nunca tiene negocio). Se corta de
+        // inmediato, antes de dejarla tocar nada: ni el panel de plataforma ni
+        // el backoffice de un negocio deben aceptar esa combinación.
+        if (session('tenant_id') !== null && Rol::esRolSuperAdmin(session('id_rol'))) {
+            session()->flush();
+
+            return $this->rechazar($request, self::MENSAJE_SESION_ANOMALA, false);
         }
 
         // Un negocio suspendido por el super admin corta también las sesiones

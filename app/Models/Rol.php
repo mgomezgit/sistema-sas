@@ -25,6 +25,41 @@ class Rol extends Model
         'estado',
     ];
 
+    /** Nombre del rol de la cuenta de plataforma (única, sin negocio). */
+    const SUPER_ADMIN = 'super_admin';
+
+    /**
+     * Roles que se pueden asignar a una cuenta de negocio, desde cualquier
+     * camino (pantalla de Usuarios, carga masiva, acceso de empleado,
+     * registro). super_admin NO está aquí a propósito: esa cuenta es única y
+     * nadie la crea ni la asigna.
+     */
+    const ROLES_DE_NEGOCIO = ['admin', 'empleado'];
+
+    /** Nombre del rol con ese id, o null si no existe. */
+    public static function nombrePorId($idRol): ?string
+    {
+        if (empty($idRol) || ! is_numeric($idRol)) {
+            return null;
+        }
+
+        return self::where('id_rol', (int) $idRol)->value('nombre_rol');
+    }
+
+    /** Id del rol con ese nombre, o null si no existe. */
+    public static function idPorNombre(string $nombreRol): ?int
+    {
+        $id = self::where('nombre_rol', $nombreRol)->value('id_rol');
+
+        return $id !== null ? (int) $id : null;
+    }
+
+    /** ¿Ese id corresponde a uno de los roles asignables a una cuenta de negocio? */
+    public static function esRolDeNegocio($idRol): bool
+    {
+        return in_array(self::nombrePorId($idRol), self::ROLES_DE_NEGOCIO, true);
+    }
+
     /**
      * Indica si el rol recibido corresponde al rol "empleado". Centraliza la
      * comparación para no repartir comparaciones de id_rol por los controllers.
@@ -50,6 +85,6 @@ class Rol extends Model
             return false;
         }
 
-        return self::where('id_rol', $idRol)->value('nombre_rol') === 'super_admin';
+        return self::where('id_rol', $idRol)->value('nombre_rol') === self::SUPER_ADMIN;
     }
 }

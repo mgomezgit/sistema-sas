@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Models\Empleado;
+use App\Models\Rol;
 use App\Models\Usuario;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -17,6 +18,32 @@ class SvcUsuario
      */
     const LARGO_MINIMO_CLAVE = 8;
 
+    /** Resultado de rechazar una operación por la regla de roles de plataforma. */
+    const ROL_INVALIDO = 'rol_invalido';
+
+    /** Resultado de intentar tocar la cuenta de plataforma (super admin). */
+    const CUENTA_PROTEGIDA = 'cuenta_protegida';
+
+    /**
+     * ¿Ese usuario es la cuenta de plataforma (rol super_admin)?
+     *
+     * La cuenta de plataforma es intocable desde todos los caminos de este
+     * módulo: no se le cambia el rol, no se le pone negocio, no se da de baja
+     * ni se elimina, ni siquiera si quien actúa es el propio super admin. Lo
+     * único editable (nombre, correo, clave) pasa por editar(), que conserva
+     * su rol y su tenant_id null sin leerlos del request.
+     */
+    public static function esCuentaDePlataforma($idUsuario): bool
+    {
+        if (empty($idUsuario)) {
+            return false;
+        }
+
+        return Usuario::where('id_usuario', $idUsuario)
+            ->where('id_rol', Rol::idPorNombre(Rol::SUPER_ADMIN))
+            ->exists();
+    }
+
     /** Mensaje de validación compartido por todos los formularios que fijan una clave. */
     public static function mensajesDeClave(): array
     {
@@ -25,9 +52,36 @@ class SvcUsuario
         ];
     }
 
+    /**
+     * Backstop de roles de plataforma, común a los dos caminos de alta.
+     *
+     * Ningún alta de este Service puede crear la cuenta de plataforma: toda
+     * cuenta que nace aquí tiene un negocio y un rol de negocio (admin o
+     * empleado). La única cuenta super_admin se siembra directo por Eloquent,
+     * nunca por aquí. Es la red de seguridad de la validación del controller.
+     */
+    private function altaConRolDeNegocio(array $info, string $accion): bool
+    {
+        if (empty($info['tenant_id']) || ! Rol::esRolDeNegocio($info['id_rol'] ?? null)) {
+            Log::channel('database')->info(
+                'SEGURIDAD: intento rechazado de '.$accion.' un usuario con rol o negocio no permitido '
+                .'(rol '.($info['id_rol'] ?? 'null').', negocio '.($info['tenant_id'] ?? 'null').'). '
+                .'Quien actúa: usuario '.(session('id_usuario') ?? 'sin sesion').'.'
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
     public function crear($info)
     {
         try {
+            if (! $this->altaConRolDeNegocio($info, 'crear')) {
+                return false;
+            }
+
             $info['clave'] = Hash::make($info['clave']);
 
             $usuario = Usuario::create($info);
@@ -55,6 +109,10 @@ class SvcUsuario
     {
         try {
             if (empty($info['clave']) || Hash::info($info['clave'])['algoName'] === 'unknown') {
+                return false;
+            }
+
+            if (! $this->altaConRolDeNegocio($info, 'confirmar el registro de')) {
                 return false;
             }
 
@@ -193,6 +251,54 @@ class SvcUsuario
     public function editar($id, $info, $tenantId = null): bool
     {
         try {
+            // La cuenta de plataforma (super_admin) es intocable en su rol y en
+            // su condición de plataforma: solo se le editan nombre, correo y
+            // clave. El rol y el tenant null NO se leen del request, y no puede
+            // desactivarse. Vale incluso cuando quien edita es el propio super
+            // admin.
+            if (self::esCuentaDePlataforma($id)) {
+                // Solo el super admin (sin negocio en la sesión, $tenantId null)
+                // llega legítimamente a su propia cuenta. Un admin de negocio
+                // (que edita con su tenant) no puede tocarla en absoluto.
+                if ($tenantId !== null) {
+                    Log::channel('database')->info(
+                        'SEGURIDAD: intento rechazado de que un negocio edite la cuenta de plataforma (usuario '.$id.'). '
+                        .'Quien actúa: usuario '.(session('id_usuario') ?? 'sin sesion').' (negocio '.$tenantId.').'
+                    );
+
+                    return false;
+                }
+
+                if (array_key_exists('estado', $info) && (int) $info['estado'] === 0) {
+                    Log::channel('database')->info(
+                        'SEGURIDAD: intento rechazado de desactivar la cuenta de plataforma (usuario '.$id.'). '
+                        .'Quien actúa: usuario '.(session('id_usuario') ?? 'sin sesion').'.'
+                    );
+
+                    return false;
+                }
+
+                // Se descartan rol, negocio y estado del request: su rol
+                // super_admin, su tenant null y su estado activo se conservan.
+                unset($info['id_rol'], $info['tenant_id'], $info['estado']);
+
+                // Su fila no vive bajo ningún negocio, así que no se filtra por
+                // tenant aunque quien edite tenga uno (no lo tendrá: solo el
+                // propio super admin llega hasta aquí).
+                $tenantId = null;
+            } else {
+                // Ninguna cuenta de negocio puede quedar con rol super_admin ni
+                // con un rol que no sea de negocio.
+                if (array_key_exists('id_rol', $info) && ! Rol::esRolDeNegocio($info['id_rol'])) {
+                    Log::channel('database')->info(
+                        'SEGURIDAD: intento rechazado de poner el rol '.$info['id_rol'].' al usuario '.$id.'. '
+                        .'Quien actúa: usuario '.(session('id_usuario') ?? 'sin sesion').'.'
+                    );
+
+                    return false;
+                }
+            }
+
             if ($tenantId !== null) {
                 $info['tenant_id'] = $tenantId;
             }
@@ -267,6 +373,18 @@ class SvcUsuario
     public function eliminar($id, $tenantId = null): bool
     {
         try {
+            // La cuenta de plataforma no se da de baja por ningún camino: ni la
+            // papelera, ni el interruptor, ni la cascada. Vale también para el
+            // propio super admin.
+            if (self::esCuentaDePlataforma($id)) {
+                Log::channel('database')->info(
+                    'SEGURIDAD: intento rechazado de eliminar la cuenta de plataforma (usuario '.$id.'). '
+                    .'Quien actúa: usuario '.(session('id_usuario') ?? 'sin sesion').'.'
+                );
+
+                return false;
+            }
+
             $query = Usuario::where('id_usuario', $id);
 
             if ($tenantId !== null) {

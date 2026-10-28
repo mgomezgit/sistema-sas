@@ -199,7 +199,11 @@ Route::prefix('backoffice/superadmin')->middleware(['sesion.activa', 'solo.super
 });
 
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
-    Route::get('dashboard', [App\Http\Controllers\DashboardController::class, 'index']);
+    // El dashboard muestra métricas del negocio (ingresos del mes, ocupación):
+    // es solo para el admin. Un empleado que escriba la URL rebota a Mis Citas
+    // por restringir.empleado, igual que el resto del backoffice. El super admin
+    // entra y el propio controlador lo reenvía a su panel de plataforma.
+    Route::get('dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->middleware('restringir.empleado');
     Route::get('mis-citas', [App\Http\Controllers\MisCitasViewController::class, 'index']);
     Route::get('logout', [App\Http\Controllers\AutenticacionController::class, 'logout']);
 

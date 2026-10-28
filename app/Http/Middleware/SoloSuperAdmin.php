@@ -28,7 +28,11 @@ class SoloSuperAdmin
     {
         $sesionValida = session('app_sesion') === VerificarSesion::CLAVE_SESION;
 
-        if ($sesionValida && Rol::esRolSuperAdmin(session('id_rol'))) {
+        // Defensa en profundidad: el panel de plataforma exige las DOS cosas a
+        // la vez, rol super_admin Y sesión sin negocio (tenant_id null). Una
+        // sesión con rol super_admin y negocio es anómala: no entra aquí (y
+        // VerificarSesion ya la habrá cortado antes).
+        if ($sesionValida && Rol::esRolSuperAdmin(session('id_rol')) && session('tenant_id') === null) {
             return $next($request);
         }
 

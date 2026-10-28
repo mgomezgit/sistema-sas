@@ -7,6 +7,7 @@ use App\Models\Rol;
 use App\Models\Usuario;
 use App\Service\SvcUsuario;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 class UsuarioController extends Controller
 {
@@ -31,6 +32,28 @@ class UsuarioController extends Controller
     private function sinNegocioNiRolDePlataforma(): bool
     {
         return session('tenant_id') === null && ! Rol::esRolSuperAdmin(session('id_rol'));
+    }
+
+    /**
+     * Rol asignable desde este módulo: solo admin o empleado, para quien sea
+     * que actúe (admin de negocio o super admin). super_admin JAMÁS se asigna
+     * aquí: esa cuenta es única y se siembra aparte. Lista blanca por nombre,
+     * no "que exista": un id cualquiera que apunte a super_admin se rechaza.
+     *
+     * Deja rastro de cada intento rechazado, como pide la política de seguridad.
+     */
+    private function rolAsignableRechazado($idRol): bool
+    {
+        if (Rol::esRolDeNegocio($idRol)) {
+            return false;
+        }
+
+        Log::channel('database')->info(
+            'SEGURIDAD: intento rechazado de asignar el rol '.($idRol ?? 'null').' desde el modulo de usuarios. '
+            .'Quien actúa: usuario '.(session('id_usuario') ?? 'sin sesion').' (negocio '.(session('tenant_id') ?? 'plataforma').').'
+        );
+
+        return true;
     }
 
     /**
@@ -81,6 +104,12 @@ class UsuarioController extends Controller
         }
 
         $datos = $this->getRequestData();
+
+        if ($this->rolAsignableRechazado($datos['id_rol'])) {
+            $this->agregarError('Solo puedes asignar los roles "admin" o "empleado".');
+
+            return $this->sendResponse();
+        }
 
         $info = [
             'usuario' => $datos['usuario'],
@@ -135,12 +164,18 @@ class UsuarioController extends Controller
             return $this->sendResponse();
         }
 
+        // La cuenta de plataforma no tiene negocio, así que al editarla el
+        // tenant_id llega nulo y no puede exigirse; para cualquier otra cuenta
+        // se sigue exigiendo. Se consulta el id antes de validar.
+        $idUsuarioEditar = $this->getRequestData()['id_usuario'] ?? null;
+        $esPlataforma = $idUsuarioEditar !== null && SvcUsuario::esCuentaDePlataforma($idUsuarioEditar);
+
         $this->setRequestValidationRules([
             'id_usuario' => 'required',
             'usuario' => 'required',
             'nombre' => 'required',
             'email' => 'required|email',
-            'tenant_id' => 'required',
+            'tenant_id' => $esPlataforma ? 'nullable' : 'required',
             'id_rol' => 'required',
             'estado' => 'required|in:0,1',
             // Al editar la clave es opcional (vacía = no se cambia); si
@@ -153,6 +188,26 @@ class UsuarioController extends Controller
         }
 
         $datos = $this->getRequestData();
+
+        // La cuenta de plataforma solo admite editar nombre, correo y clave. Un
+        // admin de negocio ni siquiera la ve (su tenant no coincide); solo el
+        // propio super admin llega aquí. Se rechaza cambiarle el rol o darla de
+        // baja; su negocio nulo lo conserva el Service.
+        if (SvcUsuario::esCuentaDePlataforma($datos['id_usuario'])) {
+            if (! Rol::esRolSuperAdmin($datos['id_rol']) || (int) $datos['estado'] === 0) {
+                Log::channel('database')->info(
+                    'SEGURIDAD: intento rechazado de cambiar el rol o desactivar la cuenta de plataforma (usuario '
+                    .$datos['id_usuario'].'). Quien actúa: usuario '.(session('id_usuario') ?? 'sin sesion').'.'
+                );
+                $this->agregarError('La cuenta de plataforma no puede cambiar de rol ni desactivarse. Solo puedes editar su nombre, correo y clave.');
+
+                return $this->sendResponse();
+            }
+        } elseif ($this->rolAsignableRechazado($datos['id_rol'])) {
+            $this->agregarError('Solo puedes asignar los roles "admin" o "empleado".');
+
+            return $this->sendResponse();
+        }
 
         $info = [
             'usuario' => $datos['usuario'],
@@ -216,6 +271,18 @@ class UsuarioController extends Controller
         }
 
         $datos = $this->getRequestData();
+
+        // La cuenta de plataforma no se elimina por ningún camino (el Service lo
+        // vuelve a impedir); aquí se da el mensaje claro.
+        if (SvcUsuario::esCuentaDePlataforma($datos['id_usuario'])) {
+            Log::channel('database')->info(
+                'SEGURIDAD: intento rechazado de eliminar la cuenta de plataforma (usuario '.$datos['id_usuario'].') '
+                .'desde el modulo de usuarios. Quien actúa: usuario '.(session('id_usuario') ?? 'sin sesion').'.'
+            );
+            $this->agregarError('La cuenta de plataforma no puede eliminarse.');
+
+            return $this->sendResponse();
+        }
 
         $tenantId = session('tenant_id');
 
