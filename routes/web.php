@@ -187,6 +187,13 @@ Route::prefix('request/superadmin')->middleware(['sesion.activa', 'solo.superadm
     Route::post('activar-modulo', [App\Http\Controllers\Request\SuperAdminController::class, 'activarModulo']);
     Route::post('desactivar-modulo', [App\Http\Controllers\Request\SuperAdminController::class, 'desactivarModulo']);
 
+    // Libro de pagos de la plataforma: registro interno del super admin.
+    Route::get('pagos/listar', [App\Http\Controllers\Request\PagoPlataformaController::class, 'listar']);
+    Route::get('pagos/resumen', [App\Http\Controllers\Request\PagoPlataformaController::class, 'resumenMes']);
+    Route::get('pagos/exportar', [App\Http\Controllers\Request\PagoPlataformaController::class, 'exportar']);
+    Route::post('pagos/anular', [App\Http\Controllers\Request\PagoPlataformaController::class, 'anular']);
+    Route::post('pagos/reenviar', [App\Http\Controllers\Request\PagoPlataformaController::class, 'reenviar']);
+
     // Chatbot: uso del mes por negocio, resumen de la plataforma y límite
     // mensual propio de cada negocio. Solo números, nunca conversaciones.
     Route::get('chatbot/uso', [App\Http\Controllers\Request\SuperAdminController::class, 'chatbotUso']);
@@ -197,6 +204,7 @@ Route::prefix('request/superadmin')->middleware(['sesion.activa', 'solo.superadm
 Route::prefix('backoffice/superadmin')->middleware(['sesion.activa', 'solo.superadmin'])->group(function () {
     Route::get('dashboard', [App\Http\Controllers\SuperAdminViewController::class, 'dashboard']);
     Route::get('negocios', [App\Http\Controllers\SuperAdminViewController::class, 'negocios']);
+    Route::get('libro-pagos', [App\Http\Controllers\SuperAdminViewController::class, 'libroPagos']);
 });
 
 Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {

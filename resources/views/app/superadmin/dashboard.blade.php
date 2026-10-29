@@ -166,6 +166,14 @@
             Cargando los vencimientos...
         </div>
     </div>
+
+    <div class="etiqueta-seccion-dashboard">Pagos del mes</div>
+    <div id="contenedor-pagos-mes">
+        <div class="estado-vacio-plataforma">
+            <i class="bi bi-hourglass-split"></i>
+            Cargando los pagos...
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
@@ -426,10 +434,50 @@
         }
         /* === FIN JS MODULOS POR VENCER === */
 
+        /* === INICIO JS PAGOS DEL MES ===
+           Render por crearNodo (createElement + textContent). */
+        function pintarPagosMes(resumen) {
+            var contenedor = document.getElementById('contenedor-pagos-mes');
+            while (contenedor.firstChild) { contenedor.removeChild(contenedor.firstChild); }
+
+            var formato = function (n) { return Number(n || 0).toLocaleString('es-CO'); };
+
+            var tarjeta = crearNodo('div', 'card-elevada kpi-tile tarjeta-modulo-resumen');
+            var interior = crearNodo('div');
+            var icono = crearNodo('div', 'kpi-icono');
+            icono.appendChild(crearNodo('i', 'bi bi-cash-stack'));
+            interior.appendChild(icono);
+            interior.appendChild(crearNodo('div', 'kpi-label', 'Pagos vigentes de ' + resumen.mes));
+            interior.appendChild(crearNodo('div', 'kpi-valor', '$' + formato(resumen.total)));
+            interior.appendChild(crearNodo('div', 'detalle-chatbot-plataforma', resumen.cantidad + (resumen.cantidad === 1 ? ' pago registrado' : ' pagos registrados')));
+            tarjeta.appendChild(interior);
+
+            var rejilla = crearNodo('div', 'rejilla-resumen-plataforma');
+            rejilla.appendChild(tarjeta);
+            contenedor.appendChild(rejilla);
+        }
+
+        function cargarPagosMes() {
+            axiosSipleInterno('GET', 'request/superadmin/pagos/resumen', {}, {}, false, undefined, { silenciarError: true }).then(function (respuesta) {
+                if (!respuesta || respuesta.error != 0 || !respuesta.data || !respuesta.data.resumen) {
+                    var contenedor = document.getElementById('contenedor-pagos-mes');
+                    while (contenedor.firstChild) { contenedor.removeChild(contenedor.firstChild); }
+                    var err = crearNodo('div', 'estado-error-plataforma');
+                    err.appendChild(crearNodo('i', 'bi bi-exclamation-triangle'));
+                    err.appendChild(document.createTextNode('No pudimos cargar los pagos del mes.'));
+                    contenedor.appendChild(err);
+                    return;
+                }
+                pintarPagosMes(respuesta.data.resumen);
+            });
+        }
+        /* === FIN JS PAGOS DEL MES === */
+
         jQuery(document).ready(function () {
             cargarResumenPlataforma();
             cargarResumenChatbot();
             cargarModulosPorVencer();
+            cargarPagosMes();
         });
     </script>
 @endsection

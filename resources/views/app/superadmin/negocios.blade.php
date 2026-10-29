@@ -198,6 +198,27 @@
         .panel-vigencia-modulo .acciones-vigencia .btn-guardar-moderno {
             min-height: 44px;
         }
+
+        .bloque-pago-vigencia {
+            margin-top: 0.9rem;
+            padding-top: 0.9rem;
+            border-top: 1px dashed var(--border-color);
+        }
+
+        .bloque-pago-vigencia.oculto,
+        .campos-pago.oculto {
+            display: none;
+        }
+
+        .casilla-pago {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            cursor: pointer;
+            min-height: 44px;
+        }
     </style>
 @endsection
 
@@ -532,6 +553,61 @@
             var contador = crearElemento('div', 'contador-nota-vigencia', (modulo.nota ? modulo.nota.length : 0) + '/200');
             panel.appendChild(contador);
 
+            // Registrar el pago en el libro: solo visible con origen "Pagado por
+            // fuera". El bloque entero nace oculto y el cambio de origen lo
+            // muestra u oculta.
+            var bloquePago = crearElemento('div', 'bloque-pago-vigencia' + (modulo.origen === 'pagado_fuera' ? '' : ' oculto'));
+
+            var casilla = crearElemento('label', 'casilla-pago');
+            var chkPago = crearElemento('input');
+            chkPago.type = 'checkbox';
+            chkPago.className = 'chk-registrar-pago';
+            casilla.appendChild(chkPago);
+            casilla.appendChild(crearElemento('span', null, 'Registrar el pago en el libro'));
+            bloquePago.appendChild(casilla);
+
+            // Campos del pago (ocultos hasta marcar la casilla).
+            var camposPago = crearElemento('div', 'campos-pago oculto');
+
+            var campoMonto = crearElemento('div', 'campo-flotante sin-icono mt-2');
+            var monto = crearElemento('input');
+            monto.type = 'number';
+            monto.className = 'monto-pago';
+            monto.min = '1';
+            monto.max = '100000000';
+            monto.step = '1';
+            monto.setAttribute('inputmode', 'numeric');
+            monto.placeholder = ' ';
+            campoMonto.appendChild(monto);
+            var etiquetaMonto = crearElemento('label', null, 'Monto (pesos)');
+            campoMonto.appendChild(etiquetaMonto);
+            camposPago.appendChild(campoMonto);
+
+            var campoMetodo = crearElemento('div', 'campo-flotante sin-icono mt-2');
+            var metodo = crearElemento('select');
+            metodo.className = 'metodo-pago';
+            [['transferencia', 'Transferencia'], ['nequi', 'Nequi'], ['qr_enlace', 'QR o enlace'], ['efectivo', 'Efectivo'], ['otro', 'Otro']].forEach(function (par) {
+                var opcion = crearElemento('option', null, par[1]);
+                opcion.value = par[0];
+                metodo.appendChild(opcion);
+            });
+            campoMetodo.appendChild(metodo);
+            campoMetodo.appendChild(crearElemento('label', null, 'Método'));
+            camposPago.appendChild(campoMetodo);
+
+            var campoRef = crearElemento('div', 'campo-flotante sin-icono mt-2');
+            var referencia = crearElemento('input');
+            referencia.type = 'text';
+            referencia.className = 'referencia-pago';
+            referencia.maxLength = 100;
+            referencia.placeholder = ' ';
+            campoRef.appendChild(referencia);
+            campoRef.appendChild(crearElemento('label', null, 'Referencia (opcional)'));
+            camposPago.appendChild(campoRef);
+
+            bloquePago.appendChild(camposPago);
+            panel.appendChild(bloquePago);
+
             // Botones.
             var acciones = crearElemento('div', 'acciones-vigencia');
 
@@ -777,12 +853,41 @@
         }
 
         function datosVigenciaDelPanel(panel) {
-            return {
+            var datos = {
                 vigente_hasta: panel.querySelector('.vigente-hasta-vigencia').value || '',
                 origen: panel.querySelector('.origen-vigencia').value || '',
                 nota: panel.querySelector('.nota-vigencia').value || ''
             };
+
+            // Pago: solo si el origen es pagado_fuera Y la casilla está marcada.
+            var chkPago = panel.querySelector('.chk-registrar-pago');
+            if (datos.origen === 'pagado_fuera' && chkPago && chkPago.checked) {
+                datos.registrar_pago = '1';
+                datos.monto = panel.querySelector('.monto-pago').value || '';
+                datos.metodo = panel.querySelector('.metodo-pago').value || '';
+                datos.referencia = panel.querySelector('.referencia-pago').value || '';
+            }
+
+            return datos;
         }
+
+        // El bloque de pago solo aparece con origen "Pagado por fuera".
+        jQuery('#lista-modulos-negocio').on('change', '.origen-vigencia', function () {
+            var panel = jQuery(this).closest('.panel-vigencia-modulo');
+            var bloque = panel.find('.bloque-pago-vigencia');
+            if (this.value === 'pagado_fuera') {
+                bloque.removeClass('oculto');
+            } else {
+                bloque.addClass('oculto');
+                panel.find('.chk-registrar-pago').prop('checked', false);
+                panel.find('.campos-pago').addClass('oculto');
+            }
+        });
+
+        // La casilla despliega los campos del pago.
+        jQuery('#lista-modulos-negocio').on('change', '.chk-registrar-pago', function () {
+            jQuery(this).closest('.bloque-pago-vigencia').find('.campos-pago').toggleClass('oculto', !this.checked);
+        });
 
         // Encender un módulo inactivo NO lo activa de inmediato: despliega el
         // formulario de vigencia y solo se activa al pulsar "Activar". Apagar

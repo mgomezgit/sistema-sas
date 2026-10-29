@@ -156,6 +156,13 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 - Los avisos de vencimiento (7 días, 1 día y vencido) salen UNA sola vez por fecha de vigencia (banderas aviso_7_enviado_en / aviso_1_enviado_en / vencido_avisado_en); al cambiar vigente_hasta se limpian. Van solo a los administradores activos de ese negocio; los negocios suspendidos no reciben correos pero sus módulos sí se apagan. Los correos no mencionan precios.
 - Existe config/plataforma.php (nombre, contacto_whatsapp, contacto_correo leídos del .env, vacíos por defecto) para el contacto de renovación que muestran los correos y los mensajes de bloqueo; sin contacto usan un texto genérico. App\Support\Plataforma centraliza su lectura.
 
+## Libro de pagos y comprobante (interno del super admin)
+
+- El libro de pagos (pagos_plataforma) es un registro INTERNO que solo ve el super admin; ningún admin de negocio ni empleado accede a él. Mateo cobra por fuera: no hay pasarela, webhook, factura electrónica ni PDF.
+- El documento que recibe el negocio es un "Comprobante de pago", NUNCA una "Factura"; su pie dice "Este documento es un comprobante de pago y no reemplaza una factura de venta".
+- El consecutivo (CP-0001) es atómico y ÚNICO, y NUNCA se reutiliza, ni siquiera el de un registro anulado. Se asigna dentro de la misma transacción que activa o renueva el módulo y crea el registro (si algo falla, no se activa, no se registra y no se gasta consecutivo). El comprobante se encola DESPUÉS de confirmar la transacción.
+- Anular un registro (solo super admin, motivo de 5 a 200) conserva el consecutivo, lo excluye de los totales y NO cambia la vigencia del módulo (para corregir la vigencia se ajusta en Módulos); no envía correo y no se anula dos veces.
+
 ## Seguridad y autenticación
 
 - Sesión manual de Laravel (session()), NUNCA Auth:: nativo ni middleware auth.

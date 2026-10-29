@@ -255,6 +255,7 @@ class SuperAdminPantallasTest extends TestCase
 
         $this->assertStringContainsString('backoffice/dashboard', $sidebar);
         $this->assertStringContainsString('backoffice/superadmin/negocios', $sidebar);
+        $this->assertStringContainsString('backoffice/superadmin/libro-pagos', $sidebar);
         $this->assertStringContainsString('backoffice/usuarios', $sidebar);
 
         // Nada operativo de un negocio concreto.
@@ -380,7 +381,7 @@ class SuperAdminPantallasTest extends TestCase
         }
 
         sort($rutasDelPanel);
-        $this->assertSame(['backoffice/superadmin/dashboard', 'backoffice/superadmin/negocios'], $rutasDelPanel);
+        $this->assertSame(['backoffice/superadmin/dashboard', 'backoffice/superadmin/libro-pagos', 'backoffice/superadmin/negocios'], $rutasDelPanel);
 
         foreach (Route::getRoutes() as $ruta) {
             if (str_starts_with($ruta->uri(), 'backoffice/superadmin')) {

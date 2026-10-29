@@ -3073,6 +3073,10 @@
                     <i class="bi bi-buildings"></i>
                     <span>Negocios</span>
                 </a>
+                <a href="{{ url('backoffice/superadmin/libro-pagos') }}" class="menu-item @if (request()->is('backoffice/superadmin/libro-pagos')) active @endif">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Libro de pagos</span>
+                </a>
             @endif
             <a href="{{ url('backoffice/usuarios') }}" class="menu-item @if (request()->is('backoffice/usuarios')) active @endif">
                 <i class="bi bi-people"></i>

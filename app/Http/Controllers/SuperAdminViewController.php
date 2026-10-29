@@ -19,4 +19,11 @@ class SuperAdminViewController extends Controller
     {
         return view('app.superadmin.negocios');
     }
+
+    public function libroPagos()
+    {
+        return view('app.superadmin.libro-pagos', [
+            'metodos' => \App\Service\SvcPagoPlataforma::METODOS,
+        ]);
+    }
 }

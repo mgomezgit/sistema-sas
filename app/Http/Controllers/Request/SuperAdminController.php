@@ -3,11 +3,18 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ComprobantePagoPlataforma;
+use App\Models\ModuloPlataforma;
 use App\Service\SvcChatbot;
 use App\Service\SvcModulo;
+use App\Service\SvcPagoPlataforma;
+use App\Service\SvcProducto;
 use App\Service\SvcSuperAdmin;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
 /**
@@ -27,12 +34,15 @@ class SuperAdminController extends Controller
 
     private SvcModulo $svcModulo;
 
+    private SvcPagoPlataforma $svcPago;
+
     public function __construct()
     {
         parent::__construct();
 
         $this->svcSuperAdmin = new SvcSuperAdmin;
         $this->svcModulo = new SvcModulo;
+        $this->svcPago = new SvcPagoPlataforma;
     }
 
     /** Reglas comunes: el negocio objetivo tiene que existir. */
@@ -183,18 +193,159 @@ class SuperAdminController extends Controller
             $nota = $v['nota'];
         }
 
-        $resultado = $activar
-            ? $this->svcModulo->activarModulo($idNegocio, $clave, $this->quienActua(), $vigenteHasta, $origen, $nota)
-            : $this->svcModulo->desactivarModulo($idNegocio, $clave);
+        // ¿Se registra el pago en el libro? Solo al activar/renovar y solo con
+        // origen 'pagado_fuera'. Devuelve false si la validación del pago falla
+        // (ya dejó el error en la respuesta); null si no hay pago que registrar.
+        // Solo se registra pago con origen 'pagado_fuera' y la casilla marcada.
+        // Con 'cortesia' no hay pago aunque la casilla llegue marcada (se ignora).
+        $datosPago = null;
 
-        // Desactivar un módulo que el negocio nunca tuvo no es un error: el
-        // estado final pedido (apagado) ya se cumple.
-        if (! $resultado && $activar) {
-            $this->agregarErrorNoDisponible('el módulo', 'SA-MODULO');
+        if ($activar && $origen === 'pagado_fuera' && $this->seRegistraPago($datos)) {
+            $datosPago = $this->validarPago($datos, $origen);
+
+            if ($datosPago === false) {
+                return $this->sendResponse();
+            }
+        }
+
+        // Si NO hay pago, el camino simple de siempre.
+        if ($datosPago === null) {
+            $resultado = $activar
+                ? $this->svcModulo->activarModulo($idNegocio, $clave, $this->quienActua(), $vigenteHasta, $origen, $nota)
+                : $this->svcModulo->desactivarModulo($idNegocio, $clave);
+
+            if (! $resultado && $activar) {
+                $this->agregarErrorNoDisponible('el módulo', 'SA-MODULO');
+
+                return $this->sendResponse();
+            }
+
+            $this->registrarEnLog($clave, $activar, $idNegocio);
+            $this->respSinError();
 
             return $this->sendResponse();
         }
 
+        // CON pago: activar/renovar y crear el registro van en UNA transacción.
+        // Si algo falla, no se activa, no se registra y no se gasta consecutivo.
+        $concepto = (string) ModuloPlataforma::where('clave', $clave)->value('nombre');
+
+        try {
+            $idPago = DB::transaction(function () use ($idNegocio, $clave, $vigenteHasta, $origen, $nota, $datosPago, $concepto) {
+                if (! $this->svcModulo->activarModulo($idNegocio, $clave, $this->quienActua(), $vigenteHasta, $origen, $nota)) {
+                    throw new \RuntimeException('SA-MODULO-ACTIVAR');
+                }
+
+                $pago = $this->svcPago->registrarPago([
+                    'tenant_id' => $idNegocio,
+                    'id_modulo' => ModuloPlataforma::where('clave', $clave)->value('id_modulo'),
+                    'concepto' => $concepto,
+                    'periodo_desde' => Carbon::today()->toDateString(),
+                    'periodo_hasta' => $vigenteHasta,
+                    'monto' => $datosPago['monto'],
+                    'metodo' => $datosPago['metodo'],
+                    'referencia' => $datosPago['referencia'],
+                    'id_usuario_registra' => (int) (session('id_usuario') ?? 0),
+                ]);
+
+                return (int) $pago->id_pago;
+            });
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+            $this->agregarErrorNoDisponible('el módulo', 'SA-MODULO-PAGO');
+
+            return $this->sendResponse();
+        }
+
+        $this->registrarEnLog($clave, true, $idNegocio);
+
+        Log::channel('database')->info(sprintf(
+            'SUPERADMIN: pago de plataforma registrado (consecutivo interno id %d) en el negocio %d por %s',
+            $idPago,
+            $idNegocio,
+            $this->quienActua()
+        ));
+
+        // El comprobante va DESPUÉS de confirmar la transacción.
+        $this->enviarComprobante($idPago, $idNegocio);
+
+        $this->respSinError();
+
+        return $this->sendResponse();
+    }
+
+    /** ¿El cuerpo pide registrar el pago? (casilla marcada) */
+    private function seRegistraPago(array $datos): bool
+    {
+        return in_array($datos['registrar_pago'] ?? null, [true, 1, '1', 'true', 'on'], true);
+    }
+
+    /**
+     * Valida los campos del pago. Devuelve el arreglo limpio, o false tras dejar
+     * el error en la respuesta.
+     *
+     * @return array{monto:int, metodo:string, referencia:?string}|false
+     */
+    private function validarPago(array $datos, ?string $origen)
+    {
+        if ($origen !== 'pagado_fuera') {
+            $this->agregarError('El pago solo se registra cuando el origen es "Pagado por fuera".');
+
+            return false;
+        }
+
+        $monto = $datos['monto'] ?? null;
+
+        if (! (is_int($monto) || (is_string($monto) && preg_match('/^\d+$/', $monto) === 1))
+            || (int) $monto < SvcPagoPlataforma::MONTO_MINIMO
+            || (int) $monto > SvcPagoPlataforma::MONTO_MAXIMO) {
+            $this->agregarError('El monto debe ser un número entero entre '.SvcPagoPlataforma::MONTO_MINIMO.' y '.number_format(SvcPagoPlataforma::MONTO_MAXIMO, 0, ',', '.').'.');
+
+            return false;
+        }
+
+        if (! in_array($datos['metodo'] ?? null, SvcPagoPlataforma::METODOS, true)) {
+            $this->agregarError('El método de pago no es válido.');
+
+            return false;
+        }
+
+        $referencia = isset($datos['referencia']) && $datos['referencia'] !== '' ? (string) $datos['referencia'] : null;
+
+        if ($referencia !== null && mb_strlen($referencia) > 100) {
+            $this->agregarError('La referencia no puede pasar de 100 caracteres.');
+
+            return false;
+        }
+
+        return ['monto' => (int) $monto, 'metodo' => $datos['metodo'], 'referencia' => $referencia];
+    }
+
+    /** Encola el comprobante a los administradores activos del negocio, si los hay. */
+    private function enviarComprobante(int $idPago, int $idNegocio): void
+    {
+        try {
+            $pago = $this->svcPago->paraComprobante($idPago);
+
+            if ($pago === null) {
+                return;
+            }
+
+            $emails = (new SvcProducto)->listarEmailsAdminsActivosPorNegocio([$idNegocio])[$idNegocio] ?? [];
+
+            if (empty($emails)) {
+                return; // El libro lo muestra como "Sin enviar".
+            }
+
+            Mail::to($emails)->queue(new ComprobantePagoPlataforma($pago));
+            $this->svcPago->marcarComprobanteEnviado($idPago);
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+        }
+    }
+
+    private function registrarEnLog(string $clave, bool $activar, int $idNegocio): void
+    {
         Log::channel('database')->info(sprintf(
             'SUPERADMIN: modulo "%s" %s en el negocio %d por %s el %s',
             $clave,
@@ -203,10 +354,6 @@ class SuperAdminController extends Controller
             $this->quienActua(),
             now()->format('Y-m-d H:i:s')
         ));
-
-        $this->respSinError();
-
-        return $this->sendResponse();
     }
 
     /**
