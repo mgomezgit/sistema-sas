@@ -310,12 +310,25 @@ class SuperAdminPantallasTest extends TestCase
         $this->assertStringContainsString('function escaparTexto', file_get_contents(public_path('js/utilidades.js')));
         $this->assertStringNotContainsString('function escaparTexto', $html, 'La pantalla no debe redefinir la función de escape');
 
-        foreach (['fila.nombre_negocio', 'fila.slug', 'fila.nombre_admin', 'fila.email_admin', 'modulo.nombre', 'modulo.descripcion', 'modulo.clave', 'clave)'] as $campo) {
+        // La tabla de negocios (DataTables, render por cadena) sigue pasando
+        // sus columnas de texto del cliente por escaparTexto().
+        foreach (['fila.nombre_negocio', 'fila.slug', 'fila.nombre_admin', 'fila.email_admin'] as $campo) {
             $this->assertStringContainsString(
                 'escaparTexto(' . $campo,
                 $html,
                 "El render de \"$campo\" debe pasar por escaparTexto()"
             );
+        }
+
+        // El modal de módulos (incluida la vigencia) se refactorizó a DOM: sus
+        // campos de texto (nombre, descripción, clave del módulo, nota) se
+        // pintan con createElement + textContent vía crearElemento(), que es
+        // seguro sin escaparTexto (textContent no interpreta HTML). Se verifica
+        // que ese render usa crearElemento y que no concatena esos campos como
+        // HTML crudo.
+        $this->assertStringContainsString('crearElemento(', $html);
+        foreach (["'>' + modulo.nombre", "'>' + modulo.descripcion", "'>' + modulo.clave"] as $concatProhibida) {
+            $this->assertStringNotContainsString($concatProhibida, $html, 'Los campos del módulo no se concatenan como HTML crudo');
         }
 
         // Ninguna concatenación cruda de esos campos fuera de escaparTexto():

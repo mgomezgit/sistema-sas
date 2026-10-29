@@ -593,8 +593,10 @@ class ChatbotSuperAdminTest extends TestCase
             $this->assertStringContainsString('textContent = texto', $codigo);
         }
 
-        // Los números y textos del servidor nunca se concatenan dentro de HTML.
-        $this->assertStringContainsString("'<div class=\"bloque-chatbot-uso\" id=\"bloque-chatbot-uso\">'", $negocios);
+        // El bloque de uso del chatbot se arma con createElement/textContent
+        // (antes era una cadena HTML; se refactorizó al construir el modal de
+        // vigencia de módulos, que pinta todo por DOM). Sigue sin HTML crudo.
+        $this->assertStringContainsString("crearElemento('div', 'bloque-chatbot-uso')", $negocios);
         $this->assertStringNotContainsString('fila.nombre_negocio', $bloqueModal);
     }
 

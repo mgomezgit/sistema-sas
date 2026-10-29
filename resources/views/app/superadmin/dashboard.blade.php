@@ -23,6 +23,51 @@
             gap: 1rem;
         }
 
+        .lista-por-vencer .item-por-vencer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .lista-por-vencer .item-por-vencer:last-child {
+            border-bottom: none;
+        }
+
+        .lista-por-vencer .negocio-por-vencer {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .lista-por-vencer .modulo-por-vencer {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+        }
+
+        .lista-por-vencer .etiqueta-por-vencer,
+        .lista-por-vencer .etiqueta-vencido {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .lista-por-vencer .etiqueta-por-vencer {
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .lista-por-vencer .etiqueta-vencido {
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            background: color-mix(in srgb, var(--danger) 14%, transparent);
+        }
+
         .etiqueta-seccion-dashboard {
             color: var(--text-secondary);
             font-weight: 700;
@@ -111,6 +156,14 @@
         <div class="estado-vacio-plataforma">
             <i class="bi bi-hourglass-split"></i>
             Cargando el uso del chatbot...
+        </div>
+    </div>
+
+    <div class="etiqueta-seccion-dashboard">Módulos por vencer</div>
+    <div id="contenedor-modulos-por-vencer">
+        <div class="estado-vacio-plataforma">
+            <i class="bi bi-hourglass-split"></i>
+            Cargando los vencimientos...
         </div>
     </div>
 @endsection
@@ -304,9 +357,79 @@
             });
         }
 
+        /* === INICIO JS MODULOS POR VENCER ===
+           Todo con crearNodo (createElement + textContent): nombre del negocio
+           y del módulo se tratan como texto, nunca como HTML. */
+        function pintarModulosPorVencer(modulos) {
+            var contenedor = document.getElementById('contenedor-modulos-por-vencer');
+
+            while (contenedor.firstChild) {
+                contenedor.removeChild(contenedor.firstChild);
+            }
+
+            if (!modulos || modulos.length === 0) {
+                var vacio = crearNodo('div', 'estado-vacio-plataforma');
+                vacio.appendChild(crearNodo('i', 'bi bi-check-circle'));
+                vacio.appendChild(document.createTextNode('Ningún módulo vence en los próximos días.'));
+                contenedor.appendChild(vacio);
+
+                return;
+            }
+
+            var tarjeta = crearNodo('div', 'card-elevada');
+            var lista = crearNodo('div', 'lista-por-vencer');
+
+            modulos.forEach(function (fila) {
+                var item = crearNodo('div', 'item-por-vencer');
+
+                var izquierda = crearNodo('div');
+                izquierda.appendChild(crearNodo('div', 'negocio-por-vencer', fila.nombre_negocio));
+                izquierda.appendChild(crearNodo('div', 'modulo-por-vencer', fila.nombre_modulo));
+
+                var derecha = crearNodo('div', 'fecha-por-vencer');
+                var texto;
+                if (fila.dias < 0) {
+                    texto = 'Venció el ' + fila.vigente_hasta;
+                } else if (fila.dias === 0) {
+                    texto = 'Vence hoy (' + fila.vigente_hasta + ')';
+                } else {
+                    texto = 'Vence ' + fila.vigente_hasta + ' (faltan ' + fila.dias + ' días)';
+                }
+                derecha.appendChild(crearNodo('span', fila.dias <= 0 ? 'etiqueta-vencido' : 'etiqueta-por-vencer', texto));
+
+                item.appendChild(izquierda);
+                item.appendChild(derecha);
+                lista.appendChild(item);
+            });
+
+            tarjeta.appendChild(lista);
+            contenedor.appendChild(tarjeta);
+        }
+
+        function cargarModulosPorVencer() {
+            axiosSipleInterno('GET', 'request/superadmin/modulos-por-vencer', {}, {}, false, undefined, { silenciarError: true }).then(function (respuesta) {
+                if (!respuesta || respuesta.error != 0 || !respuesta.data) {
+                    var contenedor = document.getElementById('contenedor-modulos-por-vencer');
+                    while (contenedor.firstChild) {
+                        contenedor.removeChild(contenedor.firstChild);
+                    }
+                    var err = crearNodo('div', 'estado-error-plataforma');
+                    err.appendChild(crearNodo('i', 'bi bi-exclamation-triangle'));
+                    err.appendChild(document.createTextNode('No pudimos cargar los vencimientos. El resto del panel sigue funcionando.'));
+                    contenedor.appendChild(err);
+
+                    return;
+                }
+
+                pintarModulosPorVencer(respuesta.data.modulos);
+            });
+        }
+        /* === FIN JS MODULOS POR VENCER === */
+
         jQuery(document).ready(function () {
             cargarResumenPlataforma();
             cargarResumenChatbot();
+            cargarModulosPorVencer();
         });
     </script>
 @endsection

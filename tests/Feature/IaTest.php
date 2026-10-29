@@ -402,7 +402,7 @@ class IaTest extends TestCase
         $this->fakeResponde($this->salidaValida());
         (new SvcModulo)->desactivarModulo($this->negocioA, 'ia');
 
-        $this->estado()->assertJsonPath('error', 1)->assertJsonPath('mensaje', 'Este módulo no está activo para tu negocio. Comunícate con el administrador de la plataforma para habilitarlo.');
+        $this->estado()->assertJsonPath('error', 1)->assertJsonPath('mensaje', 'Este módulo no está activo para tu negocio. Para activarlo o renovarlo, comunícate con soporte.');
         $this->generar(['tipo' => 'frase', 'tono' => 'calido'])->assertJsonPath('error', 1);
 
         RedactorCreativo::assertNeverPrompted();

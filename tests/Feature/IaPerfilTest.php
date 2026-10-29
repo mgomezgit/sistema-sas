@@ -392,7 +392,7 @@ class IaPerfilTest extends TestCase
     {
         $this->perfil(['especialidad' => 'Cambiado', 'publico' => 'Cambiado'], $this->sesionAdmin($this->negocioSinModulo))
             ->assertJsonPath('error', 1)
-            ->assertJsonPath('mensaje', 'Este módulo no está activo para tu negocio. Comunícate con el administrador de la plataforma para habilitarlo.');
+            ->assertJsonPath('mensaje', 'Este módulo no está activo para tu negocio. Para activarlo o renovarlo, comunícate con soporte.');
 
         $this->assertSame(['especialidad' => null, 'publico' => null], $this->enBase($this->negocioSinModulo));
 

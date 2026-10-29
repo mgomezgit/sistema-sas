@@ -183,6 +183,7 @@ Route::prefix('request/superadmin')->middleware(['sesion.activa', 'solo.superadm
     Route::get('negocios', [App\Http\Controllers\Request\SuperAdminController::class, 'negocios']);
     Route::post('cambiar-estado-negocio', [App\Http\Controllers\Request\SuperAdminController::class, 'cambiarEstadoNegocio']);
     Route::get('modulos-de-negocio', [App\Http\Controllers\Request\SuperAdminController::class, 'modulosDeNegocio']);
+    Route::get('modulos-por-vencer', [App\Http\Controllers\Request\SuperAdminController::class, 'modulosPorVencer']);
     Route::post('activar-modulo', [App\Http\Controllers\Request\SuperAdminController::class, 'activarModulo']);
     Route::post('desactivar-modulo', [App\Http\Controllers\Request\SuperAdminController::class, 'desactivarModulo']);
 

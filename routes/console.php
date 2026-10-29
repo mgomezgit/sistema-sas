@@ -48,3 +48,12 @@ Schedule::command('auth:limpiar-pendientes-vencidos')->dailyAt('03:00');
 | Prueba manual: "php artisan chatbot:limpiar-cache-vencida".
 */
 Schedule::command('chatbot:limpiar-cache-vencida')->hourlyAt(17);
+
+/*
+| Vencimientos de módulos de pago: apaga los que vencieron y envía los avisos
+| de 7 y 1 días. A las 06:30 para no coincidir con los comandos de las 03:00,
+| 08:00 y 18:00 ni con la limpieza horaria del minuto 17. El acceso ya se corta
+| en tiempo real (SvcModulo::estaActivo); esto solo limpia el estado y avisa.
+| Prueba manual: "php artisan modulos:procesar-vencimientos".
+*/
+Schedule::command('modulos:procesar-vencimientos')->dailyAt('06:30');

@@ -159,8 +159,32 @@ class SuperAdminController extends Controller
         $idNegocio = (int) $datos['id_negocio'];
         $clave = $datos['clave_modulo'];
 
+        // Al activar/renovar se validan vigencia, origen y nota (vacíos
+        // permitidos). La misma regla del Service, aquí para dar el mensaje.
+        $vigenteHasta = null;
+        $origen = null;
+        $nota = null;
+
+        if ($activar) {
+            $v = $this->svcModulo->validarVigencia(
+                $datos['vigente_hasta'] ?? null,
+                $datos['origen'] ?? null,
+                $datos['nota'] ?? null
+            );
+
+            if (! $v['ok']) {
+                $this->agregarError($v['mensaje']);
+
+                return $this->sendResponse();
+            }
+
+            $vigenteHasta = $v['vigente_hasta'];
+            $origen = $v['origen'];
+            $nota = $v['nota'];
+        }
+
         $resultado = $activar
-            ? $this->svcModulo->activarModulo($idNegocio, $clave, $this->quienActua())
+            ? $this->svcModulo->activarModulo($idNegocio, $clave, $this->quienActua(), $vigenteHasta, $origen, $nota)
             : $this->svcModulo->desactivarModulo($idNegocio, $clave);
 
         // Desactivar un módulo que el negocio nunca tuvo no es un error: el
@@ -181,6 +205,18 @@ class SuperAdminController extends Controller
         ));
 
         $this->respSinError();
+
+        return $this->sendResponse();
+    }
+
+    /**
+     * Módulos que vencen pronto o vencieron hace poco, de todos los negocios,
+     * para la tarjeta del dashboard. Lista blanca (SvcModulo::modulosPorVencer).
+     */
+    public function modulosPorVencer(): JsonResponse
+    {
+        $this->respSinError();
+        $this->setDataResponse($this->svcModulo->modulosPorVencer(), 'modulos');
 
         return $this->sendResponse();
     }
