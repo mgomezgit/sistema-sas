@@ -8,6 +8,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -23,6 +24,7 @@ use Tests\TestCase;
  */
 class CargaMasivaTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     /** Negocio A: el que hace las importaciones. */
@@ -46,6 +48,12 @@ class CargaMasivaTest extends TestCase
 
         $this->negocioA = $this->crearNegocio('Negocio A');
         $this->negocioB = $this->crearNegocio('Negocio B');
+
+        // La carga de 'productos' pertenece al módulo de pago Inventario: el
+        // camino feliz lo tiene activo. El rechazo sin el módulo se prueba en
+        // ModuloInventarioTest.
+        $this->activarModulo($this->negocioA, 'inventario');
+        $this->activarModulo($this->negocioB, 'inventario');
     }
 
     protected function tearDown(): void

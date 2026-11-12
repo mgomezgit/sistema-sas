@@ -433,14 +433,17 @@ class SvcNegocio
                 ],
             ];
 
-            $pasos[] = [
-                'id' => 'inventario',
-                'completado' => Producto::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
-            ];
-
-            // Reportes es módulo de pago: su paso solo cuenta si el negocio lo
+            // Inventario es módulo de pago: su paso solo cuenta si el negocio lo
             // tiene activo. Sin el módulo se omite del total y del progreso, para
-            // que el onboarding se pueda completar igual. Es el único paso
+            // que el onboarding se pueda completar igual.
+            if ($svcModulo->estaActivo($tenantId, 'inventario')) {
+                $pasos[] = [
+                    'id' => 'inventario',
+                    'completado' => Producto::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
+                ];
+            }
+
+            // Reportes es módulo de pago: mismo trato. Es el único paso
             // que no se deduce de un registro creado (no hay nada que "crear" en
             // reportes), así que se marca cuando el negocio termina su tour.
             if ($svcModulo->estaActivo($tenantId, 'reportes')) {

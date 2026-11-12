@@ -3027,6 +3027,13 @@
         $esEmpleadoSesion = \App\Models\Rol::esRolEmpleado(session('id_rol'));
         $esAdminDeNegocio = ! $esEmpleadoSesion && session('tenant_id') !== null;
 
+        // Inventario es módulo de pago: decide si se pinta el ítem "Productos"
+        // con enlace o con candado, y si la campana de stock (botón + sondeo)
+        // llega siquiera al DOM. Esto es solo experiencia de usuario; la
+        // seguridad real la pone verificar.modulo sobre las rutas.
+        $inventarioActivo = $esAdminDeNegocio
+            && app(\App\Service\SvcModulo::class)->estaActivo(session('tenant_id'), 'inventario');
+
         // El rol se deduce igual que en el resto del proyecto (el helper
         // del middleware + la ausencia de negocio), no leyendo un
         // nombre_rol suelto que podría variar entre instalaciones.
@@ -3159,10 +3166,14 @@
                     <i class="bi bi-cloud-upload"></i>
                     <span>Carga Masiva</span>
                 </a>
+                @if ($inventarioActivo)
                 <a href="{{ url('backoffice/productos') }}" class="menu-item @if (request()->is('backoffice/productos')) active @endif">
                     <i class="bi bi-box-seam"></i>
                     <span>Productos</span>
                 </a>
+                @else
+                    @include('layout.partials.item-modulo-bloqueado', ['clave' => 'inventario', 'titulo' => 'Productos', 'icono' => 'bi-box-seam'])
+                @endif
                 <a href="{{ url('backoffice/personalizar') }}" class="menu-item @if (request()->is('backoffice/personalizar')) active @endif">
                     <i class="bi bi-palette2"></i>
                     <span>Personalizar</span>
@@ -3282,6 +3293,10 @@
                     </div>
                 </div>
 
+                {{-- La campana de stock es del módulo de pago Inventario: sin el
+                     módulo no se renderiza ni su botón ni, más abajo, su sondeo,
+                     para no consultar en bucle un endpoint que está bloqueado. --}}
+                @if ($inventarioActivo)
                 <div class="dropdown">
                     <button type="button" id="btn-campana-stock" class="disparador-campana" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-bell"></i>
@@ -3297,6 +3312,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
                 <span class="separador-topbar"></span>
             @endif
 
@@ -4118,9 +4134,10 @@
         });
     </script>
 
-    {{-- Campana de stock bajo: solo se imprime para el admin de un negocio,
-         que es el único que ve el botón en el DOM. --}}
-    @if ($esAdminDeNegocio)
+    {{-- Campana de stock bajo: solo se imprime si el negocio tiene el módulo
+         Inventario activo. Sin el módulo no hay botón ni sondeo, para no
+         consultar en bucle un endpoint que de todos modos está bloqueado. --}}
+    @if ($inventarioActivo)
         <script>
             function pintarPanelCampana(productos) {
                 var lista = jQuery('#lista-stock-bajo');
@@ -4210,6 +4227,13 @@
          silencioso), pero apuntando a las solicitudes de la página pública. --}}
     @if ($esAdminDeNegocio)
         <script>
+            // El sondeo de las campanas comparte este intervalo. Se define aquí
+            // (bloque siempre presente para el admin) porque la campana de stock
+            // puede no renderizarse si el módulo Inventario está apagado.
+            if (typeof INTERVALO_SONDEO_CAMPANA === 'undefined') {
+                var INTERVALO_SONDEO_CAMPANA = 60000;
+            }
+
             function formatearFechaHoraSolicitud(fechaTexto, horaTexto) {
                 var fecha = new Date(fechaTexto + 'T' + horaTexto);
                 var fechaCorta = fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });

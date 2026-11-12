@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Mail\ResumenStockBajo;
+use App\Service\SvcModulo;
 use App\Service\SvcProducto;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +25,18 @@ class EnviarResumenStockBajo extends Command
         // nada.
         $productosPorNegocio = [];
 
+        // Inventario es módulo de pago: un negocio sin el módulo activo no
+        // recibe el resumen, aunque tenga productos con stock bajo de cuando sí
+        // lo tuvo. Se comprueba por negocio con la vigencia en tiempo real
+        // (estaActivo), igual que el middleware. Es un proceso de sistema sin
+        // sesión, así que el tenant_id se pasa explícito.
+        $svcModulo = new SvcModulo;
+
         foreach ($productos as $producto) {
+            if (! $svcModulo->estaActivo($producto['tenant_id'], 'inventario')) {
+                continue;
+            }
+
             $productosPorNegocio[$producto['tenant_id']]['nombre_negocio'] = $producto['nombre_negocio'];
             $productosPorNegocio[$producto['tenant_id']]['productos'][] = $producto;
         }

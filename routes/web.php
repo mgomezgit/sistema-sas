@@ -164,15 +164,19 @@ Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->
     Route::post('banner/eliminar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'eliminar']);
     Route::get('banner/listar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'listar']);
 
-    // Inventario de productos.
-    Route::post('producto/crear', [App\Http\Controllers\Request\ProductoController::class, 'crear']);
-    Route::post('producto/editar', [App\Http\Controllers\Request\ProductoController::class, 'editar']);
-    Route::post('producto/eliminar', [App\Http\Controllers\Request\ProductoController::class, 'eliminar']);
-    Route::get('producto/listar', [App\Http\Controllers\Request\ProductoController::class, 'listar']);
-    Route::post('producto/ingresar-stock', [App\Http\Controllers\Request\ProductoController::class, 'ingresarStock']);
-    Route::get('producto/stock-bajo', [App\Http\Controllers\Request\ProductoController::class, 'stockBajo']);
-    // GET: solo sugiere un código libre, no guarda ni lo reserva.
-    Route::get('producto/generar-sku', [App\Http\Controllers\Request\ProductoController::class, 'generarSku']);
+    // Inventario de productos: módulo de pago. Bloquear solo la pantalla no
+    // bastaría; sin esto un negocio sin el módulo podría llamar estos endpoints
+    // a mano (incluido el sondeo de la campana de stock).
+    Route::middleware('verificar.modulo:inventario')->group(function () {
+        Route::post('producto/crear', [App\Http\Controllers\Request\ProductoController::class, 'crear']);
+        Route::post('producto/editar', [App\Http\Controllers\Request\ProductoController::class, 'editar']);
+        Route::post('producto/eliminar', [App\Http\Controllers\Request\ProductoController::class, 'eliminar']);
+        Route::get('producto/listar', [App\Http\Controllers\Request\ProductoController::class, 'listar']);
+        Route::post('producto/ingresar-stock', [App\Http\Controllers\Request\ProductoController::class, 'ingresarStock']);
+        Route::get('producto/stock-bajo', [App\Http\Controllers\Request\ProductoController::class, 'stockBajo']);
+        // GET: solo sugiere un código libre, no guarda ni lo reserva.
+        Route::get('producto/generar-sku', [App\Http\Controllers\Request\ProductoController::class, 'generarSku']);
+    });
 });
 
 /*
@@ -233,7 +237,7 @@ Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('reportes/ventas', [App\Http\Controllers\ReporteViewController::class, 'ventas'])->middleware(['restringir.empleado', 'verificar.modulo:reportes']);
     Route::get('reportes/servicios', [App\Http\Controllers\ReporteViewController::class, 'servicios'])->middleware(['restringir.empleado', 'verificar.modulo:reportes']);
     Route::get('carga-masiva', [App\Http\Controllers\CargaMasivaViewController::class, 'index'])->middleware('restringir.empleado');
-    Route::get('productos', [App\Http\Controllers\ProductoViewController::class, 'listar'])->middleware('restringir.empleado');
+    Route::get('productos', [App\Http\Controllers\ProductoViewController::class, 'listar'])->middleware(['restringir.empleado', 'verificar.modulo:inventario']);
     Route::get('comisiones', [App\Http\Controllers\ComisionViewController::class, 'informe'])->middleware(['restringir.empleado', 'verificar.modulo:comisiones']);
 
     // Pantalla de "módulo no disponible": a donde llega un admin cuando su

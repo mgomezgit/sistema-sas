@@ -6,6 +6,7 @@ use App\Http\Middleware\VerificarSesion;
 use App\Service\SvcProducto;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -14,6 +15,7 @@ use Tests\TestCase;
  */
 class ProductoTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $negocioA;
@@ -35,6 +37,12 @@ class ProductoTest extends TestCase
         $this->negocioA = $this->crearNegocio('Negocio A');
         $this->negocioB = $this->crearNegocio('Negocio B');
         $this->svcProducto = new SvcProducto;
+
+        // Inventario es módulo de pago: estas pruebas ejercitan el camino feliz,
+        // así que ambos negocios lo tienen activo. Las pruebas de "sin módulo"
+        // viven en ModuloInventarioTest.
+        $this->activarModulo($this->negocioA, 'inventario');
+        $this->activarModulo($this->negocioB, 'inventario');
     }
 
     /* ================= AYUDANTES ================= */

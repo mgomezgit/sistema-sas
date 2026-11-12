@@ -6,6 +6,7 @@ use App\Http\Middleware\VerificarSesion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -34,6 +35,7 @@ use Tests\TestCase;
  */
 class SuperAdminPantallasTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $negocioA;
@@ -56,6 +58,11 @@ class SuperAdminPantallasTest extends TestCase
             'fecha_registro' => date('Y-m-d H:i:s'),
             'estado' => 1,
         ]);
+
+        // Inventario es módulo de pago: con él activo, el sidebar del admin
+        // muestra el enlace real a Productos (sin él mostraría el candado). Este
+        // negocio lo tiene para que "sidebar completo" sea el caso con módulo.
+        $this->activarModulo($this->negocioA, 'inventario');
     }
 
     /* ================= AYUDANTES ================= */

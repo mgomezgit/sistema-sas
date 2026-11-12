@@ -38,10 +38,13 @@ class OnboardingTest extends TestCase
 
         $this->tenantId = $this->crearNegocio('Negocio Nuevo');
 
-        // Reportes es módulo de pago: su paso de onboarding solo cuenta con el
-        // módulo activo. El flujo normal de estas pruebas lo tiene; la omisión
-        // sin el módulo se prueba en test_el_paso_de_reportes_se_omite_sin_el_modulo.
+        // Reportes e Inventario son módulos de pago: sus pasos de onboarding
+        // solo cuentan con el módulo activo. El flujo normal de estas pruebas
+        // los tiene; la omisión sin cada módulo se prueba en
+        // test_el_paso_de_reportes_se_omite_sin_el_modulo y
+        // test_el_paso_de_inventario_se_omite_sin_el_modulo.
         $this->activarModulo($this->tenantId, 'reportes');
+        $this->activarModulo($this->tenantId, 'inventario');
     }
 
     /* ================= AYUDANTES ================= */
@@ -306,6 +309,7 @@ class OnboardingTest extends TestCase
     public function test_paso_inventario_no_cuenta_productos_de_otro_negocio(): void
     {
         $otroNegocio = $this->crearNegocio('Otro Negocio');
+        $this->activarModulo($otroNegocio, 'inventario');
         $this->crearProducto($otroNegocio);
 
         $propio = $this->pasoPorId($this->obtenerProgreso($this->sesionAdmin($this->tenantId)), 'inventario');
@@ -377,13 +381,31 @@ class OnboardingTest extends TestCase
     public function test_el_paso_de_reportes_se_omite_sin_el_modulo(): void
     {
         $sinModulo = $this->crearNegocio('Sin Reportes');
-        // A propósito NO se activa el módulo 'reportes' para este negocio.
+        // Se activa SOLO inventario, para aislar el efecto de reportes: así la
+        // diferencia en el total es exactamente el paso de reportes.
+        $this->activarModulo($sinModulo, 'inventario');
 
         $onboarding = $this->obtenerProgreso($this->sesionAdmin($sinModulo));
 
         $ids = array_column($onboarding['pasos'], 'id');
         $this->assertNotContains('reportes', $ids, 'Sin el módulo, el paso de reportes no debe aparecer');
-        // El resto de pasos sigue: 6 base + inventario (aún del núcleo en este bloque).
+        $this->assertContains('inventario', $ids, 'Con inventario activo, su paso sí aparece');
+        // 6 base + inventario, sin reportes.
+        $this->assertCount(7, $onboarding['pasos']);
+    }
+
+    public function test_el_paso_de_inventario_se_omite_sin_el_modulo(): void
+    {
+        $sinModulo = $this->crearNegocio('Sin Inventario');
+        // Se activa SOLO reportes, para aislar el efecto de inventario.
+        $this->activarModulo($sinModulo, 'reportes');
+
+        $onboarding = $this->obtenerProgreso($this->sesionAdmin($sinModulo));
+
+        $ids = array_column($onboarding['pasos'], 'id');
+        $this->assertNotContains('inventario', $ids, 'Sin el módulo, el paso de inventario no debe aparecer');
+        $this->assertContains('reportes', $ids, 'Con reportes activo, su paso sí aparece');
+        // 6 base + reportes, sin inventario.
         $this->assertCount(7, $onboarding['pasos']);
     }
 
@@ -395,6 +417,7 @@ class OnboardingTest extends TestCase
             'reportes_tour_visto' => true,
         ]);
         $this->activarModulo($negocioAvanzado, 'reportes');
+        $this->activarModulo($negocioAvanzado, 'inventario');
 
         DB::table('productos')->insert([
             'tenant_id' => $negocioAvanzado, 'nombre' => 'Shampoo', 'cantidad_actual' => 5,

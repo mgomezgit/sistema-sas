@@ -11,6 +11,8 @@ use App\Imports\EmpleadosImport;
 use App\Imports\ProductosImport;
 use App\Imports\RecursosImport;
 use App\Imports\UsuariosImport;
+use App\Service\SvcModulo;
+use App\Support\Plataforma;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
@@ -28,6 +30,27 @@ class CargaMasivaController extends Controller
     /** Peso máximo del archivo subido, en kilobytes. */
     const PESO_MAXIMO_KB = 5120;
 
+    /**
+     * El tipo 'productos' pertenece al módulo de pago Inventario: sin el módulo
+     * activo, ni se descarga su plantilla ni se importa. Los demás tipos
+     * (empleados, recursos, usuarios) son del núcleo y no se tocan. Deja el
+     * error del módulo en la respuesta y devuelve true si falta el módulo.
+     */
+    private function moduloInventarioFalta(string $tipo, $tenantId): bool
+    {
+        if ($tipo !== 'productos') {
+            return false;
+        }
+
+        if (app(SvcModulo::class)->estaActivo($tenantId, 'inventario')) {
+            return false;
+        }
+
+        $this->agregarError('El inventario es un módulo de pago que tu negocio no tiene activo. Para activarlo, '.Plataforma::textoContacto().'.');
+
+        return true;
+    }
+
     public function descargarPlantilla($tipo)
     {
         $tenantId = session('tenant_id');
@@ -41,6 +64,10 @@ class CargaMasivaController extends Controller
         if (! in_array($tipo, self::TIPOS_VALIDOS, true)) {
             $this->agregarError('El tipo de plantilla solicitado no es válido.');
 
+            return $this->sendResponse();
+        }
+
+        if ($this->moduloInventarioFalta($tipo, $tenantId)) {
             return $this->sendResponse();
         }
 
@@ -69,6 +96,10 @@ class CargaMasivaController extends Controller
         if (! in_array($tipo, self::TIPOS_VALIDOS, true)) {
             $this->agregarError('El tipo de carga solicitado no es válido.');
 
+            return $this->sendResponse();
+        }
+
+        if ($this->moduloInventarioFalta($tipo, $tenantId)) {
             return $this->sendResponse();
         }
 

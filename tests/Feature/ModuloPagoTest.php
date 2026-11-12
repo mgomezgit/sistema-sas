@@ -489,15 +489,16 @@ class ModuloPagoTest extends TestCase
      */
     public function test_listar_modulos_por_negocio_incluye_los_nunca_activados(): void
     {
-        // Un renglón por módulo del catálogo (comisiones, chatbot, ia y
-        // reportes), aunque el negocio no haya activado ninguno.
+        // Un renglón por módulo del catálogo (comisiones, chatbot, ia, reportes
+        // e inventario), aunque el negocio no haya activado ninguno.
         $modulos = array_column($this->svc()->listarModulosPorNegocio($this->negocioA), null, 'clave');
 
-        $this->assertEqualsCanonicalizing(['comisiones', 'chatbot', 'ia', 'reportes'], array_keys($modulos));
+        $this->assertEqualsCanonicalizing(['comisiones', 'chatbot', 'ia', 'reportes', 'inventario'], array_keys($modulos));
         $this->assertSame(0, (int) $modulos['comisiones']['activo']);
         $this->assertSame(0, (int) $modulos['chatbot']['activo'], 'El chatbot nace apagado');
         $this->assertSame(0, (int) $modulos['ia']['activo'], 'El asistente creativo nace apagado');
         $this->assertSame(0, (int) $modulos['reportes']['activo'], 'Reportes nace apagado para un negocio de prueba');
+        $this->assertSame(0, (int) $modulos['inventario']['activo'], 'Inventario nace apagado para un negocio de prueba');
 
         $this->svc()->activarModulo($this->negocioA, 'comisiones', 'test');
 
@@ -513,9 +514,9 @@ class ModuloPagoTest extends TestCase
 
         $resumen = $this->svc()->listarNegociosConModulos();
 
-        // Un renglón por negocio y módulo del catálogo: 2 negocios x 4
-        // módulos (comisiones, chatbot, ia y reportes).
-        $this->assertCount(8, $resumen);
+        // Un renglón por negocio y módulo del catálogo: 2 negocios x 5
+        // módulos (comisiones, chatbot, ia, reportes e inventario).
+        $this->assertCount(10, $resumen);
 
         $porNegocio = [];
 
@@ -531,5 +532,7 @@ class ModuloPagoTest extends TestCase
         $this->assertSame(0, $porNegocio[$this->negocioB]['ia']);
         $this->assertSame(0, $porNegocio[$this->negocioA]['reportes'], 'Reportes nace apagado para un negocio de prueba');
         $this->assertSame(0, $porNegocio[$this->negocioB]['reportes']);
+        $this->assertSame(0, $porNegocio[$this->negocioA]['inventario'], 'Inventario nace apagado para un negocio de prueba');
+        $this->assertSame(0, $porNegocio[$this->negocioB]['inventario']);
     }
 }

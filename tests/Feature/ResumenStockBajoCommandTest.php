@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -67,6 +68,7 @@ use Tests\TestCase;
  */
 class ResumenStockBajoCommandTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $negocioA;
@@ -85,6 +87,12 @@ class ResumenStockBajoCommandTest extends TestCase
 
         $this->negocioA = $this->crearNegocio('Negocio A');
         $this->negocioB = $this->crearNegocio('Negocio B');
+
+        // Inventario es módulo de pago: el comando solo envía a negocios con el
+        // módulo activo. El camino feliz lo tiene en ambos; la omisión sin el
+        // módulo se prueba en test_no_envia_a_un_negocio_sin_el_modulo_y_si_a_uno_con.
+        $this->activarModulo($this->negocioA, 'inventario');
+        $this->activarModulo($this->negocioB, 'inventario');
     }
 
     /* ================= AYUDANTES ================= */

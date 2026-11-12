@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,7 @@ use Tests\TestCase;
  */
 class SuspensionNegocioTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $negocioA;
@@ -54,6 +56,12 @@ class SuspensionNegocioTest extends TestCase
         $this->crearUsuario($this->negocioA, 1, 'admin.a', 'admin.a@negocio.test');
         $this->crearUsuario($this->negocioB, 1, 'admin.b', 'admin.b@negocio.test');
         $this->crearUsuario(null, 3, 'super', 'super@plataforma.test');
+
+        // El resumen de stock solo sale para negocios con el módulo Inventario
+        // activo; estas pruebas verifican que la SUSPENSIÓN (no el módulo) es lo
+        // que corta el correo, así que ambos negocios tienen el módulo.
+        $this->activarModulo($this->negocioA, 'inventario');
+        $this->activarModulo($this->negocioB, 'inventario');
     }
 
     /* ================= AYUDANTES ================= */
