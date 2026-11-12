@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -47,6 +48,7 @@ use Tests\TestCase;
  */
 class XssHttpTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     const PAYLOAD = '<img src=x onerror=alert(1)>';
@@ -97,6 +99,10 @@ class XssHttpTest extends TestCase
             'fecha_registro' => date('Y-m-d H:i:s'),
             'estado' => 1,
         ]);
+
+        // Reportes es módulo de pago: las pruebas que descargan reportes lo
+        // necesitan activo para este negocio.
+        $this->activarModulo($this->negocio, 'reportes');
     }
 
     protected function tearDown(): void

@@ -156,6 +156,15 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 - Los avisos de vencimiento (7 días, 1 día y vencido) salen UNA sola vez por fecha de vigencia (banderas aviso_7_enviado_en / aviso_1_enviado_en / vencido_avisado_en); al cambiar vigente_hasta se limpian. Van solo a los administradores activos de ese negocio; los negocios suspendidos no reciben correos pero sus módulos sí se apagan. Los correos no mencionan precios.
 - Existe config/plataforma.php (nombre, contacto_whatsapp, contacto_correo leídos del .env, vacíos por defecto) para el contacto de renovación que muestran los correos y los mensajes de bloqueo; sin contacto usan un texto genérico. App\Support\Plataforma centraliza su lectura.
 
+## Módulos apagables con candado (Reportes, Inventario)
+
+- Reportes e Inventario son módulos de pago apagables por negocio (claves 'reportes' e 'inventario'), igual que Comisiones. Los negocios que YA existían al correr su migración quedaron activos como cortesía (origen 'cortesia', sin vencimiento); los negocios NUEVOS nacen SIN ellos (ningún camino los activa al crear el negocio).
+- Toda ruta de un módulo de pago lleva verificar.modulo:<clave> (vista Y endpoint), nunca solo la pantalla. Una vista bloqueada redirige a backoffice/modulo/{clave} (pantalla de "no disponible"); un endpoint bloqueado responde el error JSON de siempre con el mensaje del módulo. El super admin (tenant null) nunca queda bloqueado. Apagar o vencer un módulo NO borra datos.
+- El sidebar muestra el ítem del módulo SIEMPRE: con enlace normal si está activo, o con candado (parcial layout/partials/item-modulo-bloqueado) que apunta a la pantalla de "no disponible" si no. El grupo "Módulos de pago" se muestra siempre. El empleado no ve ninguno de estos módulos.
+- Los textos de plan y descripción de cada módulo viven en config/plataforma.php (clave 'modulos') y son SOLO de presentación: aún no existen planes en el sistema. El enlace de WhatsApp de la pantalla de bloqueo usa el número normalizado a solo dígitos (App\Support\Plataforma::whatsappLink).
+- Los pasos de onboarding 'reportes' e 'inventario' solo cuentan si el negocio tiene ese módulo activo; sin él se omiten del total y del progreso (SvcNegocio::obtenerProgresoOnboarding), para que el onboarding se pueda completar igual.
+- Toda prueba que ejercite un módulo de pago debe activarlo primero en su preparación (trait Tests\Concerns\ActivaModulos), porque los negocios de prueba nacen sin módulos.
+
 ## Libro de pagos y comprobante (interno del super admin)
 
 - El libro de pagos (pagos_plataforma) es un registro INTERNO que solo ve el super admin; ningún admin de negocio ni empleado accede a él. Mateo cobra por fuera: no hay pasarela, webhook, factura electrónica ni PDF.

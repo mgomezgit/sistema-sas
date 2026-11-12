@@ -120,13 +120,18 @@ Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->
     Route::post('negocio/quitar-frase', [App\Http\Controllers\Request\NegocioController::class, 'quitarFrase']);
     Route::post('negocio/completar-onboarding', [App\Http\Controllers\Request\NegocioController::class, 'completarOnboarding']);
     Route::post('negocio/marcar-bienvenida', [App\Http\Controllers\Request\NegocioController::class, 'marcarBienvenidaVista']);
-    Route::post('negocio/marcar-reportes-tour', [App\Http\Controllers\Request\NegocioController::class, 'marcarReportesTourVisto']);
+    // Reportes: módulo de pago. Bloquear solo la pantalla no bastaría; sin esto
+    // un negocio sin el módulo podría llamar estos endpoints a mano. El tour
+    // también va aquí: sin el módulo no hay reportes que "descubrir", así que
+    // marcarlo tampoco cuenta.
+    Route::middleware('verificar.modulo:reportes')->group(function () {
+        Route::post('negocio/marcar-reportes-tour', [App\Http\Controllers\Request\NegocioController::class, 'marcarReportesTourVisto']);
 
-    // Reportes: consulta en pantalla y descarga del archivo Excel.
-    Route::get('reporte/ventas-preview', [App\Http\Controllers\Request\ReporteController::class, 'ventasPreview']);
-    Route::get('reporte/ventas-descargar', [App\Http\Controllers\Request\ReporteController::class, 'ventasDescargar']);
-    Route::get('reporte/servicios-preview', [App\Http\Controllers\Request\ReporteController::class, 'serviciosPreview']);
-    Route::get('reporte/servicios-descargar', [App\Http\Controllers\Request\ReporteController::class, 'serviciosDescargar']);
+        Route::get('reporte/ventas-preview', [App\Http\Controllers\Request\ReporteController::class, 'ventasPreview']);
+        Route::get('reporte/ventas-descargar', [App\Http\Controllers\Request\ReporteController::class, 'ventasDescargar']);
+        Route::get('reporte/servicios-preview', [App\Http\Controllers\Request\ReporteController::class, 'serviciosPreview']);
+        Route::get('reporte/servicios-descargar', [App\Http\Controllers\Request\ReporteController::class, 'serviciosDescargar']);
+    });
 
     // Carga masiva: plantilla de ejemplo e importación del archivo lleno.
     Route::get('carga-masiva/plantilla/{tipo}', [App\Http\Controllers\Request\CargaMasivaController::class, 'descargarPlantilla']);
@@ -225,9 +230,15 @@ Route::prefix('backoffice')->middleware('sesion.activa')->group(function () {
     Route::get('reservas/historial', [App\Http\Controllers\ReservaViewController::class, 'historial'])->middleware('restringir.empleado');
     Route::get('personalizar', [App\Http\Controllers\PersonalizarViewController::class, 'mostrar'])->middleware('restringir.empleado');
     Route::get('configuracion', [App\Http\Controllers\ConfiguracionViewController::class, 'mostrar'])->middleware('restringir.empleado');
-    Route::get('reportes/ventas', [App\Http\Controllers\ReporteViewController::class, 'ventas'])->middleware('restringir.empleado');
-    Route::get('reportes/servicios', [App\Http\Controllers\ReporteViewController::class, 'servicios'])->middleware('restringir.empleado');
+    Route::get('reportes/ventas', [App\Http\Controllers\ReporteViewController::class, 'ventas'])->middleware(['restringir.empleado', 'verificar.modulo:reportes']);
+    Route::get('reportes/servicios', [App\Http\Controllers\ReporteViewController::class, 'servicios'])->middleware(['restringir.empleado', 'verificar.modulo:reportes']);
     Route::get('carga-masiva', [App\Http\Controllers\CargaMasivaViewController::class, 'index'])->middleware('restringir.empleado');
     Route::get('productos', [App\Http\Controllers\ProductoViewController::class, 'listar'])->middleware('restringir.empleado');
     Route::get('comisiones', [App\Http\Controllers\ComisionViewController::class, 'informe'])->middleware(['restringir.empleado', 'verificar.modulo:comisiones']);
+
+    // Pantalla de "módulo no disponible": a donde llega un admin cuando su
+    // negocio no tiene activo un módulo de pago (el candado del sidebar apunta
+    // aquí, y VerificarModuloActivo redirige aquí las vistas bloqueadas). Solo
+    // admin con negocio; una clave que no existe en el catálogo da 404.
+    Route::get('modulo/{clave}', [App\Http\Controllers\ModuloViewController::class, 'mostrar'])->middleware('restringir.empleado');
 });

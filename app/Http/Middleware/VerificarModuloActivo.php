@@ -59,6 +59,10 @@ class VerificarModuloActivo
             ]);
         }
 
-        return redirect(url('backoffice/dashboard'));
+        // Las vistas van a la pantalla de "no disponible" de ESE módulo, que
+        // explica qué hace y cómo activarlo, en vez de rebotar al dashboard sin
+        // decir por qué. Esa pantalla, si el módulo sí estuviera activo, vuelve
+        // a redirigir a la pantalla real, así que no hay bucle.
+        return redirect(url('backoffice/modulo/'.$claveModulo));
     }
 }

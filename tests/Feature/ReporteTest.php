@@ -8,6 +8,7 @@ use App\Http\Middleware\VerificarSesion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -22,6 +23,7 @@ use Tests\TestCase;
  */
 class ReporteTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $negocioA;
@@ -50,6 +52,12 @@ class ReporteTest extends TestCase
 
         $this->negocioA = $this->crearNegocio('Negocio A');
         $this->negocioB = $this->crearNegocio('Negocio B');
+
+        // Reportes es módulo de pago: estas pruebas ejercitan el camino feliz,
+        // así que ambos negocios lo tienen activo. Las pruebas de "sin módulo"
+        // viven en ModuloReportesTest.
+        $this->activarModulo($this->negocioA, 'reportes');
+        $this->activarModulo($this->negocioB, 'reportes');
 
         $this->idClienteA = $this->crearCliente($this->negocioA, 'Cliente A');
         $this->idRecursoMasajeA = $this->crearRecurso($this->negocioA, 'Masaje', 60, 90000);

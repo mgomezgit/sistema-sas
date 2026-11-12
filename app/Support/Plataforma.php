@@ -53,4 +53,54 @@ class Plataforma
 
         return 'comunícate con '.$c['nombre'].' '.implode(' o ', $medios);
     }
+
+    /**
+     * El WhatsApp de la plataforma normalizado a SOLO dígitos (lo que exige
+     * wa.me). Un número guardado como "+57 300 123 4567" sale "573001234567".
+     * Vacío si no hay WhatsApp configurado.
+     */
+    public static function whatsappDigitos(): string
+    {
+        return preg_replace('/\D+/', '', (string) config('plataforma.contacto_whatsapp', ''));
+    }
+
+    /**
+     * Enlace wa.me con un mensaje precargado, o cadena vacía si no hay WhatsApp
+     * configurado. El mensaje se codifica para URL; quien pinta el enlace en
+     * una vista debe escaparlo igual que cualquier atributo.
+     */
+    public static function whatsappLink(string $mensaje = ''): string
+    {
+        $digitos = self::whatsappDigitos();
+
+        if ($digitos === '') {
+            return '';
+        }
+
+        $url = 'https://wa.me/'.$digitos;
+
+        if ($mensaje !== '') {
+            $url .= '?text='.rawurlencode($mensaje);
+        }
+
+        return $url;
+    }
+
+    /**
+     * Textos de presentación de un módulo (plan, descripción, destino) desde
+     * config/plataforma.php. Devuelve valores por defecto seguros si la clave
+     * no está configurada.
+     *
+     * @return array{plan:?string, descripcion:string, destino:?string}
+     */
+    public static function modulo(string $clave): array
+    {
+        $datos = config('plataforma.modulos.'.$clave, []);
+
+        return [
+            'plan' => $datos['plan'] ?? null,
+            'descripcion' => $datos['descripcion'] ?? '',
+            'destino' => $datos['destino'] ?? null,
+        ];
+    }
 }

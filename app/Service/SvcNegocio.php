@@ -404,46 +404,56 @@ class SvcNegocio
                 return ['tour_completado' => true, 'bienvenida_vista' => true, 'pasos' => []];
             }
 
+            $svcModulo = app(SvcModulo::class);
+
+            $pasos = [
+                [
+                    'id' => 'personalizar',
+                    'completado' => (bool) $negocio->tema_personalizado,
+                ],
+                [
+                    'id' => 'horario',
+                    'completado' => ! empty($negocio->dias_atencion),
+                ],
+                [
+                    'id' => 'recurso',
+                    'completado' => RecursoReservable::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
+                ],
+                [
+                    'id' => 'empleado',
+                    'completado' => Empleado::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
+                ],
+                [
+                    'id' => 'cliente',
+                    'completado' => Cliente::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
+                ],
+                [
+                    'id' => 'reserva',
+                    'completado' => Reserva::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
+                ],
+            ];
+
+            $pasos[] = [
+                'id' => 'inventario',
+                'completado' => Producto::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
+            ];
+
+            // Reportes es módulo de pago: su paso solo cuenta si el negocio lo
+            // tiene activo. Sin el módulo se omite del total y del progreso, para
+            // que el onboarding se pueda completar igual. Es el único paso
+            // que no se deduce de un registro creado (no hay nada que "crear" en
+            // reportes), así que se marca cuando el negocio termina su tour.
+            if ($svcModulo->estaActivo($tenantId, 'reportes')) {
+                $pasos[] = [
+                    'id' => 'reportes',
+                    'completado' => (bool) $negocio->reportes_tour_visto,
+                ];
+            }
+
             return [
                 'tour_completado' => (bool) $negocio->tour_completado,
                 'bienvenida_vista' => (bool) $negocio->bienvenida_vista,
-                'pasos' => [
-                    [
-                        'id' => 'personalizar',
-                        'completado' => (bool) $negocio->tema_personalizado,
-                    ],
-                    [
-                        'id' => 'horario',
-                        'completado' => ! empty($negocio->dias_atencion),
-                    ],
-                    [
-                        'id' => 'recurso',
-                        'completado' => RecursoReservable::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
-                    ],
-                    [
-                        'id' => 'empleado',
-                        'completado' => Empleado::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
-                    ],
-                    [
-                        'id' => 'cliente',
-                        'completado' => Cliente::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
-                    ],
-                    [
-                        'id' => 'reserva',
-                        'completado' => Reserva::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
-                    ],
-                    [
-                        'id' => 'inventario',
-                        'completado' => Producto::where('tenant_id', $tenantId)->where('estado', 1)->exists(),
-                    ],
-                    [
-                        // Único paso que no se deduce de un registro creado: no
-                        // hay nada que "crear" en reportes, así que se marca
-                        // cuando el negocio termina el tour que los explica.
-                        'id' => 'reportes',
-                        'completado' => (bool) $negocio->reportes_tour_visto,
-                    ],
-                ],
+                'pasos' => $pasos,
             ];
         } catch (\Exception $e) {
             Log::channel('database')->info($e);

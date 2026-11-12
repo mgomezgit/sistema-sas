@@ -350,7 +350,7 @@ class ModuloPagoTest extends TestCase
     }
 
     /** Ver la nota de MUTACIÓN en el encabezado de la clase. */
-    public function test_aislamiento_en_estaActivo_entre_negocios(): void
+    public function test_aislamiento_en_esta_activo_entre_negocios(): void
     {
         $this->svc()->activarModulo($this->negocioB, 'comisiones', 'test');
 
@@ -371,11 +371,11 @@ class ModuloPagoTest extends TestCase
     {
         $sesion = $this->sesionAdmin($this->negocioA);
 
-        // Vista: rebota fuera de la sección.
+        // Vista: rebota a la pantalla de "no disponible" del módulo.
         $this->withSession($sesion)
             ->get('backoffice/comisiones')
             ->assertStatus(302)
-            ->assertRedirect(url('backoffice/dashboard'));
+            ->assertRedirect(url('backoffice/modulo/comisiones'));
 
         // Endpoints: mismo formato de respuesta de siempre, con error.
         $rutas = [
@@ -489,14 +489,15 @@ class ModuloPagoTest extends TestCase
      */
     public function test_listar_modulos_por_negocio_incluye_los_nunca_activados(): void
     {
-        // Un renglón por módulo del catálogo (comisiones, chatbot e ia),
-        // aunque el negocio no haya activado ninguno.
+        // Un renglón por módulo del catálogo (comisiones, chatbot, ia y
+        // reportes), aunque el negocio no haya activado ninguno.
         $modulos = array_column($this->svc()->listarModulosPorNegocio($this->negocioA), null, 'clave');
 
-        $this->assertEqualsCanonicalizing(['comisiones', 'chatbot', 'ia'], array_keys($modulos));
+        $this->assertEqualsCanonicalizing(['comisiones', 'chatbot', 'ia', 'reportes'], array_keys($modulos));
         $this->assertSame(0, (int) $modulos['comisiones']['activo']);
         $this->assertSame(0, (int) $modulos['chatbot']['activo'], 'El chatbot nace apagado');
         $this->assertSame(0, (int) $modulos['ia']['activo'], 'El asistente creativo nace apagado');
+        $this->assertSame(0, (int) $modulos['reportes']['activo'], 'Reportes nace apagado para un negocio de prueba');
 
         $this->svc()->activarModulo($this->negocioA, 'comisiones', 'test');
 
@@ -512,9 +513,9 @@ class ModuloPagoTest extends TestCase
 
         $resumen = $this->svc()->listarNegociosConModulos();
 
-        // Un renglón por negocio y módulo del catálogo: 2 negocios x 3
-        // módulos (comisiones, chatbot e ia).
-        $this->assertCount(6, $resumen);
+        // Un renglón por negocio y módulo del catálogo: 2 negocios x 4
+        // módulos (comisiones, chatbot, ia y reportes).
+        $this->assertCount(8, $resumen);
 
         $porNegocio = [];
 
@@ -528,5 +529,7 @@ class ModuloPagoTest extends TestCase
         $this->assertSame(0, $porNegocio[$this->negocioB]['chatbot']);
         $this->assertSame(0, $porNegocio[$this->negocioA]['ia'], 'El asistente creativo nace apagado');
         $this->assertSame(0, $porNegocio[$this->negocioB]['ia']);
+        $this->assertSame(0, $porNegocio[$this->negocioA]['reportes'], 'Reportes nace apagado para un negocio de prueba');
+        $this->assertSame(0, $porNegocio[$this->negocioB]['reportes']);
     }
 }

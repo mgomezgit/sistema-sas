@@ -1281,10 +1281,24 @@
             font-size: 0.9rem;
         }
 
+        /* Candado de un módulo de pago no disponible: ícono pequeño y tenue,
+           empujado a la derecha, sin el "chip" redondeado de los íconos de
+           sección. Solo avisa de que el módulo está bloqueado. */
+        .icono-candado-menu {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: color-mix(in srgb, var(--text-secondary) 75%, transparent);
+            opacity: 0.85;
+        }
+
+        .menu-item-bloqueado:hover .icono-candado-menu {
+            color: var(--accent);
+        }
+
         /* Cada ícono va dentro de un "chip" redondeado. Se estiliza el propio
            <i>, así ninguna vista tiene que cambiar su marcado. La flecha de los
            grupos colapsables queda fuera: no es un ícono de sección. */
-        .menu-item i:not(.icono-flecha-submenu) {
+        .menu-item i:not(.icono-flecha-submenu):not(.icono-candado-menu) {
             font-size: 1rem;
             width: 29px;
             height: 29px;
@@ -3108,7 +3122,14 @@
                 <div class="etiqueta-seccion">Herramientas</div>
                 @php
                     $enSeccionReportes = request()->is('backoffice/reportes/*');
+
+                    // Reportes es módulo de pago: con el módulo, el submenú de
+                    // siempre; sin él, un solo ítem con candado a la pantalla de
+                    // "no disponible". Esto es solo experiencia de usuario; la
+                    // seguridad real la pone verificar.modulo sobre las rutas.
+                    $reportesActivo = app(\App\Service\SvcModulo::class)->estaActivo(session('tenant_id'), 'reportes');
                 @endphp
+                @if ($reportesActivo)
                 <button
                     type="button"
                     class="menu-item menu-padre @if ($enSeccionReportes) padre-activo @endif"
@@ -3131,6 +3152,9 @@
                         </a>
                     </div>
                 </div>
+                @else
+                    @include('layout.partials.item-modulo-bloqueado', ['clave' => 'reportes', 'titulo' => 'Reportes', 'icono' => 'bi-graph-up'])
+                @endif
                 <a href="{{ url('backoffice/carga-masiva') }}" class="menu-item @if (request()->is('backoffice/carga-masiva')) active @endif">
                     <i class="bi bi-cloud-upload"></i>
                     <span>Carga Masiva</span>
@@ -3145,26 +3169,27 @@
                 </a>
 
                 @php
-                    // Para sumar un módulo de pago nuevo basta con agregar su ruta
-                    // a este array y un <a class="menu-item submenu-item"> dentro
-                    // del contenedor de abajo. Nada más hay que tocar.
-                    $rutasModulosPago = ['backoffice/comisiones*'];
+                    // El grupo "Módulos de pago" se muestra SIEMPRE: cada módulo
+                    // aparece con su enlace si está activo, o con candado a la
+                    // pantalla de "no disponible" si no. Así el negocio ve qué
+                    // módulos existen aunque no los tenga. Esconder o bloquear
+                    // aquí es solo experiencia de usuario; la seguridad real la
+                    // pone verificar.modulo sobre las rutas.
+                    //
+                    // Para sumar un módulo de pago nuevo: agrega su clave a
+                    // $modulosDelGrupo (clave, titulo, icono) y su ruta activa al
+                    // array $rutasModulosPago. El submenú se arma solo.
+                    $modulosDelGrupo = [
+                        ['clave' => 'comisiones', 'titulo' => 'Comisiones', 'icono' => 'bi-percent', 'destino' => 'backoffice/comisiones'],
+                    ];
+                    $rutasModulosPago = ['backoffice/comisiones*', 'backoffice/modulo/*'];
                     $enModulosPago = request()->is($rutasModulosPago);
 
-                    // Un módulo de pago que el negocio no tiene activo no se pinta.
-                    // Igual que el resto del menú, esto es solo experiencia de
-                    // usuario: quien escriba la URL a mano rebota en el middleware
-                    // verificar.modulo, que es la seguridad de verdad.
-                    $comisionesActivo = app(\App\Service\SvcModulo::class)->estaActivo(session('tenant_id'), 'comisiones');
-
-                    // Si no hay ni un módulo activo, el grupo entero sobra: dejarlo
-                    // mostraría un desplegable que no abre nada.
-                    $tieneModulosPago = $comisionesActivo;
+                    $svcModuloMenu = app(\App\Service\SvcModulo::class);
                 @endphp
                 {{-- Sin rótulo de sección propio: el encabezado del grupo ya se
                      llama "Módulos de pago" y repetirlo encima sobra. En su lugar
                      lleva una línea fina que lo separa del bloque anterior. --}}
-                @if ($tieneModulosPago)
                 <button
                     type="button"
                     class="menu-item menu-padre menu-padre-separado @if ($enModulosPago) padre-activo @endif"
@@ -3177,18 +3202,18 @@
                 </button>
                 <div id="submenu-modulos-pago" class="submenu-lateral @if ($enModulosPago) abierto @endif">
                     <div class="submenu-lateral-contenido">
-                        @if ($comisionesActivo)
-                        <a href="{{ url('backoffice/comisiones') }}" class="menu-item submenu-item @if (request()->is('backoffice/comisiones')) active @endif">
-                            <i class="bi bi-percent"></i>
-                            <span>Comisiones</span>
-                        </a>
-                        @endif
-                        {{-- Próximos módulos de pago (Contenido para redes sociales,
-                             Catálogo, Chatbot) van aquí, con este mismo formato,
-                             cada uno con su propio chequeo de módulo activo. --}}
+                        @foreach ($modulosDelGrupo as $moduloMenu)
+                            @if ($svcModuloMenu->estaActivo(session('tenant_id'), $moduloMenu['clave']))
+                                <a href="{{ url($moduloMenu['destino']) }}" class="menu-item submenu-item @if (request()->is($moduloMenu['destino'])) active @endif">
+                                    <i class="bi {{ $moduloMenu['icono'] }}"></i>
+                                    <span>{{ $moduloMenu['titulo'] }}</span>
+                                </a>
+                            @else
+                                @include('layout.partials.item-modulo-bloqueado', ['clave' => $moduloMenu['clave'], 'titulo' => $moduloMenu['titulo'], 'icono' => $moduloMenu['icono']])
+                            @endif
+                        @endforeach
                     </div>
                 </div>
-                @endif
             @endif
             @endif
             <!-- Los enlaces de cada módulo se agregan aquí a medida que se construyen -->

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Middleware\VerificarSesion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,7 @@ use Tests\TestCase;
  */
 class OnboardingTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $tenantId;
@@ -35,6 +37,11 @@ class OnboardingTest extends TestCase
         ]);
 
         $this->tenantId = $this->crearNegocio('Negocio Nuevo');
+
+        // Reportes es módulo de pago: su paso de onboarding solo cuenta con el
+        // módulo activo. El flujo normal de estas pruebas lo tiene; la omisión
+        // sin el módulo se prueba en test_el_paso_de_reportes_se_omite_sin_el_modulo.
+        $this->activarModulo($this->tenantId, 'reportes');
     }
 
     /* ================= AYUDANTES ================= */
@@ -330,6 +337,7 @@ class OnboardingTest extends TestCase
     public function test_marcar_reportes_tour_solo_afecta_al_negocio_de_la_sesion(): void
     {
         $otroNegocio = $this->crearNegocio('Otro Negocio');
+        $this->activarModulo($otroNegocio, 'reportes');
 
         $this->withSession($this->sesionAdmin($this->tenantId))
             ->postJson('request/negocio/marcar-reportes-tour', ['tenant_id' => $otroNegocio])
@@ -360,6 +368,25 @@ class OnboardingTest extends TestCase
         $this->assertSame(0, DB::table('negocios')->where('id_negocio', $this->tenantId)->value('reportes_tour_visto'));
     }
 
+    /**
+     * Sin el módulo de reportes, su paso se OMITE del onboarding (del total y
+     * del progreso), para que el negocio pueda completar los primeros pasos
+     * igual. Mutación: si SvcNegocio dejara de condicionar el paso al módulo,
+     * el paso 'reportes' reaparecería y esta prueba fallaría.
+     */
+    public function test_el_paso_de_reportes_se_omite_sin_el_modulo(): void
+    {
+        $sinModulo = $this->crearNegocio('Sin Reportes');
+        // A propósito NO se activa el módulo 'reportes' para este negocio.
+
+        $onboarding = $this->obtenerProgreso($this->sesionAdmin($sinModulo));
+
+        $ids = array_column($onboarding['pasos'], 'id');
+        $this->assertNotContains('reportes', $ids, 'Sin el módulo, el paso de reportes no debe aparecer');
+        // El resto de pasos sigue: 6 base + inventario (aún del núcleo en este bloque).
+        $this->assertCount(7, $onboarding['pasos']);
+    }
+
     public function test_todos_los_pasos_completados_cuando_el_negocio_ya_avanzo_en_todo(): void
     {
         $negocioAvanzado = $this->crearNegocio('Negocio Avanzado', [
@@ -367,6 +394,7 @@ class OnboardingTest extends TestCase
             'tema_personalizado' => true,
             'reportes_tour_visto' => true,
         ]);
+        $this->activarModulo($negocioAvanzado, 'reportes');
 
         DB::table('productos')->insert([
             'tenant_id' => $negocioAvanzado, 'nombre' => 'Shampoo', 'cantidad_actual' => 5,
