@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
 >
     <testsuites>
@@ -32,5 +32,54 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+
+        <!--
+            Las pruebas NO dependen del .env de cada PC. Estas variables pueden
+            alterar resultados, así que se fijan con force="true" (gana incluso
+            sobre variables que ya vengan en el entorno del proceso o en el
+            .env). Toda variable de entorno nueva que afecte una prueba se
+            agrega aquí. ConfiguracionDePruebasTest vigila que no se quiten.
+        -->
+
+        <!-- Contacto de la plataforma: vacío = texto genérico "soporte". Las
+             pruebas que necesitan contacto presente lo fijan con config(). -->
+        <env name="PLATAFORMA_NOMBRE" value="la plataforma" force="true"/>
+        <env name="PLATAFORMA_CONTACTO_WHATSAPP" value="" force="true"/>
+        <env name="PLATAFORMA_CONTACTO_CORREO" value="" force="true"/>
+
+        <!-- Clave del proveedor de IA: vacía, para que una prueba que olvide el
+             fake NUNCA pueda hacer una llamada real con la clave del .env. -->
+        <env name="OPENAI_API_KEY" value="" force="true"/>
+
+        <!-- Chatbot: valores por defecto de config/chatbot.php. -->
+        <env name="CHATBOT_HABILITADO" value="true" force="true"/>
+        <env name="CHATBOT_LIMITE_MENSUAL" value="100" force="true"/>
+        <env name="CHATBOT_TOPE_GLOBAL_MENSUAL" value="1500" force="true"/>
+        <env name="CHATBOT_LONGITUD_MAXIMA_MENSAJE" value="500" force="true"/>
+        <env name="CHATBOT_MAX_TURNOS" value="6" force="true"/>
+        <env name="CHATBOT_MAX_MENSAJES_CONVERSACION" value="20" force="true"/>
+        <env name="CHATBOT_VIDA_CONVERSACION" value="15" force="true"/>
+        <env name="CHATBOT_TOKENS_MAX_SALIDA" value="300" force="true"/>
+        <env name="CHATBOT_PROVEEDOR" value="openai" force="true"/>
+        <env name="CHATBOT_MODELO" value="gpt-6-luna" force="true"/>
+        <env name="CHATBOT_ESFUERZO_RAZONAMIENTO" value="none" force="true"/>
+        <env name="CHATBOT_ESPERA_BLOQUEO" value="5" force="true"/>
+        <env name="CHATBOT_TIMEOUT" value="20" force="true"/>
+        <env name="CHATBOT_MENSAJES_MINUTO_IP" value="6" force="true"/>
+        <env name="CHATBOT_MENSAJES_HORA_IP" value="40" force="true"/>
+        <env name="CHATBOT_TERMINAR_MINUTO_IP" value="20" force="true"/>
+
+        <!-- Asistente creativo (IA): valores por defecto de config/ia.php. -->
+        <env name="IA_HABILITADO" value="true" force="true"/>
+        <env name="IA_LIMITE_MENSUAL" value="40" force="true"/>
+        <env name="IA_TOPE_GLOBAL_MENSUAL" value="1000" force="true"/>
+        <env name="IA_TOKENS_MAX_SALIDA" value="400" force="true"/>
+        <env name="IA_PROVEEDOR" value="openai" force="true"/>
+        <env name="IA_MODELO" value="gpt-6-luna" force="true"/>
+        <env name="IA_ESFUERZO_RAZONAMIENTO" value="none" force="true"/>
+        <env name="IA_TIMEOUT" value="30" force="true"/>
+        <env name="IA_ESPERA_BLOQUEO" value="5" force="true"/>
+        <env name="IA_POR_MINUTO_USUARIO" value="10" force="true"/>
+        <env name="IA_POR_HORA_USUARIO" value="100" force="true"/>
     </php>
 </phpunit>
