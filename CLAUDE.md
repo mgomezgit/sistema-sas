@@ -195,6 +195,7 @@ Para cualquier entidad con baja lógica (estado), el patrón ya establecido en P
 - Preferir pruebas que recorran el camino real (HTTP con withSession(), archivos reales para importaciones) en vez de mocks de capas intermedias.
 - Las pruebas corren sobre SQLite en memoria (phpunit.xml) — la base real nunca se toca.
 - Las pruebas no dependen del .env: las variables que pueden alterar resultados se fijan con force en phpunit.xml. Toda variable de entorno nueva que afecte una prueba se agrega ahí.
+- No correr Pint (ni ningún formateador) sobre todo el proyecto: solo sobre los archivos que se crean o modifican en la tarea, con rutas concretas o --dirty. Nunca reformatear archivos ajenos a la tarea: contamina el diff y puede chocar con el trabajo del otro PC.
 - Ante un bug que persiste tras un primer intento de corrección: el siguiente intento DEBE exigir diagnóstico de causa raíz antes de corregir, no otro parche a ciegas.
 - Las pruebas no deben depender de la fecha ni de la hora real en que se corren. Si una prueba toca horarios de atención, reservas, recordatorios o vigencias, congela el reloj con Carbon::setTestNow() en un día y una hora conocidos (en los que el negocio de prueba atienda) y restaurarlo al terminar.
 
