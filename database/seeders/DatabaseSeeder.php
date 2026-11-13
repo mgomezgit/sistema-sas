@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -11,23 +10,19 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
 
     /**
-     * Seed the application's database.
+     * Siembra lo que necesita CUALQUIER instalación, incluida la de producción:
+     * solo los roles. No crea usuarios ni datos de demostración.
+     *
+     * La cuenta super admin del servidor se crea aparte, de forma interactiva:
+     *   php artisan plataforma:crear-super-admin
+     *
+     * Datos de demostración (SOLO en entorno local; el seeder se niega fuera):
+     *   php artisan db:seed --class=UsuarioDemoSeeder
+     * Datos de prueba realistas (a mano, solo inserta y nunca borra):
+     *   php artisan db:seed --class=DatosPruebaSeeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
-        $this->call(UsuarioDemoSeeder::class);
-
-        // Datos de prueba realistas para los negocios 1 y 5. Se deja fuera de la
-        // ejecución automática a propósito: solo inserta (nunca borra), así que
-        // llamarlo repetidamente duplicaría registros. Ejecutar a mano cuando se
-        // necesite:  php artisan db:seed --class=DatosPruebaSeeder
-        // $this->call(DatosPruebaSeeder::class);
+        $this->call(RolSeeder::class);
     }
 }
