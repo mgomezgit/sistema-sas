@@ -10,6 +10,7 @@ Plataforma SaaS de gestión de reservas/citas multi-rubro (spa, y a futuro hotel
 
 - Backend: Laravel 13, PHP 8.4, MySQL 8.4 vía Laragon en Windows.
 - Frontend: Bootstrap 5 + jQuery + Axios (vía axiosSipleInterno()) + DataTables + SweetAlert2 + Shepherd.js + FullCalendar (Standard/MIT, NUNCA el plugin Premium) + Chart.js + Bootstrap Icons. Todo por CDN, sin build tools (nada de Vite/Webpack/npm). JAMÁS Tailwind. JAMÁS frameworks JS (React/Vue/Angular).
+- El proyecto no tiene package.json, vite.config.js, .npmrc ni @vite en las vistas; el guardián SinViteNiNpmTest lo vigila (y que los scripts de composer no llamen a npm).
 - Cualquier librería nueva (JS/CSS por CDN, o paquete de Composer) se propone a Mateo primero, explicando qué hace y por qué ayuda, y se espera su confirmación antes de usarla en un prompt.
 - Correo: Laravel Mail vía Mailpit en desarrollo (127.0.0.1:1025, bandeja en localhost:8025). Todos los Mailables implementan ShouldQueue — requiere php artisan queue:work corriendo en una terminal aparte para que se envíen de verdad.
 - Colas: QUEUE_CONNECTION=database.
