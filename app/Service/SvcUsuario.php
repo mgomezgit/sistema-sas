@@ -18,6 +18,9 @@ class SvcUsuario
      */
     const LARGO_MINIMO_CLAVE = 8;
 
+    /** Largo mínimo de la clave de la cuenta de plataforma (super admin). */
+    const LARGO_MINIMO_CLAVE_PLATAFORMA = 12;
+
     /** Resultado de rechazar una operación por la regla de roles de plataforma. */
     const ROL_INVALIDO = 'rol_invalido';
 
@@ -119,6 +122,101 @@ class SvcUsuario
             return Usuario::create($info)->id_usuario;
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
+
+            return false;
+        }
+    }
+
+    /**
+     * ¿Existe ya una cuenta de plataforma (rol super_admin), activa o inactiva?
+     * Mientras exista, no se crea otra por ningún camino.
+     */
+    public function existeCuentaDePlataforma(): bool
+    {
+        try {
+            $idRol = Rol::idPorNombre(Rol::SUPER_ADMIN);
+
+            return $idRol !== null && Usuario::where('id_rol', $idRol)->exists();
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            // Ante un error se responde "sí existe": cerrado por defecto, para
+            // que un fallo de lectura nunca abra la puerta a una segunda cuenta.
+            return true;
+        }
+    }
+
+    /**
+     * ¿Ese usuario o correo ya lo tiene una cuenta ACTIVA? (único entre activas)
+     *
+     * @param  string  $campo  'email' o 'usuario'.
+     */
+    public function credencialActivaOcupada(string $campo, string $valor): bool
+    {
+        try {
+            if (! in_array($campo, ['email', 'usuario'], true)) {
+                return true;
+            }
+
+            return Usuario::where($campo, $valor)->where('estado', 1)->exists();
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+
+            // Cerrado por defecto: ante la duda, la credencial se trata como ocupada.
+            return true;
+        }
+    }
+
+    /**
+     * Crea la ÚNICA cuenta de plataforma (super admin, sin negocio). Solo la usa
+     * el comando de consola plataforma:crear-super-admin, al montar un servidor.
+     *
+     * Es un camino aparte A PROPÓSITO: crear() y crearConClaveHasheada() se
+     * niegan a crear un super_admin (altaConRolDeNegocio), y así debe seguir
+     * siendo para todo lo demás. Aquí se vuelven a comprobar las reglas aunque
+     * el comando ya las haya validado: existe el rol, no hay ninguna cuenta de
+     * plataforma (activa o inactiva), correo y usuario libres entre activas y
+     * clave de al menos 12. La base respalda además que haya como máximo un
+     * super_admin activo y siempre sin negocio.
+     *
+     * La clave llega en claro, se hashea aquí y no se registra en ningún log.
+     *
+     * @return int|false El id creado, o false si alguna regla lo impide.
+     */
+    public function crearCuentaDePlataforma(array $info)
+    {
+        try {
+            $idRol = Rol::idPorNombre(Rol::SUPER_ADMIN);
+
+            if ($idRol === null
+                || $this->existeCuentaDePlataforma()
+                || mb_strlen((string) ($info['clave'] ?? '')) < self::LARGO_MINIMO_CLAVE_PLATAFORMA
+                || $this->credencialActivaOcupada('email', (string) $info['email'])
+                || $this->credencialActivaOcupada('usuario', (string) $info['usuario'])) {
+                Log::channel('database')->info('PLATAFORMA: intento rechazado de crear la cuenta super admin por consola (regla incumplida).');
+
+                return false;
+            }
+
+            $usuario = Usuario::create([
+                'tenant_id' => null,
+                'id_rol' => $idRol,
+                'usuario' => $info['usuario'],
+                'nombre' => $info['nombre'],
+                'email' => $info['email'],
+                'clave' => Hash::make($info['clave']),
+                'usuario_registra' => 'consola',
+                'fecha_registro' => now(),
+                'estado' => 1,
+            ]);
+
+            Log::channel('database')->info('PLATAFORMA: cuenta super admin "'.$info['usuario'].'" creada por consola el '.now()->format('Y-m-d H:i:s').'.');
+
+            return $usuario->id_usuario;
+        } catch (\Exception $e) {
+            // Solo la clase de la excepción: el mensaje de una QueryException
+            // trae el SQL con sus valores, y entre ellos iría el hash de la clave.
+            Log::channel('database')->info('PLATAFORMA: no se pudo crear la cuenta super admin por consola ('.get_class($e).').');
 
             return false;
         }
