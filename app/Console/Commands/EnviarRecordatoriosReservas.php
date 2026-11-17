@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Mail\ReservaRecordatorio;
+use App\Service\SvcModulo;
+use App\Service\SvcNotificacionReserva;
 use App\Service\SvcReserva;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -14,7 +16,7 @@ class EnviarRecordatoriosReservas extends Command
 
     protected $description = 'Envía correos de recordatorio a clientes con reservas para mañana';
 
-    public function handle(): int
+    public function handle(SvcModulo $svcModulo): int
     {
         $manana = now()->addDay()->format('Y-m-d');
 
@@ -23,8 +25,25 @@ class EnviarRecordatoriosReservas extends Command
 
         $encolados = 0;
         $omitidos = 0;
+        $sinModulo = 0;
+
+        // Módulo "correos" por negocio, comprobado UNA vez por negocio y con la
+        // vigencia en tiempo real (estaActivo). Proceso de sistema: recorre
+        // todos los negocios, pero cada reserva se decide con SU tenant_id.
+        $correosActivos = [];
 
         foreach ($reservas as $reserva) {
+            $tenantId = (int) $reserva['tenant_id'];
+            $correosActivos[$tenantId] ??= $svcModulo->estaActivo($tenantId, SvcNotificacionReserva::CLAVE_MODULO);
+
+            // Sin el módulo, el negocio no manda correos a sus clientas: se
+            // omite ANTES de encolar nada.
+            if (! $correosActivos[$tenantId]) {
+                $sinModulo++;
+
+                continue;
+            }
+
             // Sin correo no hay a quién avisar: se omite en silencio.
             if (empty($reserva['email_cliente'])) {
                 $omitidos++;
@@ -55,6 +74,10 @@ class EnviarRecordatoriosReservas extends Command
 
         if ($omitidos > 0) {
             $this->line('Omitidos por falta de correo del cliente: '.$omitidos);
+        }
+
+        if ($sinModulo > 0) {
+            $this->line('Omitidos por negocio sin el modulo de correos: '.$sinModulo);
         }
 
         return self::SUCCESS;

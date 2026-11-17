@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Mail\ReservaConfirmada;
 use App\Mail\ReservaEstadoActualizado;
 use App\Models\Cliente;
 use App\Models\Negocio;
@@ -15,16 +16,61 @@ use Illuminate\Support\Facades\Mail;
  *
  * Nada de esto se dispara solo desde SvcReserva: quien cambia algo decide si
  * notifica, y lo hace DESPUÉS de que el cambio quedó guardado. La
- * confirmación de una reserva nueva sigue encolándose únicamente en
- * ReservaController::crear() (ver CLAUDE.md, página pública).
+ * confirmación de una reserva nueva (notificarReservaCreada) la pide
+ * únicamente ReservaController::crear(): una solicitud de la página pública
+ * nunca la dispara (ver CLAUDE.md, página pública).
+ *
+ * MÓDULO "correos": este es el ÚNICO punto donde se despachan los correos por
+ * evento a la clienta (ReservaConfirmada y ReservaEstadoActualizado), y cada
+ * uno comprueba aquí, al momento de despachar, que el negocio tenga el módulo
+ * activo y vigente (SvcModulo::estaActivo). Sin el módulo no sale nada, pero
+ * el cambio que lo originó ya quedó guardado igual. El recordatorio lo
+ * despacha el comando reservas:enviar-recordatorios, con la misma comprobación.
+ * GuardianCorreosClientasTest vigila que nadie más los despache.
  */
 class SvcNotificacionReserva
 {
+    const CLAVE_MODULO = 'correos';
+
     protected SvcReserva $svcReserva;
+
+    protected SvcModulo $svcModulo;
 
     public function __construct()
     {
         $this->svcReserva = new SvcReserva;
+        $this->svcModulo = app(SvcModulo::class);
+    }
+
+    /**
+     * ¿El negocio tiene activo y vigente el módulo de correos a clientas? Lo
+     * usan los correos por evento y las pantallas que prometen un correo.
+     */
+    public function correosActivos($tenantId): bool
+    {
+        return $this->svcModulo->estaActivo($tenantId, self::CLAVE_MODULO);
+    }
+
+    /**
+     * Confirma al cliente una reserva recién creada por el negocio. Solo la
+     * llama ReservaController::crear(). Un fallo al encolar no se propaga: la
+     * reserva ya quedó creada.
+     */
+    public function notificarReservaCreada($idReserva, $tenantId): void
+    {
+        try {
+            if (! $this->correosActivos($tenantId)) {
+                return;
+            }
+
+            $datos = $this->datosParaNotificar($idReserva, $tenantId);
+
+            if ($datos !== null) {
+                Mail::to($datos['email'])->queue(new ReservaConfirmada($datos['reserva'], $datos['negocio']));
+            }
+        } catch (\Exception $e) {
+            Log::channel('database')->info($e);
+        }
     }
 
     /**
@@ -88,6 +134,10 @@ class SvcNotificacionReserva
         }
 
         try {
+            if (! $this->correosActivos($tenantId)) {
+                return;
+            }
+
             $datos = $this->datosParaNotificar($idReserva, $tenantId);
 
             if ($datos !== null) {

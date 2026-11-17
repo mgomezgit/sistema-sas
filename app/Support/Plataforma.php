@@ -87,6 +87,19 @@ class Plataforma
     }
 
     /**
+     * Mensaje precargado del WhatsApp para pedir un módulo de pago. Lo usan la
+     * pantalla "no disponible" y la tarjeta de Correos en Configuración, para
+     * que el spa mande siempre el mismo texto. Texto plano sin codificar
+     * (whatsappLink lo codifica); el plan va solo si existe.
+     */
+    public static function mensajeWhatsappModulo(string $nombreNegocio, ?string $plan, string $nombreModulo): string
+    {
+        return $plan !== null
+            ? 'Hola, soy del spa '.$nombreNegocio.' y quiero el plan '.$plan.' ('.$nombreModulo.').'
+            : 'Hola, soy del spa '.$nombreNegocio.' y quiero activar '.$nombreModulo.'.';
+    }
+
+    /**
      * Textos de presentación de un módulo (plan, descripción, destino) desde
      * config/plataforma.php. Devuelve valores por defecto seguros si la clave
      * no está configurada.

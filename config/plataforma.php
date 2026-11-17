@@ -69,6 +69,12 @@ return [
             'descripcion' => 'Asistente virtual que responde en la página pública las preguntas de los clientes.',
             'destino' => null,
         ],
+        'correos' => [
+            'plan' => 'Pro',
+            'descripcion' => 'Correos automáticos a tus clientas: confirmación de la reserva, cambios de estado y recordatorio del día anterior.',
+            // Sin pantalla propia: si está activo, la tarjeta vive en Configuración.
+            'destino' => 'backoffice/configuracion',
+        ],
     ],
 
 ];

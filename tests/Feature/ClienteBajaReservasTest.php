@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -36,6 +37,7 @@ use Tests\TestCase;
  */
 class ClienteBajaReservasTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $negocioA;
@@ -71,6 +73,12 @@ class ClienteBajaReservasTest extends TestCase
 
         $this->recursoA = $this->crearRecurso($this->negocioA);
         $this->recursoB = $this->crearRecurso($this->negocioB);
+
+        // Los correos a la clienta son del módulo de pago "correos": estas
+        // pruebas verifican los correos (o que NO salen por otra razón), así
+        // que ambos negocios lo tienen activo.
+        $this->activarModulo($this->negocioA, 'correos');
+        $this->activarModulo($this->negocioB, 'correos');
     }
 
     protected function tearDown(): void

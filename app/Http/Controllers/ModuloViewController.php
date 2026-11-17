@@ -47,9 +47,7 @@ class ModuloViewController extends Controller
 
         // Mensaje precargado del WhatsApp. El plan va solo si existe; wa.me
         // recibe el texto sin codificar (whatsappLink lo codifica).
-        $mensajeWhatsapp = $textos['plan'] !== null
-            ? 'Hola, soy del spa '.$nombreNegocio.' y quiero el plan '.$textos['plan'].' ('.$modulo->nombre.').'
-            : 'Hola, soy del spa '.$nombreNegocio.' y quiero activar '.$modulo->nombre.'.';
+        $mensajeWhatsapp = Plataforma::mensajeWhatsappModulo($nombreNegocio, $textos['plan'], $modulo->nombre);
 
         return view('app.modulo.no-disponible', [
             'claveModulo' => $clave,

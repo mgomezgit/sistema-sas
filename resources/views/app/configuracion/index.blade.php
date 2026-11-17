@@ -343,6 +343,165 @@
         .acciones-frase .btn-guardar-moderno {
             min-height: 44px;
         }
+
+        /* ================= TARJETA "CORREOS A TUS CLIENTAS" ================= */
+
+        .tarjeta-correos-clientas {
+            margin-top: 1.5rem;
+        }
+
+        /* El título usa el color de texto (no el acento) para pasar 4,5:1 con
+           cualquier acento y en ambos modos. */
+        .tarjeta-correos-clientas .etiqueta-seccion-form,
+        .tarjeta-correos-clientas .ayuda-bloque,
+        .tarjeta-correos-clientas .lista-correos,
+        .tarjeta-correos-clientas .contacto-correos {
+            color: var(--text-primary);
+        }
+
+        .encabezado-correos {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+            margin-bottom: 0.9rem;
+        }
+
+        .icono-correos {
+            flex: 0 0 auto;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 1.35rem;
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .icono-correos.activo {
+            background: var(--success-soft);
+            color: var(--success);
+        }
+
+        .chip-estado-correos {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            border-radius: 999px;
+            padding: 0.2rem 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .chip-estado-correos.activo {
+            background: var(--success-soft);
+            border-color: color-mix(in srgb, var(--success) 35%, transparent);
+        }
+
+        .chip-estado-correos.bloqueado {
+            background: var(--accent-soft);
+            border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+        }
+
+        .lista-correos {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            color: var(--text-secondary);
+        }
+
+        .lista-correos li {
+            display: flex;
+            gap: 0.6rem;
+            align-items: flex-start;
+            padding: 0.3rem 0;
+        }
+
+        .lista-correos i {
+            color: var(--accent);
+        }
+
+        .acciones-correos {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.75rem 1rem;
+        }
+
+        .btn-whatsapp-correos,
+        .enlace-mas-correos {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 44px;
+            border-radius: 12px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        /* Texto en --text-primary sobre el fondo suave del acento: el texto
+           sobre --accent sólido no llega a 4,5:1 con todos los acentos. */
+        .btn-whatsapp-correos {
+            background: var(--accent-soft);
+            color: var(--text-primary);
+            border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+            padding: 0 1.25rem;
+            transition: border-color 0.15s ease, background 0.15s ease;
+        }
+
+        .btn-whatsapp-correos i {
+            color: var(--success);
+        }
+
+        .btn-whatsapp-correos:hover {
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        .enlace-mas-correos {
+            color: var(--text-primary);
+            padding: 0 0.75rem;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .btn-whatsapp-correos:focus-visible,
+        .enlace-mas-correos:focus-visible,
+        .contacto-correos a:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 3px;
+        }
+
+        .contacto-correos {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* En celular el ícono va arriba y el botón ocupa el ancho: así el chip
+           del plan y el texto del botón no se parten en tres renglones. */
+        @media (max-width: 576px) {
+            .encabezado-correos {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.6rem;
+            }
+
+            .btn-whatsapp-correos {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .contacto-correos a {
+            display: inline-flex;
+            align-items: center;
+            min-height: 44px;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
     </style>
     @if ($iaActiva)
         @include('app.configuracion.partials.ia-generar-estilos')
@@ -509,6 +668,9 @@
             </button>
         </div>
     </div>
+
+    {{-- Correos a tus clientas (módulo 'correos'): solo informa, no guarda nada. --}}
+    @include('app.configuracion.partials.correos-clientas')
     </div>
 
     {{-- ================= PESTAÑA 2: BANNERS ================= --}}

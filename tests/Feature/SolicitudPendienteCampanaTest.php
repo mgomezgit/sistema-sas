@@ -7,6 +7,7 @@ use App\Mail\ReservaEstadoActualizado;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -57,6 +58,7 @@ use Tests\TestCase;
  */
 class SolicitudPendienteCampanaTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $tenantId;
@@ -93,6 +95,12 @@ class SolicitudPendienteCampanaTest extends TestCase
         $this->idRecursoAjeno = $this->crearRecurso($this->otroTenantId, 'Servicio Ajeno', 60);
 
         $this->lunesFuturo = date('Y-m-d', strtotime('monday next week'));
+
+        // Los correos a la clienta son del módulo de pago "correos": estas
+        // pruebas verifican los correos (o que NO salen por otra razón), así
+        // que ambos negocios lo tienen activo.
+        $this->activarModulo($this->tenantId, 'correos');
+        $this->activarModulo($this->otroTenantId, 'correos');
     }
 
     /* ================= AYUDANTES ================= */

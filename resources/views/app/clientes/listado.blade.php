@@ -301,13 +301,19 @@
          * de baja). "title" y "html" de SweetAlert2 interpretan HTML: el
          * nombre del cliente pasa por escaparTexto().
          */
+        // El correo de cancelación solo sale si el negocio tiene el módulo
+        // "correos": sin él, el aviso no lo promete (texto fijo del servidor).
+        var textoAvisoCancelacion = @json($correosActivos
+            ? 'Si las cancelas, se le avisará por correo al cliente si tiene email registrado.'
+            : 'Si las cancelas, sus reservas futuras quedarán canceladas.');
+
         function preguntarQueHacerConReservas(nombreCliente, total, alTerminar) {
             var textoReservas = total === 1 ? 'la reserva' : 'las ' + total + ' reservas';
 
             Swal.fire({
                 title: 'Dar de baja a "' + escaparTexto(nombreCliente) + '"',
                 html: 'Este cliente tiene <strong>' + escaparTexto(total) + (total === 1 ? ' reserva futura' : ' reservas futuras') + '</strong> pendientes o confirmadas.<br><br>' +
-                    'Si las cancelas, se le avisará por correo al cliente si tiene email registrado.',
+                    escaparTexto(textoAvisoCancelacion),
                 icon: 'warning',
                 background: 'var(--bg-card)',
                 color: 'var(--text-primary)',

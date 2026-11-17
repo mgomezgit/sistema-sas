@@ -9,6 +9,7 @@ use App\Mail\ReservaRecordatorio;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -22,6 +23,7 @@ use Tests\TestCase;
  */
 class NotificacionTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $tenantId;
@@ -45,6 +47,12 @@ class NotificacionTest extends TestCase
 
         // 60 minutos exactos: simplifica comprobar hora_fin en los correos.
         $this->idRecurso = $this->crearRecurso($this->tenantId, 'Masaje', 60);
+
+        // Los correos a la clienta son del módulo de pago "correos": estas
+        // pruebas verifican los correos (o que NO salen por otra razón), así
+        // que ambos negocios lo tienen activo.
+        $this->activarModulo($this->tenantId, 'correos');
+        $this->activarModulo($this->otroTenantId, 'correos');
     }
 
     /* ================= AYUDANTES ================= */

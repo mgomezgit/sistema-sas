@@ -8,6 +8,7 @@ use App\Service\SvcReserva;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -51,6 +52,7 @@ use Tests\TestCase;
  */
 class ReservaHistorialEstadoTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     const MENSAJE_COMISION_PAGADA = 'Esta cita ya forma parte de un pago de comisión confirmado y no se puede modificar. Si el pago se marcó por error, puedes anularlo desde Comisiones, pestaña Historial de pagos.';
@@ -113,6 +115,12 @@ class ReservaHistorialEstadoTest extends TestCase
         $this->clienteB = $this->crearCliente($this->negocioB, 'Cliente B');
         $this->recursoA = $this->crearRecurso($this->negocioA, 'Masaje A');
         $this->recursoB = $this->crearRecurso($this->negocioB, 'Masaje B');
+
+        // Los correos a la clienta son del módulo de pago "correos": estas
+        // pruebas verifican los correos (o que NO salen por otra razón), así
+        // que ambos negocios lo tienen activo.
+        $this->activarModulo($this->negocioA, 'correos');
+        $this->activarModulo($this->negocioB, 'correos');
     }
 
     /* ================= AYUDANTES ================= */

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Request;
 
 use App\Http\Controllers\Controller;
-use App\Mail\ReservaConfirmada;
 use App\Service\SvcCliente;
 use App\Service\SvcEmpleado;
 use App\Service\SvcNegocio;
@@ -12,8 +11,6 @@ use App\Service\SvcRecursoReservable;
 use App\Service\SvcReserva;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class ReservaController extends Controller
 {
@@ -170,17 +167,10 @@ class ReservaController extends Controller
             return $this->sendResponse();
         }
 
-        // El correo es una notificación adicional: si falla, la reserva ya quedó
-        // creada y la respuesta al usuario no debe verse afectada.
-        try {
-            $datos = $this->svcNotificacionReserva->datosParaNotificar($idReserva, $tenantId);
-
-            if ($datos !== null) {
-                Mail::to($datos['email'])->queue(new ReservaConfirmada($datos['reserva'], $datos['negocio']));
-            }
-        } catch (\Exception $e) {
-            Log::channel('database')->info($e);
-        }
+        // El correo es una notificación adicional (y solo sale con el módulo
+        // "correos"): si falla, la reserva ya quedó creada y la respuesta al
+        // usuario no debe verse afectada.
+        $this->svcNotificacionReserva->notificarReservaCreada($idReserva, $tenantId);
 
         $this->respSinError();
         $this->setDataResponse($idReserva, 'id_reserva');

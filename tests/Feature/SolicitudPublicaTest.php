@@ -9,6 +9,7 @@ use App\Service\SvcReserva;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -21,6 +22,7 @@ use Tests\TestCase;
  */
 class SolicitudPublicaTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $negocioA;
@@ -50,6 +52,12 @@ class SolicitudPublicaTest extends TestCase
 
         $this->recursoA = $this->crearRecurso($this->negocioA, 'Masaje del A');
         $this->recursoB = $this->crearRecurso($this->negocioB, 'Facial del B');
+
+        // Los correos a la clienta son del módulo de pago "correos": estas
+        // pruebas verifican los correos (o que NO salen por otra razón), así
+        // que ambos negocios lo tienen activo.
+        $this->activarModulo($this->negocioA, 'correos');
+        $this->activarModulo($this->negocioB, 'correos');
     }
 
     private function crearNegocio(string $nombre, string $slug): int

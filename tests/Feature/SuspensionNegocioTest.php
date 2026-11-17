@@ -62,6 +62,12 @@ class SuspensionNegocioTest extends TestCase
         // que corta el correo, así que ambos negocios tienen el módulo.
         $this->activarModulo($this->negocioA, 'inventario');
         $this->activarModulo($this->negocioB, 'inventario');
+
+        // Los correos a la clienta son del módulo de pago "correos": estas
+        // pruebas verifican los correos (o que NO salen por otra razón), así
+        // que ambos negocios lo tienen activo.
+        $this->activarModulo($this->negocioA, 'correos');
+        $this->activarModulo($this->negocioB, 'correos');
     }
 
     /* ================= AYUDANTES ================= */
