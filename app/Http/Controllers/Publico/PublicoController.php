@@ -46,11 +46,19 @@ class PublicoController extends Controller
      * mismo 404, sin distinguirse entre sí ni de cualquier otro 404 del sitio:
      * desde fuera no se puede averiguar si un negocio existe pero está cerrado.
      */
-    private function negocioPorSlug(string $slug): Negocio
+    private function negocioPorSlug(string $slug, bool $exigePaginaCompleta = true): Negocio
     {
         $negocio = $this->svcPaginaPublica->resolverPorSlug($slug);
 
-        if ($negocio === null) {
+        // Módulo "pagina_publica": sin él, servicios, equipo, banners, agendar
+        // y el chat responden EXACTAMENTE el mismo 404 que un slug que no
+        // existe, antes de leer o crear nada. Es el punto único de esta capa,
+        // y un solo abort() para que ni siquiera la traza de depuración
+        // distinga un caso del otro.
+        $sinPagina = $negocio === null
+            || ($exigePaginaCompleta && ! $this->svcPaginaPublica->paginaCompleta($negocio));
+
+        if ($sinPagina) {
             abort(404);
         }
 
@@ -63,13 +71,20 @@ class PublicoController extends Controller
      * modo_tema y color_acento viajan por compatibilidad con lo que ya
      * consumía esta ruta; el diseño de la página pública usa su propia
      * paleta fija y no los pinta.
+     *
+     * Sin el módulo "pagina_publica" responde, en lugar de eso, la lista
+     * blanca de la página básica: nombre, horario y WhatsApp.
      */
     public function informacionNegocio(string $slug): JsonResponse
     {
-        $negocio = $this->negocioPorSlug($slug);
+        $negocio = $this->negocioPorSlug($slug, false);
+
+        $informacion = $this->svcPaginaPublica->paginaCompleta($negocio)
+            ? $this->svcPaginaPublica->informacion($negocio)
+            : $this->svcPaginaPublica->informacionBasica($negocio);
 
         $this->respSinError();
-        $this->setDataResponse($this->svcPaginaPublica->informacion($negocio), 'negocio');
+        $this->setDataResponse($informacion, 'negocio');
 
         return $this->sendResponse();
     }

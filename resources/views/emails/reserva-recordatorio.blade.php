@@ -1,5 +1,6 @@
 @php
-    // $negocio: ['nombre_negocio', 'color_acento', 'slug', 'politica_cancelacion'].
+    // $negocio: ['nombre_negocio', 'color_acento', 'slug', 'politica_cancelacion', 'pagina_completa'].
+    // El botón a reservar/{slug} solo va con la página completa (módulo pagina_publica).
     $negocio = $negocio ?? [];
     $colorAcento = \App\Service\ColorAcento::hex($negocio['color_acento'] ?? null);
     $colorAcentoSuave = \App\Service\ColorAcento::hexSuave($negocio['color_acento'] ?? null);
@@ -22,6 +23,6 @@
     'etiquetaEmpleado' => 'Te atenderá',
     'cierre' => 'Si no puedes asistir, avísanos con tiempo para reagendar tu cita. ¡Nos vemos pronto!',
     'politicaCancelacion' => $negocio['politica_cancelacion'] ?? null,
-    'urlBoton' => ! empty($negocio['slug']) ? url('reservar/'.$negocio['slug']) : null,
+    'urlBoton' => ! empty($negocio['slug']) && ! empty($negocio['pagina_completa']) ? url('reservar/'.$negocio['slug']) : null,
     'textoBoton' => 'Ver mi cita',
 ])

@@ -26,6 +26,7 @@ use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\TextUsage;
 use Laravel\Ai\Responses\TextResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -110,6 +111,7 @@ use Tests\TestCase;
  */
 class ChatbotTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     const CLAVE_FALSA = 'sk-test-CLAVE-SECRETA-NO-DEBE-SALIR-123';
@@ -162,6 +164,12 @@ class ChatbotTest extends TestCase
 
         (new SvcModulo)->activarModulo($this->negocioA, 'chatbot', 'test');
         (new SvcModulo)->activarModulo($this->negocioB, 'chatbot', 'test');
+
+        // La página pública completa es el módulo de pago "pagina_publica":
+        // estas pruebas ejercitan la página completa, así que sus negocios lo
+        // tienen activo (los negocios de prueba nacen sin módulos).
+        $this->activarModulo($this->negocioA, 'pagina_publica');
+        $this->activarModulo($this->negocioB, 'pagina_publica');
     }
 
     protected function tearDown(): void

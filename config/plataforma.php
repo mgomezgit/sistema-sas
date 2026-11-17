@@ -75,6 +75,12 @@ return [
             // Sin pantalla propia: si está activo, la tarjeta vive en Configuración.
             'destino' => 'backoffice/configuracion',
         ],
+        'pagina_publica' => [
+            'plan' => 'Pro',
+            'descripcion' => 'Tu página con servicios, equipo, promociones y solicitud de citas en línea. Sin el plan, tus clientas ven solo tu nombre, tu horario y tu WhatsApp.',
+            // Sin pantalla propia: la tarjeta, los banners y la frase viven en Configuración.
+            'destino' => 'backoffice/configuracion',
+        ],
     ],
 
 ];

@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -39,6 +40,7 @@ use Tests\TestCase;
  */
 class ClienteInactivoSolicitudPublicaTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     const PAYLOAD = '<img src=x onerror=alert(1)>';
@@ -83,6 +85,12 @@ class ClienteInactivoSolicitudPublicaTest extends TestCase
 
         $this->clienteInactivoA = $this->crearCliente($this->negocioA, 'Ines De Baja', '3001111111', 0);
         $this->clienteActivoA = $this->crearCliente($this->negocioA, 'Ana Activa', '3002222222', 1);
+
+        // La página pública completa es el módulo de pago "pagina_publica":
+        // estas pruebas ejercitan la página completa, así que sus negocios lo
+        // tienen activo (los negocios de prueba nacen sin módulos).
+        $this->activarModulo($this->negocioA, 'pagina_publica');
+        $this->activarModulo($this->negocioB, 'pagina_publica');
     }
 
     protected function tearDown(): void

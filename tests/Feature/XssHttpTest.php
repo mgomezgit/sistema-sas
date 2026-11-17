@@ -103,6 +103,11 @@ class XssHttpTest extends TestCase
         // Reportes es módulo de pago: las pruebas que descargan reportes lo
         // necesitan activo para este negocio.
         $this->activarModulo($this->negocio, 'reportes');
+
+        // La página pública completa es el módulo de pago "pagina_publica":
+        // estas pruebas ejercitan la página completa, así que sus negocios lo
+        // tienen activo (los negocios de prueba nacen sin módulos).
+        $this->activarModulo($this->negocio, 'pagina_publica');
     }
 
     protected function tearDown(): void

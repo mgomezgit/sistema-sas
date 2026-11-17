@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -37,16 +38,22 @@ use Tests\TestCase;
  */
 class ChatbotFrontendTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     const PAYLOAD = '<img src=x onerror=alert(1)>';
 
     private function crearNegocio(string $nombre, string $slug, array $extra = []): int
     {
-        return DB::table('negocios')->insertGetId(array_merge([
+        $id = DB::table('negocios')->insertGetId(array_merge([
             'nombre_negocio' => $nombre, 'slug' => $slug, 'rubro' => 'spa',
             'usuario_registra' => 'test', 'fecha_registro' => '2026-06-01 08:00:00', 'estado' => 1,
         ], $extra));
+
+        // El chat vive en la página COMPLETA (módulo de pago "pagina_publica").
+        $this->activarModulo($id, 'pagina_publica');
+
+        return $id;
     }
 
     private function js(string $parcial = 'chatbot'): string

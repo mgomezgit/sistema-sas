@@ -116,6 +116,12 @@ class DescripcionServicioTest extends TestCase
 
         (new SvcModulo)->activarModulo($this->negocioA, 'ia', 'test');
         (new SvcModulo)->activarModulo($this->negocioB, 'ia', 'test');
+
+        // La descripción pública es de la página completa (módulo de pago
+        // "pagina_publica"): los tres negocios la tienen activa.
+        foreach ([$this->negocioA, $this->negocioB, $this->negocioSinModulo] as $negocio) {
+            (new SvcModulo)->activarModulo($negocio, 'pagina_publica', 'test');
+        }
     }
 
     protected function tearDown(): void

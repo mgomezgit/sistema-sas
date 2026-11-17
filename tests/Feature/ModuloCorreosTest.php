@@ -103,6 +103,11 @@ class ModuloCorreosTest extends TestCase
 
         // Solo A tiene el módulo: B nunca lo activó (como un negocio nuevo).
         $this->activarModulo($this->negocioA, 'correos');
+
+        // La solicitud pública necesita la página completa (módulo
+        // "pagina_publica") en los dos: aquí se prueba solo el de correos.
+        $this->activarModulo($this->negocioA, 'pagina_publica');
+        $this->activarModulo($this->negocioB, 'pagina_publica');
     }
 
     protected function tearDown(): void

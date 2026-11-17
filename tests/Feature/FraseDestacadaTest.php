@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -58,6 +59,7 @@ use Tests\TestCase;
  */
 class FraseDestacadaTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     const PAYLOAD = '<img src=x onerror=alert(1)> "comillas" y \'apostrofes\' & más';
@@ -81,6 +83,12 @@ class FraseDestacadaTest extends TestCase
 
         $this->negocioA = $this->crearNegocio('Spa Aurora', 'spa-aurora');
         $this->negocioB = $this->crearNegocio('Casa Brisa', 'casa-brisa');
+
+        // La página pública completa es el módulo de pago "pagina_publica":
+        // estas pruebas ejercitan la página completa, así que sus negocios lo
+        // tienen activo (los negocios de prueba nacen sin módulos).
+        $this->activarModulo($this->negocioA, 'pagina_publica');
+        $this->activarModulo($this->negocioB, 'pagina_publica');
     }
 
     protected function tearDown(): void

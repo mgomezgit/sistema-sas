@@ -308,6 +308,10 @@ class ConfiguracionNegocioTest extends TestCase
 
     public function test_el_endpoint_publico_incluye_los_dos_campos_nuevos(): void
     {
+        // La lista blanca completa es la de la página completa (módulo
+        // "pagina_publica"); sin él, informacion devuelve la básica.
+        (new \App\Service\SvcModulo)->activarModulo($this->tenantId, 'pagina_publica', 'test');
+
         $this->withSession($this->sesionAdmin())->postJson(
             'request/negocio/actualizar-configuracion',
             $this->datosCompletos([

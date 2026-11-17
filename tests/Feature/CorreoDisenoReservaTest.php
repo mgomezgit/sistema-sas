@@ -46,6 +46,9 @@ class CorreoDisenoReservaTest extends TestCase
             'color_acento' => 'oro_rosa',
             'slug' => 'negocio-de-prueba',
             'politica_cancelacion' => null,
+            // El botón a reservar/{slug} solo va con la página completa
+            // (módulo "pagina_publica"); lo decide quien despacha el correo.
+            'pagina_completa' => true,
         ], $sobreescribir);
     }
 

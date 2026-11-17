@@ -101,6 +101,12 @@ class SolicitudPendienteCampanaTest extends TestCase
         // que ambos negocios lo tienen activo.
         $this->activarModulo($this->tenantId, 'correos');
         $this->activarModulo($this->otroTenantId, 'correos');
+
+        // La página pública completa es el módulo de pago "pagina_publica":
+        // estas pruebas ejercitan la página completa, así que sus negocios lo
+        // tienen activo (los negocios de prueba nacen sin módulos).
+        $this->activarModulo($this->tenantId, 'pagina_publica');
+        $this->activarModulo($this->otroTenantId, 'pagina_publica');
     }
 
     /* ================= AYUDANTES ================= */

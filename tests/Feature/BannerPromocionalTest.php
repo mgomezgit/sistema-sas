@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -18,6 +19,7 @@ use Tests\TestCase;
  */
 class BannerPromocionalTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $negocioA;
@@ -36,6 +38,12 @@ class BannerPromocionalTest extends TestCase
 
         $this->negocioA = $this->crearNegocio('Spa Fashion', 'spa-fashion');
         $this->negocioB = $this->crearNegocio('Casa Canela', 'casa-canela');
+
+        // La página pública completa es el módulo de pago "pagina_publica":
+        // estas pruebas ejercitan la página completa, así que sus negocios lo
+        // tienen activo (los negocios de prueba nacen sin módulos).
+        $this->activarModulo($this->negocioA, 'pagina_publica');
+        $this->activarModulo($this->negocioB, 'pagina_publica');
     }
 
     private function crearNegocio(string $nombre, string $slug): int

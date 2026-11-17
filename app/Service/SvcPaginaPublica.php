@@ -24,6 +24,39 @@ use Illuminate\Support\Facades\Log;
 class SvcPaginaPublica
 {
     /**
+     * Módulo de pago de la página completa. Sin él, la página es la BÁSICA
+     * (informacionBasica) y los demás endpoints públicos responden 404.
+     */
+    const CLAVE_MODULO = 'pagina_publica';
+
+    /**
+     * ¿Este negocio muestra la página COMPLETA? Vigencia en tiempo real
+     * (SvcModulo::estaActivo). Quien resuelve el slug lo llama UNA vez por
+     * petición, en su punto único (PaginaPublicaViewController::mostrar y
+     * PublicoController::negocioPorSlug); no se guarda en el modelo para no
+     * colgarle un atributo que no es columna.
+     */
+    public function paginaCompleta(Negocio $negocio): bool
+    {
+        return app(SvcModulo::class)->estaActivo($negocio->id_negocio, self::CLAVE_MODULO);
+    }
+
+    /**
+     * Lista blanca PROPIA de la página básica: nombre, horario y WhatsApp.
+     * Nada más (ni teléfono, ni política, ni frase, ni personalización).
+     */
+    public function informacionBasica(Negocio $negocio): array
+    {
+        return [
+            'nombre_negocio' => $negocio->nombre_negocio,
+            'dias_atencion' => $negocio->dias_atencion,
+            'hora_apertura' => $negocio->hora_apertura,
+            'hora_cierre' => $negocio->hora_cierre,
+            'whatsapp_numero' => $negocio->whatsapp_numero,
+        ];
+    }
+
+    /**
      * El negocio dueño de la página, o null si el slug no existe o está dado
      * de baja. Los dos casos se resuelven igual a propósito: quien llama no
      * puede distinguir el motivo, solo que no hay página que mostrar.

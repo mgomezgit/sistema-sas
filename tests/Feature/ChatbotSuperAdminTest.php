@@ -96,6 +96,12 @@ class ChatbotSuperAdminTest extends TestCase
 
         (new SvcModulo)->activarModulo($this->negocioA, 'chatbot', 'test');
         (new SvcModulo)->activarModulo($this->negocioB, 'chatbot', 'test');
+
+        // El chat se sirve desde la página COMPLETA (módulo "pagina_publica"):
+        // sin ella, sus endpoints públicos responden 404. Los tres la tienen.
+        foreach ([$this->negocioA, $this->negocioB, $this->negocioC] as $negocio) {
+            (new SvcModulo)->activarModulo($negocio, 'pagina_publica', 'test');
+        }
     }
 
     protected function tearDown(): void

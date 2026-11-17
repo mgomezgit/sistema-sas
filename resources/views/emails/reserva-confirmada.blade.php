@@ -1,5 +1,6 @@
 @php
-    // $negocio: ['nombre_negocio', 'color_acento', 'slug', 'politica_cancelacion'].
+    // $negocio: ['nombre_negocio', 'color_acento', 'slug', 'politica_cancelacion', 'pagina_completa'].
+    // El botón a reservar/{slug} solo va con la página completa (módulo pagina_publica).
     // Ver ReservaController::datosParaNotificar() y ColorAcento (traduce el
     // nombre del acento guardado en negocios.color_acento a un hex plano: un
     // correo no puede leer var(--accent)).
@@ -25,6 +26,6 @@
     'etiquetaEmpleado' => 'Te atenderá',
     'cierre' => 'Si necesitas cambiar o cancelar tu cita, comunícate con nosotros con anticipación. ¡Te esperamos!',
     'politicaCancelacion' => $negocio['politica_cancelacion'] ?? null,
-    'urlBoton' => ! empty($negocio['slug']) ? url('reservar/'.$negocio['slug']) : null,
+    'urlBoton' => ! empty($negocio['slug']) && ! empty($negocio['pagina_completa']) ? url('reservar/'.$negocio['slug']) : null,
     'textoBoton' => 'Ver mi reserva',
 ])

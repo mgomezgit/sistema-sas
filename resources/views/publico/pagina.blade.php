@@ -14,51 +14,16 @@
 
     $inicialNegocio = mb_strtoupper(mb_substr(trim($negocio['nombre_negocio']), 0, 1)) ?: '?';
 
-    $diasSemana = [1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles', 4 => 'Jueves', 5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo'];
-    $diasCortos = [1 => 'Lun', 2 => 'Mar', 3 => 'Mié', 4 => 'Jue', 5 => 'Vie', 6 => 'Sáb', 7 => 'Dom'];
+    // Horario y WhatsApp: el mismo formateo que la página básica
+    // (App\Support\HorarioPublico), para que las dos digan lo mismo.
+    $diasCortos = \App\Support\HorarioPublico::DIAS_CORTOS;
+    $diasActivos = \App\Support\HorarioPublico::diasActivos($negocio['dias_atencion'] ?? null);
+    $resumenDias = \App\Support\HorarioPublico::resumenDias($diasActivos);
 
-    $diasActivos = [];
-    if (! empty($negocio['dias_atencion'])) {
-        $diasActivos = array_values(array_unique(array_filter(
-            array_map('intval', explode(',', $negocio['dias_atencion'])),
-            fn ($dia) => $dia >= 1 && $dia <= 7
-        )));
-        sort($diasActivos);
-    }
+    $horaAperturaTexto = \App\Support\HorarioPublico::hora($negocio['hora_apertura'] ?? null);
+    $horaCierreTexto = \App\Support\HorarioPublico::hora($negocio['hora_cierre'] ?? null);
 
-    // "Lunes a sábado" si son consecutivos; si no, la lista corta de cada uno.
-    $resumenDias = null;
-    if (count($diasActivos) === 1) {
-        $resumenDias = $diasSemana[$diasActivos[0]];
-    } elseif (count($diasActivos) > 1) {
-        $esConsecutivo = $diasActivos === range($diasActivos[0], end($diasActivos));
-        $resumenDias = $esConsecutivo
-            ? $diasSemana[$diasActivos[0]].' a '.$diasSemana[end($diasActivos)]
-            : implode(', ', array_map(fn ($dia) => $diasCortos[$dia], $diasActivos));
-    }
-
-    $formatearHoraPublica = function (?string $hora) {
-        if (empty($hora)) {
-            return null;
-        }
-
-        try {
-            return \Carbon\Carbon::parse($hora)->format('g:i A');
-        } catch (\Exception $e) {
-            return null;
-        }
-    };
-
-    $horaAperturaTexto = $formatearHoraPublica($negocio['hora_apertura'] ?? null);
-    $horaCierreTexto = $formatearHoraPublica($negocio['hora_cierre'] ?? null);
-
-    $whatsappLink = null;
-    if (! empty($negocio['whatsapp_numero'])) {
-        $whatsappDigitos = preg_replace('/\D/', '', $negocio['whatsapp_numero']);
-        if ($whatsappDigitos !== '') {
-            $whatsappLink = 'https://wa.me/'.$whatsappDigitos.'?text='.rawurlencode('Hola, quiero agendar una cita');
-        }
-    }
+    $whatsappLink = \App\Support\HorarioPublico::whatsappLink($negocio['whatsapp_numero'] ?? null, 'Hola, quiero agendar una cita');
 
     // Solo se agrupa por categoría si hay más de una: con una sola categoría
     // (o ninguna) el encabezado no aporta orden, sería ruido.

@@ -9,6 +9,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\ActivaModulos;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,7 @@ use Tests\TestCase;
  */
 class PaginaPublicaTest extends TestCase
 {
+    use ActivaModulos;
     use RefreshDatabase;
 
     private int $negocioA;
@@ -38,6 +40,12 @@ class PaginaPublicaTest extends TestCase
 
         $this->negocioA = $this->crearNegocio('Spa Fashion', 'spa-fashion');
         $this->negocioB = $this->crearNegocio('Casa Canela', 'casa-canela');
+
+        // La página pública completa es el módulo de pago "pagina_publica":
+        // estas pruebas ejercitan la página completa, así que sus negocios lo
+        // tienen activo (los negocios de prueba nacen sin módulos).
+        $this->activarModulo($this->negocioA, 'pagina_publica');
+        $this->activarModulo($this->negocioB, 'pagina_publica');
     }
 
     private function crearBanner(int $tenantId, array $info = []): int
@@ -153,6 +161,9 @@ class PaginaPublicaTest extends TestCase
         $migracion = require database_path('migrations/2026_09_22_120000_agregar_pagina_publica_a_negocios.php');
         $migracion->down();
 
+        // Las activaciones del setUp (módulo pagina_publica) cuelgan de los
+        // negocios por clave foránea: se quitan antes de borrarlos.
+        DB::table('negocio_modulos')->delete();
         DB::table('negocios')->delete();
         $conTildes = $this->crearNegocioSinSlug('Salón Núñez & Spa');
         $primerRepetido = $this->crearNegocioSinSlug('Casa Canela');

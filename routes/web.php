@@ -110,14 +110,13 @@ Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->
     Route::post('reserva/eliminar', [App\Http\Controllers\Request\ReservaController::class, 'eliminar']);
     Route::get('reserva/listar', [App\Http\Controllers\Request\ReservaController::class, 'listar']);
     Route::get('reserva/listar-calendario', [App\Http\Controllers\Request\ReservaController::class, 'listarParaCalendario']);
+    // "obtener" abre UNA reserva por id (?reserva=ID): no es solo de las
+    // solicitudes, así que no depende del módulo de la página pública.
     Route::get('reserva/obtener', [App\Http\Controllers\Request\ReservaController::class, 'obtener']);
-    Route::get('reserva/solicitudes-pendientes', [App\Http\Controllers\Request\ReservaController::class, 'solicitudesPendientes']);
     Route::get('reserva/historial', [App\Http\Controllers\Request\ReservaController::class, 'historial']);
     Route::post('negocio/actualizar-tema', [App\Http\Controllers\Request\NegocioController::class, 'actualizarTema']);
     Route::get('negocio/configuracion', [App\Http\Controllers\Request\NegocioController::class, 'obtenerConfiguracion']);
     Route::post('negocio/actualizar-configuracion', [App\Http\Controllers\Request\NegocioController::class, 'actualizarConfiguracion']);
-    Route::post('negocio/guardar-frase', [App\Http\Controllers\Request\NegocioController::class, 'guardarFrase']);
-    Route::post('negocio/quitar-frase', [App\Http\Controllers\Request\NegocioController::class, 'quitarFrase']);
     Route::post('negocio/completar-onboarding', [App\Http\Controllers\Request\NegocioController::class, 'completarOnboarding']);
     Route::post('negocio/marcar-bienvenida', [App\Http\Controllers\Request\NegocioController::class, 'marcarBienvenidaVista']);
     // Reportes: módulo de pago. Bloquear solo la pantalla no bastaría; sin esto
@@ -159,10 +158,20 @@ Route::prefix('request')->middleware(['sesion.activa', 'restringir.empleado'])->
         Route::post('ia/perfil', [App\Http\Controllers\Request\IaController::class, 'perfil']);
     });
 
-    Route::post('banner/crear', [App\Http\Controllers\Request\BannerPromocionalController::class, 'crear']);
-    Route::post('banner/editar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'editar']);
-    Route::post('banner/eliminar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'eliminar']);
-    Route::get('banner/listar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'listar']);
+    // Página pública completa: módulo de pago. Banners, frase destacada y la
+    // campana de solicitudes solo existen con ella; sin esto un negocio sin el
+    // módulo podría llamar estos endpoints a mano. Los datos se conservan.
+    Route::middleware('verificar.modulo:pagina_publica')->group(function () {
+        Route::post('banner/crear', [App\Http\Controllers\Request\BannerPromocionalController::class, 'crear']);
+        Route::post('banner/editar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'editar']);
+        Route::post('banner/eliminar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'eliminar']);
+        Route::get('banner/listar', [App\Http\Controllers\Request\BannerPromocionalController::class, 'listar']);
+
+        Route::post('negocio/guardar-frase', [App\Http\Controllers\Request\NegocioController::class, 'guardarFrase']);
+        Route::post('negocio/quitar-frase', [App\Http\Controllers\Request\NegocioController::class, 'quitarFrase']);
+
+        Route::get('reserva/solicitudes-pendientes', [App\Http\Controllers\Request\ReservaController::class, 'solicitudesPendientes']);
+    });
 
     // Inventario de productos: módulo de pago. Bloquear solo la pantalla no
     // bastaría; sin esto un negocio sin el módulo podría llamar estos endpoints

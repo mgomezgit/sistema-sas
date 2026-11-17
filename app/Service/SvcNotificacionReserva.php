@@ -112,6 +112,9 @@ class SvcNotificacionReserva
                     'color_acento' => $negocio->color_acento ?? null,
                     'slug' => $negocio->slug ?? null,
                     'politica_cancelacion' => $negocio->politica_cancelacion ?? null,
+                    // El botón a reservar/{slug} solo va si el negocio tiene la
+                    // página completa (módulo "pagina_publica"), decidido al despachar.
+                    'pagina_completa' => $this->svcModulo->estaActivo($tenantId, SvcPaginaPublica::CLAVE_MODULO),
                 ],
             ];
         } catch (\Exception $e) {

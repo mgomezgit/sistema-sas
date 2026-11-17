@@ -47,9 +47,27 @@ class SvcRecursoReservable
         return ['ok' => true, 'valor' => $limpio];
     }
 
+    /**
+     * descripcion_publica solo se escribe con el módulo "pagina_publica"
+     * (es texto de la página completa). Sin él se quita de $info: al crear
+     * queda vacía y al editar se conserva la que ya estaba guardada, aunque la
+     * petición la mande. Nunca se borra un valor existente por esto.
+     */
+    private function sinDescripcionPublicaSiNoHayModulo(array $info, $tenantId): array
+    {
+        if (array_key_exists('descripcion_publica', $info)
+            && ! app(SvcModulo::class)->estaActivo($tenantId, SvcPaginaPublica::CLAVE_MODULO)) {
+            unset($info['descripcion_publica']);
+        }
+
+        return $info;
+    }
+
     public function crear($info)
     {
         try {
+            $info = $this->sinDescripcionPublicaSiNoHayModulo($info, $info['tenant_id'] ?? null);
+
             $recurso = RecursoReservable::create($info);
 
             return $recurso->id_recurso;
@@ -70,6 +88,8 @@ class SvcRecursoReservable
             if (! $query->exists()) {
                 return false;
             }
+
+            $info = $this->sinDescripcionPublicaSiNoHayModulo($info, $tenantId);
 
             $query->update($info);
 

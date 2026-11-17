@@ -11,6 +11,10 @@ use App\Service\SvcPaginaPublica;
  * banners) a través de SvcPaginaPublica, el mismo Service que usa
  * PublicoController para sus endpoints JSON: una sola consulta, un solo
  * filtro de tenant y una sola lista blanca de campos para toda esta zona.
+ *
+ * Módulo "pagina_publica": la decisión se toma AQUÍ, una vez por petición.
+ * Sin el módulo se pinta la página BÁSICA con su propia lista blanca
+ * (nombre, horario y WhatsApp) y no se consulta nada más.
  */
 class PaginaPublicaViewController
 {
@@ -25,6 +29,12 @@ class PaginaPublicaViewController
         // Mismo 404 que cualquier otra dirección inexistente del sitio.
         if ($negocio === null) {
             abort(404);
+        }
+
+        if (! $this->svcPaginaPublica->paginaCompleta($negocio)) {
+            return view('publico.pagina-basica', [
+                'negocio' => $this->svcPaginaPublica->informacionBasica($negocio),
+            ]);
         }
 
         return view('publico.pagina', [

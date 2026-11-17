@@ -490,11 +490,12 @@ class ModuloPagoTest extends TestCase
     public function test_listar_modulos_por_negocio_incluye_los_nunca_activados(): void
     {
         // Un renglón por módulo del catálogo (comisiones, chatbot, ia, reportes,
-        // inventario y correos), aunque el negocio no haya activado ninguno.
+        // inventario, correos y pagina_publica), aunque el negocio no haya activado ninguno.
         $modulos = array_column($this->svc()->listarModulosPorNegocio($this->negocioA), null, 'clave');
 
-        $this->assertEqualsCanonicalizing(['comisiones', 'chatbot', 'ia', 'reportes', 'inventario', 'correos'], array_keys($modulos));
+        $this->assertEqualsCanonicalizing(['comisiones', 'chatbot', 'ia', 'reportes', 'inventario', 'correos', 'pagina_publica'], array_keys($modulos));
         $this->assertSame(0, (int) $modulos['correos']['activo'], 'Correos nace apagado para un negocio de prueba');
+        $this->assertSame(0, (int) $modulos['pagina_publica']['activo'], 'La página completa nace apagada para un negocio de prueba');
         $this->assertSame(0, (int) $modulos['comisiones']['activo']);
         $this->assertSame(0, (int) $modulos['chatbot']['activo'], 'El chatbot nace apagado');
         $this->assertSame(0, (int) $modulos['ia']['activo'], 'El asistente creativo nace apagado');
@@ -515,9 +516,9 @@ class ModuloPagoTest extends TestCase
 
         $resumen = $this->svc()->listarNegociosConModulos();
 
-        // Un renglón por negocio y módulo del catálogo: 2 negocios x 6
-        // módulos (comisiones, chatbot, ia, reportes, inventario y correos).
-        $this->assertCount(12, $resumen);
+        // Un renglón por negocio y módulo del catálogo: 2 negocios x 7
+        // módulos (comisiones, chatbot, ia, reportes, inventario, correos y pagina_publica).
+        $this->assertCount(14, $resumen);
 
         $porNegocio = [];
 

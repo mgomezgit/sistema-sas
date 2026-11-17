@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Mail\ReservaRecordatorio;
 use App\Service\SvcModulo;
 use App\Service\SvcNotificacionReserva;
+use App\Service\SvcPaginaPublica;
 use App\Service\SvcReserva;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -31,6 +32,10 @@ class EnviarRecordatoriosReservas extends Command
         // vigencia en tiempo real (estaActivo). Proceso de sistema: recorre
         // todos los negocios, pero cada reserva se decide con SU tenant_id.
         $correosActivos = [];
+
+        // Página completa por negocio (módulo "pagina_publica"): decide si el
+        // correo lleva el botón a reservar/{slug}. También una vez por negocio.
+        $paginaCompleta = [];
 
         foreach ($reservas as $reserva) {
             $tenantId = (int) $reserva['tenant_id'];
@@ -59,6 +64,7 @@ class EnviarRecordatoriosReservas extends Command
                         'color_acento' => $reserva['color_acento'] ?? null,
                         'slug' => $reserva['slug'] ?? null,
                         'politica_cancelacion' => $reserva['politica_cancelacion'] ?? null,
+                        'pagina_completa' => $paginaCompleta[$tenantId] ??= $svcModulo->estaActivo($tenantId, SvcPaginaPublica::CLAVE_MODULO),
                     ])
                 );
 
