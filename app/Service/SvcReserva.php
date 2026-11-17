@@ -301,8 +301,9 @@ class SvcReserva
      * ⚠️ POR QUÉ AQUÍ NO SE ENVÍA NINGÚN CORREO AL CLIENTE
      *
      * El correo de "reserva confirmada" (App\Mail\ReservaConfirmada) NO vive
-     * en este Service ni en ningún observer del modelo: se dispara en un único
-     * sitio, ReservaController::crear(), justo después de llamar a crear().
+     * en este Service ni en ningún observer del modelo: se despacha en un único
+     * sitio, SvcNotificacionReserva::notificarReservaCreada(), que solo llama
+     * ReservaController::crear() justo después de llamar a crear().
      * Por eso crear la fila desde aquí no arrastra ese efecto, y por eso este
      * método puede apoyarse en el Model sin rodeos.
      *
