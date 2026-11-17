@@ -2,6 +2,8 @@
 
 namespace App\Logging;
 
+use App\Support\IdPeticion;
+use Illuminate\Routing\Route;
 use Monolog\LogRecord;
 use Monolog\Processor\ProcessorInterface;
 use Throwable;
@@ -22,6 +24,10 @@ use Throwable;
  * traza (sin sus argumentos). Los registros que no son excepciones (auditoría)
  * no coinciden con ningún patrón y salen intactos.
  *
+ * AGREGA al "extra" de cada registro solo identificadores y la ruta (ver
+ * identificadoresDePeticion()), para cruzar el código de soporte que ve el
+ * usuario con la excepción de esa misma petición.
+ *
  * Se aplica con App\Logging\SanitizarRegistros como "tap" en config/logging.php.
  */
 class ProcesadorSinDatosPersonales implements ProcessorInterface
@@ -33,7 +39,60 @@ class ProcesadorSinDatosPersonales implements ProcessorInterface
         return $record->with(
             message: self::limpiarTexto($record->message),
             context: $this->limpiarContexto($record->context),
+            extra: array_merge($record->extra, self::identificadoresDePeticion()),
         );
+    }
+
+    /**
+     * Lo que se agrega al "extra" de CADA registro: SOLO identificadores y la
+     * ruta, nunca valores de campos ni datos de la persona.
+     *
+     * - id_peticion: el id corto de la petición (App\Support\IdPeticion), el
+     *   mismo que lleva el código de soporte que ve el usuario.
+     * - tenant_id e id_usuario: de la sesión, si existen (números).
+     * - ruta: método y la PLANTILLA de la ruta ("POST request/usuario/crear",
+     *   "GET publico/{slug}"), no la URL real: sin query string y sin los
+     *   valores de los parámetros (un token de confirmación, por ejemplo).
+     *
+     * En comandos y procesos sin petición no se agrega nada. Un registro nunca
+     * puede fallar por esto, así que cualquier error se ignora.
+     */
+    public static function identificadoresDePeticion(): array
+    {
+        try {
+            if (! app()->bound('request')) {
+                return [];
+            }
+
+            $request = app('request');
+            $extra = [];
+
+            $id = $request->attributes->get(IdPeticion::ATRIBUTO);
+
+            if (is_string($id)) {
+                $extra['id_peticion'] = $id;
+            }
+
+            if ($request->hasSession()) {
+                foreach (['tenant_id', 'id_usuario'] as $clave) {
+                    $valor = $request->session()->get($clave);
+
+                    if (is_int($valor) || (is_string($valor) && ctype_digit($valor))) {
+                        $extra[$clave] = (int) $valor;
+                    }
+                }
+            }
+
+            $ruta = $request->route();
+
+            if ($ruta instanceof Route) {
+                $extra['ruta'] = $request->method().' '.$ruta->uri();
+            }
+
+            return $extra;
+        } catch (Throwable) {
+            return [];
+        }
     }
 
     /** Limpia un texto con una excepción (o cualquier texto) de valores de columnas. */

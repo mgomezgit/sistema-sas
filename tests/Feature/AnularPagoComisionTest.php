@@ -491,14 +491,14 @@ class AnularPagoComisionTest extends TestCase
         $antesB = $this->pago($pagoB);
         $antesA = $this->pago($this->pagoLaura);
 
-        $inexistente = $this->anular(999999)->assertJsonPath('error', 1)->getContent();
+        $inexistente = $this->sinIdDePeticion($this->anular(999999)->assertJsonPath('error', 1)->getContent());
 
-        $this->assertSame($inexistente, $this->anular($pagoB)->getContent());
-        $this->assertSame($inexistente, $this->anular($pagoB, self::MOTIVO, null, ['tenant_id' => $this->negocioB])->getContent());
+        $this->assertSame($inexistente, $this->sinIdDePeticion($this->anular($pagoB)->getContent()));
+        $this->assertSame($inexistente, $this->sinIdDePeticion($this->anular($pagoB, self::MOTIVO, null, ['tenant_id' => $this->negocioB])->getContent()));
 
         // Y en la otra dirección.
-        $inexistenteB = $this->anular(999999, self::MOTIVO, $this->sesionB())->getContent();
-        $this->assertSame($inexistenteB, $this->anular($this->pagoLaura, self::MOTIVO, $this->sesionB(), ['tenant_id' => $this->negocioA])->getContent());
+        $inexistenteB = $this->sinIdDePeticion($this->anular(999999, self::MOTIVO, $this->sesionB())->getContent());
+        $this->assertSame($inexistenteB, $this->sinIdDePeticion($this->anular($this->pagoLaura, self::MOTIVO, $this->sesionB(), ['tenant_id' => $this->negocioA])->getContent()));
 
         $this->assertSame($antesB, $this->pago($pagoB));
         $this->assertSame($pagoB, (int) $this->reserva($citaB)['id_pago_comision']);
@@ -738,5 +738,18 @@ class AnularPagoComisionTest extends TestCase
 
         $this->assertContains('request/comisiones/pagos/anular', $uris, 'La ruta de anular no existe');
         $this->assertSame([], $faltantes, "Rutas de comisiones sin su protección:\n".implode("\n", $faltantes));
+    }
+
+    /**
+     * El código de soporte lleva el id corto de la petición (CODIGO-7F3A), que
+     * cambia en cada petición. Para comparar que dos respuestas son idénticas
+     * (no revelan si el registro existe) se reemplaza solo ese id, después de
+     * comprobar que está.
+     */
+    private function sinIdDePeticion(string $json): string
+    {
+        $this->assertMatchesRegularExpression('/-[2-9A-HJKMNP-Z]{4}","data"/', $json, 'El código de soporte debe llevar el id de la petición');
+
+        return preg_replace('/-[2-9A-HJKMNP-Z]{4}(?=","data")/', '-ID', $json);
     }
 }

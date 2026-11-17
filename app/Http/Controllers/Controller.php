@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\IdPeticion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 abstract class Controller
@@ -42,6 +44,10 @@ abstract class Controller
         $this->respuesta = ['error' => 1, 'mensaje' => '', 'data' => []];
         $this->validationRules = [];
         $this->validationMessages = [];
+
+        // Id corto de ESTA petición: lo llevan el código de soporte y cada línea
+        // del registro (App\Logging\ProcesadorSinDatosPersonales).
+        IdPeticion::asignar($this->request);
 
         return $this->{$method}(...array_values($parameters));
     }
@@ -86,13 +92,13 @@ abstract class Controller
     /**
      * Error técnico: el usuario no puede resolverlo por su cuenta, así que se le
      * entrega un código corto para que lo reporte al soporte y quede rastreable
-     * contra el log del canal "database".
+     * contra el log del canal "database" (ver codigoDeSoporte()).
      */
     public function agregarErrorSistema(string $codigo): void
     {
         $this->respuesta['mensaje'] = 'Ocurrió un problema técnico y la acción no se completó. '
             .'Vuelve a intentarlo en unos segundos. Si el problema continúa, comunícate con soporte '
-            .'e indica este código: '.$codigo;
+            .'e indica este código: '.$this->codigoDeSoporte($codigo);
     }
 
     /**
@@ -104,7 +110,25 @@ abstract class Controller
         $this->respuesta['mensaje'] = 'No se pudo completar la acción porque '.$registro.' ya no está disponible. '
             .'Es posible que se haya eliminado, o que otra persona lo haya modificado. '
             .'Recarga la página e inténtalo de nuevo. Si el problema continúa, comunícate con soporte '
-            .'e indica este código: '.$codigo;
+            .'e indica este código: '.$this->codigoDeSoporte($codigo);
+    }
+
+    /**
+     * El código que ve el usuario lleva el id corto de la petición
+     * (USR-CREAR-7F3A) y se escribe en ese mismo momento en el canal
+     * "database". El procesador central le pone a esa línea, y a la de la
+     * excepción de la misma petición, el mismo id_peticion en el "extra": así
+     * el código que dicta el spa lleva directo a la excepción. La línea lleva
+     * solo el código; los identificadores los agrega el procesador.
+     */
+    private function codigoDeSoporte(string $codigo): string
+    {
+        $id = IdPeticion::actual() ?? IdPeticion::asignar($this->request);
+        $codigoCompleto = $codigo.'-'.$id;
+
+        Log::channel('database')->warning('CODIGO DE SOPORTE '.$codigoCompleto);
+
+        return $codigoCompleto;
     }
 
     public function respSinError(): void

@@ -414,15 +414,15 @@ class ReservaComisionPagadaTest extends TestCase
         // las validaciones del controller y llegue de verdad al Service.
         $edicion = fn (int $id) => $this->datosEdicion($id, ['notas' => 'x', 'fecha_reserva' => '2026-06-12', 'tenant_id' => $this->negocioB]);
 
-        $inexistenteEliminar = $this->eliminar(999999)->getContent();
-        $inexistenteEditar = $this->editar($edicion(999999))->getContent();
+        $inexistenteEliminar = $this->sinIdDePeticion($this->eliminar(999999)->getContent());
+        $inexistenteEditar = $this->sinIdDePeticion($this->editar($edicion(999999))->getContent());
 
         foreach ([$pagadaB, $noPagadaB] as $idB) {
             // tenant_id en el cuerpo: se ignora, manda la sesión.
-            $this->assertSame($inexistenteEliminar, $this->withSession($this->sesion())
-                ->postJson('request/reserva/eliminar', ['id_reserva' => $idB, 'tenant_id' => $this->negocioB])->getContent());
+            $this->assertSame($inexistenteEliminar, $this->sinIdDePeticion($this->withSession($this->sesion())
+                ->postJson('request/reserva/eliminar', ['id_reserva' => $idB, 'tenant_id' => $this->negocioB])->getContent()));
 
-            $this->assertSame($inexistenteEditar, $this->editar($edicion($idB))->getContent());
+            $this->assertSame($inexistenteEditar, $this->sinIdDePeticion($this->editar($edicion($idB))->getContent()));
         }
 
         $this->assertStringNotContainsString('comisión', $inexistenteEliminar.$inexistenteEditar);
@@ -530,5 +530,18 @@ class ReservaComisionPagadaTest extends TestCase
             $this->assertStringContainsString('->lockForUpdate()', $cuerpo, "$metodo() debe bloquear la fila que lee");
             $this->assertStringContainsString('id_pago_comision', $cuerpo, "$metodo() debe revisar id_pago_comision");
         }
+    }
+
+    /**
+     * El código de soporte lleva el id corto de la petición (CODIGO-7F3A), que
+     * cambia en cada petición. Para comparar que dos respuestas son idénticas
+     * (no revelan si el registro existe) se reemplaza solo ese id, después de
+     * comprobar que está.
+     */
+    private function sinIdDePeticion(string $json): string
+    {
+        $this->assertMatchesRegularExpression('/-[2-9A-HJKMNP-Z]{4}","data"/', $json, 'El código de soporte debe llevar el id de la petición');
+
+        return preg_replace('/-[2-9A-HJKMNP-Z]{4}(?=","data")/', '-ID', $json);
     }
 }

@@ -271,7 +271,11 @@ class EmpleadoController extends Controller
             });
         } catch (\Exception $e) {
             Log::channel('database')->info($e);
-            $this->agregarErrorSistema($e->getMessage());
+            // Solo los dos códigos propios de arriba se muestran tal cual; el
+            // mensaje de cualquier otra excepción (por ejemplo una del commit,
+            // que trae el SQL) nunca llega al usuario.
+            $codigo = in_array($e->getMessage(), ['EMP-ACCESO-CREAR', 'EMP-ACCESO-VINCULAR'], true) ? $e->getMessage() : 'EMP-ACCESO';
+            $this->agregarErrorSistema($codigo);
 
             return $this->sendResponse();
         }
