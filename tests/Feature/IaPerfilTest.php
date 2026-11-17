@@ -109,6 +109,12 @@ class IaPerfilTest extends TestCase
 
         (new SvcModulo)->activarModulo($this->negocioA, 'ia', 'test');
         (new SvcModulo)->activarModulo($this->negocioB, 'ia', 'test');
+
+        // Los botones "Generar con IA" de frase y banner viven en la pestaña
+        // Banners, que con candado no los pinta: los dos tienen la página
+        // pública completa (módulo "pagina_publica").
+        (new SvcModulo)->activarModulo($this->negocioA, 'pagina_publica', 'test');
+        (new SvcModulo)->activarModulo($this->negocioB, 'pagina_publica', 'test');
     }
 
     protected function tearDown(): void

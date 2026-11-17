@@ -6,6 +6,7 @@ use App\Models\ModuloPlataforma;
 use App\Service\SvcIA;
 use App\Service\SvcModulo;
 use App\Service\SvcNotificacionReserva;
+use App\Service\SvcPaginaPublica;
 use App\Support\Plataforma;
 
 class ConfiguracionViewController extends Controller
@@ -30,7 +31,20 @@ class ConfiguracionViewController extends Controller
             'iaTienePerfil' => $iaActiva && $perfil !== ['especialidad' => '', 'publico' => ''],
             'iaMensajeLimite' => SvcIA::MENSAJE_LIMITE,
             'iaMensajeNoDisponible' => SvcIA::MENSAJE_NO_DISPONIBLE,
-        ], $this->datosTarjetaCorreos()));
+        ], $this->datosTarjetaCorreos(), $this->datosPaginaPublica()));
+    }
+
+    /**
+     * Página pública completa (módulo "pagina_publica"): decide si la pestaña
+     * Banners y la frase se muestran o van con candado, y qué dice la tarjeta
+     * "Página pública". Del tenant de la sesión.
+     */
+    private function datosPaginaPublica(): array
+    {
+        return [
+            'paginaPublicaCompleta' => app(SvcModulo::class)->estaActivo(session('tenant_id'), SvcPaginaPublica::CLAVE_MODULO),
+            'candadoPaginaPublica' => Plataforma::datosCandado(SvcPaginaPublica::CLAVE_MODULO, session('nombre_negocio_sesion')),
+        ];
     }
 
     /**

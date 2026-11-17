@@ -67,6 +67,9 @@
     @if ($iaActiva)
         @include('app.configuracion.partials.ia-generar-estilos')
     @endif
+    @unless ($paginaPublicaCompleta)
+        @include('partials.candado-modulo-estilos')
+    @endunless
 @endsection
 
 @section('content')
@@ -144,19 +147,39 @@
                             </div>
                             <div class="ayuda-campo">No se muestra en tu página.</div>
 
-                            <div class="campo-flotante etiqueta-contraste mt-3">
-                                <i class="bi bi-card-text"></i>
-                                <textarea id="descripcion_publica" name="descripcion_publica" rows="3" maxlength="200" placeholder=" " aria-describedby="ayuda-descripcion-publica"></textarea>
-                                <label for="descripcion_publica">Descripción pública (opcional)</label>
-                            </div>
-                            <div class="ayuda-campo" id="ayuda-descripcion-publica">
-                                Se muestra en tu página cuando la clienta toca el servicio.
-                                <span class="contador-descripcion-publica" id="contador-descripcion-publica">0/200</span>
-                            </div>
+                            {{-- Sin la página pública completa (módulo 'pagina_publica') el campo
+                                 va deshabilitado y SIN name: no se envía (y el Service además
+                                 lo ignora). Muestra la descripción guardada, que se conserva. --}}
+                            @if ($paginaPublicaCompleta)
+                                <div class="campo-flotante etiqueta-contraste mt-3">
+                                    <i class="bi bi-card-text"></i>
+                                    <textarea id="descripcion_publica" name="descripcion_publica" rows="3" maxlength="200" placeholder=" " aria-describedby="ayuda-descripcion-publica"></textarea>
+                                    <label for="descripcion_publica">Descripción pública (opcional)</label>
+                                </div>
+                                <div class="ayuda-campo" id="ayuda-descripcion-publica">
+                                    Se muestra en tu página cuando la clienta toca el servicio.
+                                    <span class="contador-descripcion-publica" id="contador-descripcion-publica">0/200</span>
+                                </div>
+                            @else
+                                <div class="campo-flotante etiqueta-contraste mt-3">
+                                    <i class="bi bi-card-text"></i>
+                                    <textarea id="descripcion_publica" rows="3" maxlength="200" placeholder=" " disabled aria-describedby="candado-descripcion-publica-titulo"></textarea>
+                                    <label for="descripcion_publica">Descripción pública</label>
+                                </div>
+                                <span class="d-none" id="contador-descripcion-publica"></span>
+                                @include('partials.candado-modulo', [
+                                    'candado' => $candadoPaginaPublica,
+                                    'idCandado' => 'candado-descripcion-publica',
+                                    'titulo' => 'Descripción pública del servicio',
+                                    'texto' => 'Se muestra en tu página pública completa cuando la clienta toca el servicio.',
+                                    'compacto' => true,
+                                ])
+                            @endif
 
-                            {{-- Solo se renderiza con el módulo 'ia' activo (ni oculto con CSS sin él).
+                            {{-- Solo se renderiza con el módulo 'ia' activo (ni oculto con CSS sin él)
+                                 y con la página completa (sin ella no hay campo que rellenar).
                                  Solo PROPONE: rellena la descripción pública y no guarda nada. --}}
-                            @if ($iaActiva)
+                            @if ($iaActiva && $paginaPublicaCompleta)
                                 @include('app.configuracion.partials.ia-generar', [
                                     'iaTipo' => 'descripcion_servicio',
                                     'iaCampoTitulo' => '',

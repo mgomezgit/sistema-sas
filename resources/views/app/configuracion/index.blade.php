@@ -344,6 +344,13 @@
             min-height: 44px;
         }
 
+        /* La dirección de la página pública con un slug largo se parte donde
+           haga falta en vez de empujar la pantalla de lado (celular 390 px). */
+        #vista-previa-slug {
+            overflow-wrap: anywhere;
+            word-break: break-all;
+        }
+
         /* ================= TARJETA "CORREOS A TUS CLIENTAS" ================= */
 
         .tarjeta-correos-clientas {
@@ -506,6 +513,7 @@
     @if ($iaActiva)
         @include('app.configuracion.partials.ia-generar-estilos')
     @endif
+    @include('partials.candado-modulo-estilos')
 @endsection
 
 @section('content')
@@ -648,7 +656,13 @@
 
             <div class="tarjeta-seccion-form">
                 <div class="etiqueta-seccion-form">Política de cancelación</div>
-                <div class="ayuda-bloque">Este texto aparece en tu página pública para que tus clientes lo lean antes de reservar.</div>
+                <div class="ayuda-bloque">
+                    @if ($paginaPublicaCompleta)
+                        Este texto aparece en tu página pública para que tus clientes lo lean antes de reservar.
+                    @else
+                        Se guarda igual. En tu página aparece con la página pública completa (plan {{ $candadoPaginaPublica['plan'] ?? 'Pro' }}).
+                    @endif
+                </div>
 
                 <div class="campo-flotante">
                     <i class="bi bi-file-text"></i>
@@ -671,6 +685,9 @@
 
     {{-- Correos a tus clientas (módulo 'correos'): solo informa, no guarda nada. --}}
     @include('app.configuracion.partials.correos-clientas')
+
+    {{-- Página pública (módulo 'pagina_publica'): completa activa o básica con candado. --}}
+    @include('app.configuracion.partials.pagina-publica')
     </div>
 
     {{-- ================= PESTAÑA 2: BANNERS ================= --}}
@@ -680,6 +697,27 @@
             @include('app.configuracion.partials.ia-perfil')
         @endif
 
+        {{-- Sin la página pública completa (módulo 'pagina_publica') la frase
+             y los banners no se ven en la página básica: van con candado, sin
+             su formulario ni su JS de carga. Los datos se conservan. --}}
+        @unless ($paginaPublicaCompleta)
+            <div class="mb-4">
+                @include('partials.candado-modulo', [
+                    'candado' => $candadoPaginaPublica,
+                    'idCandado' => 'candado-frase',
+                    'titulo' => 'Frase destacada',
+                    'texto' => 'Una frase corta bajo el encabezado de tu página para un aviso o una promoción del momento. Se ve con la página pública completa.',
+                ])
+            </div>
+            <div class="mb-4">
+                @include('partials.candado-modulo', [
+                    'candado' => $candadoPaginaPublica,
+                    'idCandado' => 'candado-banners',
+                    'titulo' => 'Banners de tu página',
+                    'texto' => 'Imágenes de tus promociones que rotan en la cabecera de tu página. Se ven con la página pública completa.',
+                ])
+            </div>
+        @else
         {{-- Frase destacada: UNA por negocio, franja bajo el encabezado de la
              página pública. No depende del módulo "ia". Es un div y no un
              form: con un form de un solo campo de texto, Enter enviaría de
@@ -740,10 +778,12 @@
         </div>
 
         <div class="rejilla-banners" id="contenedor-banners"></div>
+        @endunless
     </div>
     </div>
 
     {{-- ================= MODAL: BANNER ================= --}}
+    @if ($paginaPublicaCompleta)
     <div class="modal fade modal-moderno" id="modal-banner" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -862,6 +902,7 @@
             </div>
         </div>
     </div>
+    @endif
 @endsection
 
 @section('scripts')
@@ -1078,6 +1119,11 @@
         // Todo con .val() / .text(): la frase es texto escrito por el admin (o
         // propuesto por la IA), nunca HTML.
         function pintarFrase(negocio) {
+            // Sin la página pública completa la tarjeta no existe (va el candado).
+            if (jQuery('#tarjeta-frase-destacada').length === 0) {
+                return;
+            }
+
             var texto = negocio.frase_destacada || '';
             var estado = jQuery('#estado-frase');
 
@@ -1551,8 +1597,12 @@
 
         // La pestaña se carga la primera vez que se abre, no al entrar a la
         // pantalla: quien solo viene a cambiar su horario no paga esa consulta.
+        // Sin la página pública completa la pestaña solo trae el candado (y el
+        // perfil de IA): no hay banners que pedir a un endpoint bloqueado.
+        var PAGINA_PUBLICA_COMPLETA = @json($paginaPublicaCompleta);
+
         jQuery('#tab-banners').on('shown.bs.tab', function () {
-            if (!bannersCargados) {
+            if (PAGINA_PUBLICA_COMPLETA && !bannersCargados) {
                 cargarBanners();
             }
         });

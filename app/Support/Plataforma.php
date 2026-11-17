@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\ModuloPlataforma;
+
 /**
  * Datos de contacto de la plataforma para correos y mensajes de bloqueo.
  *
@@ -97,6 +99,32 @@ class Plataforma
         return $plan !== null
             ? 'Hola, soy del spa '.$nombreNegocio.' y quiero el plan '.$plan.' ('.$nombreModulo.').'
             : 'Hola, soy del spa '.$nombreNegocio.' y quiero activar '.$nombreModulo.'.';
+    }
+
+    /**
+     * Todo lo que pinta un candado de módulo de pago en el panel (tarjetas de
+     * Configuración, pestaña Banners, campo de Recursos): nombre del catálogo,
+     * plan, WhatsApp con el mensaje compartido, correo de contacto y el enlace
+     * a la pantalla "no disponible". Solo textos de la plataforma y el nombre
+     * del propio negocio (que viaja codificado en el enlace de WhatsApp).
+     *
+     * @return array{clave:string, nombre:string, plan:?string, whatsapp_link:string, correo:string, tiene_contacto:bool, url_no_disponible:string}
+     */
+    public static function datosCandado(string $clave, ?string $nombreNegocio): array
+    {
+        $textos = self::modulo($clave);
+        $contacto = self::contacto();
+        $nombre = (string) (ModuloPlataforma::where('clave', $clave)->value('nombre') ?? $clave);
+
+        return [
+            'clave' => $clave,
+            'nombre' => $nombre,
+            'plan' => $textos['plan'],
+            'whatsapp_link' => self::whatsappLink(self::mensajeWhatsappModulo($nombreNegocio ?? 'mi negocio', $textos['plan'], $nombre)),
+            'correo' => $contacto['correo'],
+            'tiene_contacto' => $contacto['tiene'],
+            'url_no_disponible' => url('backoffice/modulo/'.$clave),
+        ];
     }
 
     /**

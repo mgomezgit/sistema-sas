@@ -3034,6 +3034,12 @@
         $inventarioActivo = $esAdminDeNegocio
             && app(\App\Service\SvcModulo::class)->estaActivo(session('tenant_id'), 'inventario');
 
+        // Las solicitudes pendientes llegan desde la página pública COMPLETA
+        // (módulo "pagina_publica"): sin él no se pinta la campana ni su
+        // sondeo, que consultaría en bucle un endpoint bloqueado.
+        $paginaPublicaActiva = $esAdminDeNegocio
+            && app(\App\Service\SvcModulo::class)->estaActivo(session('tenant_id'), \App\Service\SvcPaginaPublica::CLAVE_MODULO);
+
         // El rol se deduce igual que en el resto del proyecto (el helper
         // del middleware + la ausencia de negocio), no leyendo un
         // nombre_rol suelto que podría variar entre instalaciones.
@@ -3276,7 +3282,7 @@
             <h1 class="h5 mb-0">@yield('title')</h1>
 
             <div class="d-flex align-items-center gap-2">
-            @if ($esAdminDeNegocio)
+            @if ($paginaPublicaActiva)
                 <div class="dropdown">
                     <button type="button" id="btn-campana-solicitudes" class="disparador-campana" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-calendar-plus"></i>
@@ -3292,7 +3298,9 @@
                         </div>
                     </div>
                 </div>
+            @endif
 
+            @if ($esAdminDeNegocio)
                 {{-- La campana de stock es del módulo de pago Inventario: sin el
                      módulo no se renderiza ni su botón ni, más abajo, su sondeo,
                      para no consultar en bucle un endpoint que está bloqueado. --}}
@@ -4224,8 +4232,9 @@
 
     {{-- Campana de solicitudes pendientes: mismo esqueleto que la de stock
          bajo (mismas condiciones de visibilidad, mismo patrón de sondeo
-         silencioso), pero apuntando a las solicitudes de la página pública. --}}
-    @if ($esAdminDeNegocio)
+         silencioso), pero apuntando a las solicitudes de la página pública.
+         Solo con la página pública completa (módulo "pagina_publica"). --}}
+    @if ($paginaPublicaActiva)
         <script>
             // El sondeo de las campanas comparte este intervalo. Se define aquí
             // (bloque siempre presente para el admin) porque la campana de stock
