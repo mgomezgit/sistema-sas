@@ -53,12 +53,16 @@ return [
     'channels' => [
 
         'stack' => [
+            // Quita valores de columnas, SQL con bindings y argumentos de la traza (ver App\Logging).
+            'tap' => [App\Logging\SanitizarRegistros::class],
             'driver' => 'stack',
             'channels' => explode(',', (string) env('LOG_STACK', 'single')),
             'ignore_exceptions' => false,
         ],
 
         'single' => [
+            // Quita valores de columnas, SQL con bindings y argumentos de la traza (ver App\Logging).
+            'tap' => [App\Logging\SanitizarRegistros::class],
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
@@ -66,6 +70,8 @@ return [
         ],
 
         'daily' => [
+            // Quita valores de columnas, SQL con bindings y argumentos de la traza (ver App\Logging).
+            'tap' => [App\Logging\SanitizarRegistros::class],
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
@@ -74,6 +80,8 @@ return [
         ],
 
         'database' => [
+            // Quita valores de columnas, SQL con bindings y argumentos de la traza (ver App\Logging).
+            'tap' => [App\Logging\SanitizarRegistros::class],
             'driver' => 'daily',
             // En testing escribe aparte de la auditoría real: las pruebas
             // registran suspensiones, activaciones de módulos y cascadas de
@@ -98,6 +106,8 @@ return [
         ],
 
         'monthly' => [
+            // Quita valores de columnas, SQL con bindings y argumentos de la traza (ver App\Logging).
+            'tap' => [App\Logging\SanitizarRegistros::class],
             'driver' => 'monthly',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
@@ -106,6 +116,8 @@ return [
         ],
 
         'slack' => [
+            // Quita valores de columnas, SQL con bindings y argumentos de la traza (ver App\Logging).
+            'tap' => [App\Logging\SanitizarRegistros::class],
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
             'username' => env('LOG_SLACK_USERNAME', env('APP_NAME', 'Laravel')),
@@ -115,6 +127,8 @@ return [
         ],
 
         'papertrail' => [
+            // Quita valores de columnas, SQL con bindings y argumentos de la traza (ver App\Logging).
+            'tap' => [App\Logging\SanitizarRegistros::class],
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => env('LOG_PAPERTRAIL_HANDLER', SyslogUdpHandler::class),
@@ -127,6 +141,8 @@ return [
         ],
 
         'stderr' => [
+            // Quita valores de columnas, SQL con bindings y argumentos de la traza (ver App\Logging).
+            'tap' => [App\Logging\SanitizarRegistros::class],
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => StreamHandler::class,
@@ -138,6 +154,8 @@ return [
         ],
 
         'syslog' => [
+            // Quita valores de columnas, SQL con bindings y argumentos de la traza (ver App\Logging).
+            'tap' => [App\Logging\SanitizarRegistros::class],
             'driver' => 'syslog',
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
@@ -145,6 +163,8 @@ return [
         ],
 
         'errorlog' => [
+            // Quita valores de columnas, SQL con bindings y argumentos de la traza (ver App\Logging).
+            'tap' => [App\Logging\SanitizarRegistros::class],
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
